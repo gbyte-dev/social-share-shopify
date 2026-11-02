@@ -1,0 +1,3 @@
+extends: theme-check:theme-app-extension
+AssetSizeAppBlockJavaScript:
+  thresholdInBytes: 10000

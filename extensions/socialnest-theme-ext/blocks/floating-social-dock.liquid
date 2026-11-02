@@ -1,0 +1,126 @@
+{% comment %}
+  SocialNest Floating Social Dock (App Embed Block)
+  Automatically embeds floating social media icons and messaging buttons
+  into customer-facing storefronts without modifying theme liquid code.
+  All visual styling, placement, and channel links are canonically managed in SocialNest.
+{% endcomment %}
+
+{{ 'socialnest-storefront.css' | asset_url | stylesheet_tag }}
+<script src="{{ 'socialnest-storefront.js' | asset_url }}" defer="defer"></script>
+<script>window.__sn_page_type = {{ request.page_type | json }};</script>
+
+<div id="socialnest-floating-dock-root"
+     class="socialnest-dock-container"
+     data-shop="{{ shop.myshopify_domain | default: shop.permanent_domain }}"
+     data-app-url="{{ block.settings.app_url | default: 'https://socialnest.test' | escape }}"
+     data-design-mode="{% if request.design_mode %}true{% else %}false{% endif %}"
+     data-page-type="{{ request.page_type | escape }}"
+     data-theme-position="{{ block.settings.position | default: 'dashboard' | escape }}"
+     {% if block.settings.position == 'custom' %}
+     data-theme-h-align="{{ block.settings.custom_horizontal_align | default: 'right' | escape }}"
+     data-theme-v-align="{{ block.settings.custom_vertical_align | default: 'bottom' | escape }}"
+     data-theme-offset-x-desktop="{{ block.settings.custom_offset_x_desktop | default: 24 }}"
+     data-theme-offset-y-desktop="{{ block.settings.custom_offset_y_desktop | default: 24 }}"
+     data-theme-offset-x-mobile="{{ block.settings.custom_offset_x_mobile | default: 16 }}"
+     data-theme-offset-y-mobile="{{ block.settings.custom_offset_y_mobile | default: 16 }}"
+     {% endif %}
+     aria-label="Social media links">
+</div>
+
+{% schema %}
+{
+  "name": "SocialNest Floating Dock",
+  "target": "body",
+  "stylesheet": "socialnest-storefront.css",
+  "javascript": "socialnest-storefront.js",
+  "settings": [
+    {
+      "type": "text",
+      "id": "app_url",
+      "label": "SocialNest App URL",
+      "default": "https://socialnest.test",
+      "info": "Set to your publicly reachable HTTPS SocialNest URL when testing remotely."
+    },
+    {
+      "type": "select",
+      "id": "position",
+      "label": "Dock Position Override",
+      "options": [
+        { "value": "dashboard", "label": "Use Dashboard Setting (Recommended)" },
+        { "value": "bottom_right", "label": "Bottom Right" },
+        { "value": "bottom_left", "label": "Bottom Left" },
+        { "value": "vertical_right", "label": "Vertical Right" },
+        { "value": "vertical_left", "label": "Vertical Left" },
+        { "value": "custom", "label": "Custom Position" }
+      ],
+      "default": "dashboard"
+    },
+    {
+      "type": "header",
+      "content": "Custom Positioning Controls"
+    },
+    {
+      "type": "select",
+      "id": "custom_horizontal_align",
+      "label": "Horizontal Alignment",
+      "options": [
+        { "value": "left", "label": "Left" },
+        { "value": "center", "label": "Center" },
+        { "value": "right", "label": "Right" }
+      ],
+      "default": "right"
+    },
+    {
+      "type": "select",
+      "id": "custom_vertical_align",
+      "label": "Vertical Alignment",
+      "options": [
+        { "value": "top", "label": "Top" },
+        { "value": "center", "label": "Center" },
+        { "value": "bottom", "label": "Bottom" }
+      ],
+      "default": "bottom"
+    },
+    {
+      "type": "range",
+      "id": "custom_offset_x_desktop",
+      "min": 0,
+      "max": 200,
+      "step": 2,
+      "unit": "px",
+      "label": "Desktop Horizontal Offset (X)",
+      "default": 24
+    },
+    {
+      "type": "range",
+      "id": "custom_offset_y_desktop",
+      "min": 0,
+      "max": 200,
+      "step": 2,
+      "unit": "px",
+      "label": "Desktop Vertical Offset (Y)",
+      "default": 24
+    },
+    {
+      "type": "range",
+      "id": "custom_offset_x_mobile",
+      "min": 0,
+      "max": 200,
+      "step": 2,
+      "unit": "px",
+      "label": "Mobile Horizontal Offset (X)",
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "custom_offset_y_mobile",
+      "min": 0,
+      "max": 200,
+      "step": 2,
+      "unit": "px",
+      "label": "Mobile Vertical Offset (Y)",
+      "default": 16
+    }
+  ]
+}
+{% endschema %}
