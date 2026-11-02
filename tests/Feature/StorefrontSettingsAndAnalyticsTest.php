@@ -316,6 +316,13 @@ class StorefrontSettingsAndAnalyticsTest extends TestCase
         $response->assertViewIs('shopify.support.index');
         $response->assertSee('Storefront Theme Activation Guide');
         $response->assertSee('Open Shopify Theme Editor');
+        $response->assertSee('How to Set Up Wishlist');
+        $response->assertSee('Create a Wishlist Page in Shopify');
+        $response->assertSee('Add the SocialNest Wishlist App Block');
+        $response->assertSee('/pages/wishlist');
+        $response->assertSee('SocialNest Wishlist');
+        $response->assertSee('Important Notes');
+        $response->assertSee('localStorage');
     }
 
     public function test_unauthenticated_plans_and_support_requests_are_blocked(): void

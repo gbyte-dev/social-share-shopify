@@ -1233,5 +1233,662 @@
   }
 }
 
+/* ==========================================================================
+   SocialNest Wishlist System Styles
+   Scoped, lightweight styles for Product Card Hearts, Header Button, and Wishlist Page
+   ========================================================================== */
 
+.sn-card-container-relative {
+  position: relative !important;
+}
 
+/* Product Card Heart Button */
+.sn-card-wishlist-btn {
+  position: absolute !important;
+  top: 10px !important;
+  right: 10px !important;
+  z-index: 10 !important;
+  width: 36px !important;
+  height: 36px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 50% !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, background-color 0.2s ease !important;
+  outline: none !important;
+  touch-action: manipulation;
+  box-sizing: border-box !important;
+}
+
+.sn-card-wishlist-btn:hover {
+  transform: scale(1.12) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18) !important;
+  background: #ffffff !important;
+}
+
+.sn-card-wishlist-btn:focus-visible {
+  outline: 2px solid #ef4444 !important;
+  outline-offset: 2px !important;
+}
+
+.sn-card-wishlist-btn svg,
+.sn-wishlist-remove-btn svg {
+  display: block;
+  fill: transparent;
+  stroke: #4b5563;
+  stroke-width: 2;
+  transition: fill 0.22s ease, stroke 0.22s ease, transform 0.22s ease;
+}
+
+.sn-card-wishlist-btn:hover svg {
+  stroke: #ef4444;
+}
+
+/* Active / Selected Heart State (Red) */
+.sn-card-wishlist-btn.sn-wishlist-active svg,
+.sn-wishlist-remove-btn.sn-wishlist-active svg,
+.sn-card-wishlist-btn[aria-pressed="true"] svg {
+  fill: #ef4444 !important;
+  stroke: #ef4444 !important;
+  stroke-width: 0 !important;
+  animation: snHeartPop 0.32s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes snHeartPop {
+  0% { transform: scale(0.7); }
+  50% { transform: scale(1.28); }
+  100% { transform: scale(1); }
+}
+
+/* Header Wishlist Button & Count Badge */
+.sn-header-wishlist-btn {
+  position: relative !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 44px;
+  height: 44px;
+  color: currentColor;
+  text-decoration: none !important;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  padding: 0;
+  transition: transform 0.2s ease, color 0.2s ease;
+  vertical-align: middle;
+  box-sizing: border-box;
+}
+
+.sn-header-wishlist-btn:hover {
+  transform: scale(1.08);
+  color: #ef4444;
+}
+
+.sn-header-wishlist-btn:focus-visible {
+  outline: 2px solid #ef4444;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.sn-header-wishlist-icon {
+  display: block;
+  width: 22px;
+  height: 22px;
+}
+
+.sn-wishlist-count-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  line-height: 18px;
+  text-align: center;
+  padding: 0 4px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.sn-wishlist-count-badge.sn-count-pop {
+  animation: snBadgePop 0.25s ease;
+}
+
+@keyframes snBadgePop {
+  0% { transform: scale(0.6); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+/* ==========================================================================
+   Horizon & Storefront Header Responsive Mobile Layout Fix (320px - 425px)
+   Keeps hamburger, search, account, wishlist and cart in normal flow
+   with non-overlapping clickable touch areas and correctly anchored badges.
+   Desktop layout (750px+) remains completely untouched.
+   ========================================================================== */
+
+@media screen and (max-width: 749px) {
+  /* Reconfigure header grid to give discrete layout space to actions and logo */
+  #header-component .header__columns,
+  #header-component[data-menu-style='drawer'] .header__columns,
+  .header__columns.sn-has-header-wishlist,
+  .header__columns:has(.sn-header-wishlist-btn) {
+    --header-mobile-bookend: 38px !important;
+    grid-template-columns: var(--header-mobile-bookend) var(--header-mobile-bookend) minmax(0, 1fr) auto !important;
+    grid-template-areas: 'leftA leftB center rightB' !important;
+    column-gap: 0 !important;
+    padding-inline: clamp(8px, 2.5vw, 14px) !important;
+    align-items: center !important;
+  }
+
+  /* Ensure Search action stays pinned to leftB next to hamburger in leftA */
+  #header-component .header__columns .search-action,
+  #header-component[data-menu-style='drawer'] .header__columns .search-action,
+  .header__columns.sn-has-header-wishlist .search-action,
+  .header__columns:has(.sn-header-wishlist-btn) .search-action {
+    grid-area: leftB !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* Ensure hamburger menu stays in leftA */
+  #header-component .header__columns .header__icon--menu,
+  #header-component[data-menu-style='drawer'] .header__columns .header__icon--menu,
+  .header__columns.sn-has-header-wishlist .header__icon--menu {
+    grid-area: leftA !important;
+    justify-content: center !important;
+  }
+
+  /* Keep logo safely centered without overlapping or being pushed by action icons */
+  #header-component .header-logo,
+  .header__columns.sn-has-header-wishlist .header-logo,
+  .header__columns:has(.sn-header-wishlist-btn) .header-logo {
+    grid-area: center !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    padding-inline: 4px !important;
+  }
+
+  #header-component .header-logo img,
+  #header-component .header-logo .header-logo__image,
+  .header__columns.sn-has-header-wishlist .header-logo img,
+  .header__columns:has(.sn-header-wishlist-btn) .header-logo img {
+    max-width: 100% !important;
+    height: auto !important;
+    object-fit: contain !important;
+  }
+
+  /* Horizon Actions container on mobile: flex flow for Account, Wishlist, and Cart */
+  #header-component header-actions,
+  #header-component[data-menu-style='drawer'] header-actions,
+  .header__columns.sn-has-header-wishlist header-actions,
+  .header__columns:has(.sn-header-wishlist-btn) header-actions {
+    grid-area: rightB !important;
+    grid-column: 4 / -1 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    justify-self: flex-end !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    gap: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Responsive icon button touch targets: discrete non-overlapping clickable areas */
+  #header-component .header-actions__action,
+  #header-component .header__icon--menu,
+  #header-component .search-action .header-actions__action,
+  #header-component shopify-account,
+  #header-component shopify-account:not(:defined),
+  #header-component .account-button,
+  .header__icons .header__icon,
+  .sn-header-wishlist-btn {
+    width: 38px !important;
+    min-width: 38px !important;
+    max-width: 38px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Ensure header drawer close/cross icon is strictly hidden when drawer is closed */
+  details:not(.menu-open) .header__icon--menu .header-drawer-icon--close,
+  details:not([open]) .header__icon--menu .header-drawer-icon--close,
+  details:not([open]) .header__icon--menu .icon-close,
+  .header__icon--menu:not([aria-expanded="true"]) .header-drawer-icon--close,
+  .header__icon--menu:not([aria-expanded="true"]) .icon-close {
+    display: none !important;
+  }
+
+  /* Icon SVG sizing within discrete buttons */
+  #header-component .header-actions__action svg,
+  #header-component .account-button__icon,
+  .sn-header-wishlist-icon {
+    width: 20px !important;
+    height: 20px !important;
+    display: block !important;
+    margin: auto !important;
+  }
+
+  .sn-header-wishlist-btn .svg-wrapper {
+    width: 20px !important;
+    height: 20px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* Wishlist Badge on mobile: anchored cleanly in upper right corner of button */
+  .sn-wishlist-count-badge {
+    top: 2px !important;
+    right: 2px !important;
+    min-width: 16px !important;
+    height: 16px !important;
+    font-size: 10px !important;
+    line-height: 16px !important;
+    border-radius: 8px !important;
+    padding: 0 3px !important;
+  }
+}
+
+/* Screen width <= 359px (e.g. 320px) optimizations */
+@media screen and (max-width: 359px) {
+  #header-component .header__columns,
+  #header-component[data-menu-style='drawer'] .header__columns,
+  .header__columns.sn-has-header-wishlist,
+  .header__columns:has(.sn-header-wishlist-btn) {
+    --header-mobile-bookend: 35px !important;
+    padding-inline: 6px !important;
+  }
+
+  #header-component .header-actions__action,
+  #header-component .header__icon--menu,
+  #header-component .search-action .header-actions__action,
+  #header-component shopify-account,
+  #header-component shopify-account:not(:defined),
+  #header-component .account-button,
+  .header__icons .header__icon,
+  .sn-header-wishlist-btn {
+    width: 35px !important;
+    min-width: 35px !important;
+    max-width: 35px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+  }
+
+  #header-component .header-actions__action svg,
+  #header-component .account-button__icon,
+  .sn-header-wishlist-icon {
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  .sn-header-wishlist-btn .svg-wrapper {
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  .sn-wishlist-count-badge {
+    top: 1px !important;
+    right: 1px !important;
+    min-width: 15px !important;
+    height: 15px !important;
+    font-size: 9px !important;
+    line-height: 15px !important;
+    border-radius: 7.5px !important;
+    padding: 0 2px !important;
+  }
+}
+
+/* Screen width 390px - 425px optimizations */
+@media screen and (min-width: 390px) and (max-width: 749px) {
+  #header-component .header__columns,
+  #header-component[data-menu-style='drawer'] .header__columns,
+  .header__columns.sn-has-header-wishlist,
+  .header__columns:has(.sn-header-wishlist-btn) {
+    --header-mobile-bookend: 40px !important;
+    padding-inline: 12px !important;
+  }
+
+  #header-component .header-actions__action,
+  #header-component .header__icon--menu,
+  #header-component .search-action .header-actions__action,
+  #header-component shopify-account,
+  #header-component shopify-account:not(:defined),
+  #header-component .account-button,
+  .header__icons .header__icon,
+  .sn-header-wishlist-btn {
+    width: 40px !important;
+    min-width: 40px !important;
+    max-width: 40px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+  }
+}
+
+/* Parent constraint overrides for Wishlist section only */
+:is(.page-width, .page-width--narrow, .page-width-desktop, .page-width-content, .shopify-section, .section):has(> .socialnest-wishlist-page-wrapper),
+:is(.page-width, .page-width--narrow, .page-width-desktop, .page-width-content, .shopify-section, .section):has(.socialnest-wishlist-page-wrapper) {
+  max-width: 100% !important;
+  width: 100% !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  display: block !important;
+}
+
+.section-content-wrapper:has(.socialnest-wishlist-page-wrapper) {
+  max-width: 100% !important;
+  width: 100% !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* Dedicated Wishlist Page & Grid (Scoped Full-Width Breakout) */
+.socialnest-wishlist-page-wrapper {
+  width: min(85vw, 1600px) !important;
+  max-width: 1600px !important;
+  position: relative !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding: 36px 0 60px;
+  font-family: var(--sn-font, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  box-sizing: border-box !important;
+}
+
+.sn-wishlist-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.sn-wishlist-title {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -0.02em;
+}
+
+.sn-wishlist-total-count {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.sn-wishlist-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--sn-grid-cols, 4), minmax(0, 1fr));
+  gap: 24px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Tablet (90vw, 3 columns) */
+@media (max-width: 1024px) {
+  .socialnest-wishlist-page-wrapper {
+    width: 90vw !important;
+    padding: 30px 0 54px;
+  }
+  .sn-wishlist-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+  }
+}
+
+/* Mobile (95vw, 2 columns) */
+@media (max-width: 768px) {
+  .socialnest-wishlist-page-wrapper {
+    width: 95vw !important;
+    padding: 24px 0 48px;
+  }
+  .sn-wishlist-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+  .sn-wishlist-title {
+    font-size: 1.6rem;
+  }
+}
+
+/* Narrow mobile (95vw, 1 column) */
+@media (max-width: 390px) {
+  .socialnest-wishlist-page-wrapper {
+    width: 95vw !important;
+    padding: 20px 0 40px;
+  }
+  .sn-wishlist-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}
+
+/* Wishlist Card */
+.sn-wishlist-card {
+  position: relative;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, opacity 0.2s ease;
+  box-sizing: border-box;
+}
+
+.sn-wishlist-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+}
+
+.sn-wishlist-card__image-wrap {
+  position: relative;
+  width: 100%;
+  padding-top: 100%;
+  background: #f9fafb;
+  overflow: hidden;
+}
+
+.sn-wishlist-card__image-link {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.sn-wishlist-card__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.sn-wishlist-card:hover .sn-wishlist-card__img {
+  transform: scale(1.05);
+}
+
+.sn-wishlist-remove-btn {
+  position: absolute !important;
+  top: 10px !important;
+  right: 10px !important;
+  z-index: 5 !important;
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: transform 0.2s ease, background-color 0.2s ease !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.sn-wishlist-remove-btn:hover {
+  transform: scale(1.14) !important;
+  background: #ffffff !important;
+}
+
+.sn-wishlist-card__info {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.sn-wishlist-card__title {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #111827;
+}
+
+.sn-wishlist-card__title a {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.sn-wishlist-card__title a:hover {
+  color: #4f46e5;
+}
+
+.sn-wishlist-card__price {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 16px;
+}
+
+.sn-wishlist-card__actions {
+  margin-top: auto;
+}
+
+.sn-wishlist-card__view-btn {
+  display: block;
+  width: 100%;
+  text-align: center;
+  background: #111827;
+  color: #ffffff !important;
+  text-decoration: none !important;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 10px 14px;
+  border-radius: 8px;
+  transition: background-color 0.18s ease, transform 0.18s ease;
+  box-sizing: border-box;
+}
+
+.sn-wishlist-card__view-btn:hover {
+  background: #374151;
+  transform: translateY(-1px);
+}
+
+/* Empty Wishlist State */
+.sn-wishlist-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 64px 20px 80px;
+  background: #fafafa;
+  border-radius: 16px;
+  border: 1px dashed #d1d5db;
+  margin: 20px 0;
+}
+
+.sn-wishlist-empty__icon {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 20px;
+  border-radius: 50%;
+  background: #fee2e2;
+  color: #ef4444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sn-wishlist-empty__icon svg {
+  width: 36px;
+  height: 36px;
+  stroke: #ef4444;
+  fill: none;
+}
+
+.sn-wishlist-empty__heading {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 10px;
+}
+
+.sn-wishlist-empty__text {
+  font-size: 1rem;
+  color: #6b7280;
+  max-width: 440px;
+  margin: 0 auto 24px;
+  line-height: 1.5;
+}
+
+.sn-wishlist-empty__btn {
+  display: inline-block;
+  background: #111827;
+  color: #ffffff !important;
+  text-decoration: none !important;
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 12px 28px;
+  border-radius: 8px;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.sn-wishlist-empty__btn:hover {
+  background: #374151;
+  transform: translateY(-2px);
+}
