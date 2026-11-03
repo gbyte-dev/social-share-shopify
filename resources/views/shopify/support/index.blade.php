@@ -155,6 +155,42 @@
         </span>
     </div>
 
+    <!-- 1-Click Automated Wishlist Setup Card -->
+    <div class="card" style="margin-bottom: 1.5rem; background: linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(245, 243, 255, 0.85) 100%); border: 1.5px solid var(--primary-border);">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+            <div style="flex: 1; min-width: 280px;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem;">
+                    <span style="display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 6px; background: var(--primary); color: #fff;">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    </span>
+                    <h4 style="font-size: 1rem; font-weight: 800; color: var(--text-main); margin: 0;">Automated 1-Click Wishlist Setup</h4>
+                    <span style="font-size: 0.7rem; font-weight: 700; color: #047857; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 0.15rem 0.5rem; border-radius: 9999px;">GraphQL & Deep Link</span>
+                </div>
+                <p style="font-size: 0.8125rem; color: var(--text-muted); line-height: 1.5; margin: 0 0 0.5rem 0;">
+                    Checks if <code class="support-code-pill">/pages/wishlist</code> exists (or creates and publishes it via Shopify GraphQL without overwriting existing content), then opens your Theme Editor with the <strong>SocialNest Wishlist</strong> app block pre-selected in your main section.
+                </p>
+                <div style="display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; font-size: 0.75rem; color: var(--text-subtle);">
+                    <span style="display: inline-flex; align-items: center; gap: 0.35rem;">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        Preserves existing Wishlist pages
+                    </span>
+                    <span style="display: inline-flex; align-items: center; gap: 0.35rem;">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        Targets main page section with auto-fallback to Apps
+                    </span>
+                </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.35rem;">
+                <button type="button" id="btn-auto-setup-wishlist" onclick="runAutomatedWishlistSetup()" class="btn btn-primary" style="padding: 0.65rem 1.25rem; font-weight: 700; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2); display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                    <svg id="icon-auto-setup" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    <span id="text-auto-setup">Auto-Setup Wishlist & Open Theme Editor</span>
+                </button>
+                <span id="status-auto-setup" style="font-size: 0.75rem; color: var(--text-subtle); display: none;"></span>
+            </div>
+        </div>
+    </div>
+
     <!-- Wishlist 2-Column Side-by-Side Grid (Step 1 on Left, Step 2 on Right) -->
     <div class="support-wishlist-grid">
         <!-- Step 1: Create a Wishlist Page in Shopify (Left Card) -->
@@ -257,9 +293,9 @@
             </div>
 
             <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--card-border);">
-                <a href="https://{{ $shop }}/admin/themes/current/editor" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm" style="width: 100%; justify-content: center;">
+                <a href="{{ route('shopify.wishlist.setup') }}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm" style="width: 100%; justify-content: center;">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
-                    <span>Open Shopify Theme Editor</span>
+                    <span>Open Theme Editor with Wishlist Block</span>
                 </a>
             </div>
         </div>
@@ -309,4 +345,74 @@
             </div>
         </div>
     </div>
+
+    <script>
+        function runAutomatedWishlistSetup() {
+            const btn = document.getElementById('btn-auto-setup-wishlist');
+            const text = document.getElementById('text-auto-setup');
+            const status = document.getElementById('status-auto-setup');
+
+            if (!btn) return;
+            btn.disabled = true;
+            btn.style.opacity = '0.7';
+            text.textContent = 'Verifying page & preparing Theme Editor...';
+            if (status) {
+                status.style.display = 'block';
+                status.style.color = 'var(--text-subtle)';
+                status.textContent = 'Connecting to Shopify Admin API...';
+            }
+
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+            fetch('{{ route('shopify.wishlist.setup') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken || '',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ target: 'mainSection' })
+            })
+            .then(function(response) {
+                return response.json().then(function(data) {
+                    return { status: response.status, data: data };
+                });
+            })
+            .then(function(res) {
+                if (res.status >= 200 && res.status < 300 && res.data.success) {
+                    text.textContent = 'Opening Theme Editor...';
+                    if (status) {
+                        if (res.data.requires_reauth && res.data.reauth_url) {
+                            status.style.color = '#b45309';
+                            status.innerHTML = '⚠️ Theme Editor opened in new tab! To enable automated page creation, <a href="' + res.data.reauth_url + '" target="_top" style="color: var(--primary); font-weight: 700; text-decoration: underline;">approve updated page permissions</a>, or verify <code class="support-code-pill">/pages/wishlist</code> in Pages.';
+                        } else {
+                            status.style.color = '#047857';
+                            status.textContent = res.data.message + ' Opening Theme Editor in a new tab...';
+                        }
+                    }
+                    if (res.data.deep_link_url) {
+                        window.open(res.data.deep_link_url, '_blank', 'noopener,noreferrer');
+                    }
+                    setTimeout(function() {
+                        btn.disabled = false;
+                        btn.style.opacity = '1';
+                        text.textContent = 'Auto-Setup Wishlist & Open Theme Editor';
+                    }, 4000);
+                } else {
+                    throw new Error(res.data.message || 'Failed to complete wishlist setup.');
+                }
+            })
+            .catch(function(err) {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                text.textContent = 'Auto-Setup Wishlist & Open Theme Editor';
+                if (status) {
+                    status.style.color = '#dc2626';
+                    status.textContent = err.message || 'Error executing setup.';
+                }
+                alert(err.message || 'Unable to complete automated setup. Please use the manual steps below.');
+            });
+        }
+    </script>
 @endsection

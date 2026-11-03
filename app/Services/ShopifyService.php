@@ -291,4 +291,344 @@ class ShopifyService
 
         return $store;
     }
+
+    /**
+     * Exchange a legacy non-expiring offline token for an expiring offline token via Shopify Token Exchange.
+     *
+     * @return array{access_token: string, refresh_token: ?string, expires_in: ?int}
+     *
+     * @throws RuntimeException
+     */
+    public function migrateLegacyTokenToExpiringToken(ShopifyStore $store): array
+    {
+        $this->validateCredentials();
+
+        $canonicalShop = $this->normalizeShopDomain($store->shop);
+        if (! $canonicalShop) {
+            throw new RuntimeException("Invalid Shopify store domain: {$store->shop}");
+        }
+
+        $url = "https://{$canonicalShop}/admin/oauth/access_token";
+
+        try {
+            /** @var Response $response */
+            $response = Http::asJson()
+                ->timeout(15)
+                ->post($url, [
+                    'client_id' => config('shopify.api_key'),
+                    'client_secret' => config('shopify.api_secret'),
+                    'grant_type' => 'urn:ietf:params:oauth:grant-type:token-exchange',
+                    'subject_token' => $store->access_token,
+                    'subject_token_type' => 'urn:shopify:params:oauth:token-type:offline-access-token',
+                    'requested_token_type' => 'urn:shopify:params:oauth:token-type:offline-access-token',
+                    'expiring' => 1,
+                ]);
+        } catch (\Throwable $e) {
+            Log::error('Shopify legacy token exchange network error', [
+                'shop' => $canonicalShop,
+                'message' => $e->getMessage(),
+            ]);
+
+            throw new RuntimeException('Failed to exchange legacy token with Shopify: '.$e->getMessage());
+        }
+
+        if (! $response->successful()) {
+            Log::error('Shopify token exchange rejected', [
+                'shop' => $canonicalShop,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
+            throw new RuntimeException("Shopify rejected token exchange with HTTP {$response->status()}");
+        }
+
+        $data = $response->json();
+        $newAccessToken = $data['access_token'] ?? null;
+        if (empty($newAccessToken)) {
+            throw new RuntimeException('Shopify response did not contain a new access token.');
+        }
+
+        $store->update([
+            'access_token' => $newAccessToken,
+        ]);
+
+        Log::info('Successfully migrated store token to expiring token', [
+            'shop' => $canonicalShop,
+            'expires_in' => $data['expires_in'] ?? null,
+        ]);
+
+        return [
+            'access_token' => (string) $newAccessToken,
+            'refresh_token' => isset($data['refresh_token']) ? (string) $data['refresh_token'] : null,
+            'expires_in' => isset($data['expires_in']) ? (int) $data['expires_in'] : null,
+        ];
+    }
+
+    /**
+     * Execute an authenticated GraphQL Admin API query or mutation against a Shopify store.
+     *
+     * @param  array<string, mixed>  $variables
+     * @return array<string, mixed>
+     *
+     * @throws RuntimeException
+     */
+    public function executeGraphQL(ShopifyStore $store, string $query, array $variables = []): array
+    {
+        $canonicalShop = $this->normalizeShopDomain($store->shop);
+        if (! $canonicalShop) {
+            throw new RuntimeException("Invalid Shopify store domain: {$store->shop}");
+        }
+
+        if (empty($store->access_token)) {
+            throw new RuntimeException("Store {$store->shop} is missing an access token.");
+        }
+
+        $apiVersion = config('shopify.api_version', '2025-01');
+        $endpoint = "https://{$canonicalShop}/admin/api/{$apiVersion}/graphql.json";
+
+        $payload = ['query' => $query];
+        if (! empty($variables)) {
+            $payload['variables'] = $variables;
+        }
+
+        try {
+            /** @var Response $response */
+            $response = Http::asJson()
+                ->timeout(15)
+                ->withHeaders([
+                    'X-Shopify-Access-Token' => $store->access_token,
+                    'Content-Type' => 'application/json',
+                    'Accept' => 'application/json',
+                ])
+                ->post($endpoint, $payload);
+        } catch (\Throwable $e) {
+            Log::error('Shopify GraphQL network error', [
+                'shop' => $canonicalShop,
+                'message' => $e->getMessage(),
+            ]);
+
+            throw new RuntimeException('Failed to communicate with Shopify GraphQL API: '.$e->getMessage());
+        }
+
+        if (! $response->successful()) {
+            $body = $response->body();
+
+            // If Shopify rejects legacy non-expiring token, automatically migrate to expiring token and retry once
+            if ($response->status() === 403 && str_contains($body, 'Non-expiring access tokens are no longer accepted')) {
+                Log::info('Detected legacy non-expiring token, attempting automatic migration to expiring token', [
+                    'shop' => $canonicalShop,
+                ]);
+
+                try {
+                    $this->migrateLegacyTokenToExpiringToken($store);
+                    $store->refresh();
+
+                    $retryResponse = Http::asJson()
+                        ->timeout(15)
+                        ->withHeaders([
+                            'X-Shopify-Access-Token' => $store->access_token,
+                            'Content-Type' => 'application/json',
+                            'Accept' => 'application/json',
+                        ])
+                        ->post($endpoint, [
+                            'query' => $query,
+                            'variables' => $variables,
+                        ]);
+
+                    if ($retryResponse->successful()) {
+                        $retryData = $retryResponse->json();
+                        if (! isset($retryData['errors']) || empty($retryData['errors'])) {
+                            return $retryData;
+                        }
+                    }
+
+                    $response = $retryResponse;
+                    $body = $response->body();
+                } catch (\Throwable $migrationEx) {
+                    Log::warning('Automatic token migration failed or retry unsuccessful', [
+                        'shop' => $canonicalShop,
+                        'error' => $migrationEx->getMessage(),
+                    ]);
+                }
+            }
+
+            Log::error('Shopify GraphQL HTTP error', [
+                'shop' => $canonicalShop,
+                'status' => $response->status(),
+                'body' => $body,
+            ]);
+
+            throw new RuntimeException("Shopify GraphQL request failed with HTTP {$response->status()}");
+        }
+
+        $data = $response->json();
+
+        if (isset($data['errors']) && ! empty($data['errors'])) {
+            $errorMessage = is_array($data['errors'])
+                ? ($data['errors'][0]['message'] ?? json_encode($data['errors']))
+                : (string) $data['errors'];
+
+            Log::error('Shopify GraphQL API error response', [
+                'shop' => $canonicalShop,
+                'errors' => $data['errors'],
+            ]);
+
+            throw new RuntimeException("Shopify GraphQL error: {$errorMessage}");
+        }
+
+        return $data;
+    }
+
+    /**
+     * Find an existing Wishlist page in Shopify by handle.
+     *
+     * @return array{id: string, title: string, handle: string}|null
+     */
+    public function getWishlistPage(ShopifyStore $store, string $handle = 'wishlist'): ?array
+    {
+        $query = <<<'GRAPHQL'
+query getPagesByHandle($query: String!) {
+    pages(first: 1, query: $query) {
+        edges {
+            node {
+                id
+                title
+                handle
+            }
+        }
+    }
+}
+GRAPHQL;
+
+        $response = $this->executeGraphQL($store, $query, [
+            'query' => "handle:{$handle}",
+        ]);
+
+        $edges = $response['data']['pages']['edges'] ?? [];
+        if (! empty($edges) && isset($edges[0]['node'])) {
+            $node = $edges[0]['node'];
+            if (isset($node['handle']) && strtolower($node['handle']) === strtolower($handle)) {
+                return [
+                    'id' => (string) $node['id'],
+                    'title' => (string) ($node['title'] ?? 'Wishlist'),
+                    'handle' => (string) $node['handle'],
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Create and publish the /pages/wishlist page using the pageCreate GraphQL mutation.
+     * Preserves existing Wishlist page if it already exists without overwriting.
+     *
+     * @return array{page: array{id: string, title: string, handle: string}, created: bool, message: string}
+     */
+    public function createWishlistPage(ShopifyStore $store, string $handle = 'wishlist', string $title = 'Wishlist'): array
+    {
+        // 1. Check if page already exists to preserve existing content
+        $existing = $this->getWishlistPage($store, $handle);
+        if ($existing !== null) {
+            Log::info('Shopify Wishlist page already exists, preserving existing page', [
+                'shop' => $store->shop,
+                'page' => $existing,
+            ]);
+
+            return [
+                'page' => $existing,
+                'created' => false,
+                'message' => 'Existing Wishlist page found and preserved.',
+            ];
+        }
+
+        // 2. Page does not exist; create it using pageCreate mutation
+        $mutation = <<<'GRAPHQL'
+mutation pageCreate($page: PageCreateInput!) {
+    pageCreate(page: $page) {
+        page {
+            id
+            title
+            handle
+            isPublished
+        }
+        userErrors {
+            field
+            message
+        }
+    }
+}
+GRAPHQL;
+
+        $response = $this->executeGraphQL($store, $mutation, [
+            'page' => [
+                'title' => $title,
+                'handle' => $handle,
+                'isPublished' => true,
+            ],
+        ]);
+
+        $userErrors = $response['data']['pageCreate']['userErrors'] ?? [];
+        if (! empty($userErrors)) {
+            $errorMsg = collect($userErrors)->pluck('message')->implode('; ');
+            Log::error('Shopify pageCreate userErrors', [
+                'shop' => $store->shop,
+                'errors' => $userErrors,
+            ]);
+
+            throw new RuntimeException("Shopify could not create page: {$errorMsg}");
+        }
+
+        $createdPage = $response['data']['pageCreate']['page'] ?? null;
+        if (! $createdPage || empty($createdPage['id'])) {
+            throw new RuntimeException('Shopify pageCreate returned an empty page payload.');
+        }
+
+        Log::info('Successfully created and published Shopify Wishlist page', [
+            'shop' => $store->shop,
+            'page' => $createdPage,
+        ]);
+
+        return [
+            'page' => [
+                'id' => (string) $createdPage['id'],
+                'title' => (string) $createdPage['title'],
+                'handle' => (string) $createdPage['handle'],
+            ],
+            'created' => true,
+            'message' => 'Wishlist page successfully created and published.',
+        ];
+    }
+
+    /**
+     * Generate a Shopify Theme Editor deep link that opens the Wishlist page template
+     * and automatically adds the SocialNest Wishlist app block.
+     *
+     * @param  string  $shop  Shopify store domain
+     * @param  string  $target  Target section ("mainSection" or "newAppsSection")
+     */
+    public function getWishlistThemeEditorDeepLink(string $shop, string $target = 'mainSection'): string
+    {
+        $canonicalShop = $this->normalizeShopDomain($shop);
+        if (! $canonicalShop) {
+            throw new RuntimeException("Invalid Shopify store domain: {$shop}");
+        }
+
+        $apiKey = (string) config('shopify.api_key');
+        if (empty($apiKey)) {
+            throw new RuntimeException('Shopify API Key (client_id) is not configured.');
+        }
+
+        $blockHandle = 'wishlist-page';
+        $validTargets = ['mainSection', 'newAppsSection', 'apps'];
+        $resolvedTarget = in_array($target, $validTargets, true) ? $target : 'mainSection';
+
+        $query = [
+            'template' => 'page',
+            'addAppBlockId' => "{$apiKey}/{$blockHandle}",
+            'target' => $resolvedTarget,
+        ];
+
+        return "https://{$canonicalShop}/admin/themes/current/editor?".http_build_query($query);
+    }
 }

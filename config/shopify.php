@@ -40,7 +40,7 @@ return [
     |
     */
 
-    'api_scopes' => env('SHOPIFY_API_SCOPES', 'read_products'),
+    'api_scopes' => env('SHOPIFY_API_SCOPES') ?: 'write_content,write_online_store_pages',
 
     /*
     |--------------------------------------------------------------------------

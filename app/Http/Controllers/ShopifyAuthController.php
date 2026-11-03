@@ -168,8 +168,13 @@ class ShopifyAuthController extends Controller
 
         $isInstalled = $existingStore && $existingStore->isInstalled();
 
-        // If the store is already installed and not requesting explicit reauth, bind session and send to dashboard
-        if ($isInstalled && ! $request->has('reauth')) {
+        // Check if any configured required scopes are missing from the store's granted scopes
+        $configuredScopes = array_filter(array_map('trim', explode(',', (string) config('shopify.api_scopes'))));
+        $grantedScopes = array_filter(array_map('trim', explode(',', (string) ($existingStore?->scope ?? ''))));
+        $hasMissingScopes = ! empty(array_diff($configuredScopes, $grantedScopes));
+
+        // If the store is already installed, has all required scopes, and is not requesting reauth, bind session and send to dashboard
+        if ($isInstalled && ! $request->has('reauth') && ! $hasMissingScopes) {
             session([
                 'shopify_shop' => $existingStore->shop,
                 'shopify_store_id' => $existingStore->id,

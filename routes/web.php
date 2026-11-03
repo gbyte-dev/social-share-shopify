@@ -8,6 +8,7 @@ use App\Http\Controllers\SocialLinkController;
 use App\Http\Controllers\StorefrontApiController;
 use App\Http\Controllers\StorefrontSettingsController;
 use App\Http\Controllers\SupportController;
+use App\Http\Controllers\WishlistSetupController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -107,6 +108,10 @@ Route::middleware(['shopify.csp', 'shopify.auth', 'shopify.subscription'])->grou
     // Help & Support
     Route::get('/shopify/support', [SupportController::class, 'index'])
         ->name('shopify.support.index');
+
+    // Automated Wishlist Setup & Deep Link
+    Route::match(['GET', 'POST'], '/shopify/wishlist/setup', [WishlistSetupController::class, 'setup'])
+        ->name('shopify.wishlist.setup');
 });
 
 // Public Storefront Configuration & Click Tracking API (Supports CORS Preflight OPTIONS)
