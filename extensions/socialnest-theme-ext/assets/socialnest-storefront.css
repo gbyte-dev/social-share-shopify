@@ -1632,6 +1632,18 @@
   box-sizing: border-box !important;
 }
 
+/* Hide redundant page-level title on the Wishlist page */
+body:has(.socialnest-wishlist-page-wrapper) .main-page-title,
+body:has(.socialnest-wishlist-page-wrapper) .page-title:not(.sn-wishlist-title),
+body:has(.socialnest-wishlist-page-wrapper) .section-header__title:not(.sn-wishlist-title),
+body:has(.socialnest-wishlist-page-wrapper) .section-header h1:not(.sn-wishlist-title),
+body:has(.socialnest-wishlist-page-wrapper) .page-header h1:not(.sn-wishlist-title),
+.shopify-section:has(.socialnest-wishlist-page-wrapper) .main-page-title,
+.shopify-section:has(.socialnest-wishlist-page-wrapper) .page-title:not(.sn-wishlist-title),
+.shopify-section:has(.socialnest-wishlist-page-wrapper) h1:not(.sn-wishlist-title) {
+  display: none !important;
+}
+
 .sn-wishlist-header {
   display: flex;
   align-items: baseline;
