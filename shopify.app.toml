@@ -22,5 +22,10 @@ redirect_urls = [
 [webhooks]
 api_version = "2025-01"
 
+[app_proxy]
+url = "https://socialnest.test/shopify/proxy"
+subpath = "socialnest"
+prefix = "apps"
+
 [pos]
 embedded = false

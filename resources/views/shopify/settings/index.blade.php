@@ -5,23 +5,10 @@
 @section('header_subtitle', 'Customize floating widget position, styling, and prepared sharing messages')
 
 @section('header_actions')
-    <div style="display: flex; align-items: center; gap: 0.75rem;">
-        @if($settings->is_enabled)
-            <span class="polaris-badge polaris-badge-success" title="Widget is active on customer storefront">
-                <span class="polaris-badge-dot" style="background-color: var(--success);"></span>
-                <span>Active on Storefront</span>
-            </span>
-        @else
-            <span class="polaris-badge polaris-badge-subdued" title="Widget is paused and hidden from shoppers">
-                <span class="polaris-badge-dot" style="background-color: var(--text-subtle);"></span>
-                <span>Widget Paused</span>
-            </span>
-        @endif
-        <a href="https://{{ $shop }}/admin/themes/current/editor?context=apps" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 0.4rem;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-            <span>Theme Editor</span>
-        </a>
-    </div>
+    <a href="https://{{ $shop }}/admin/themes/current/editor?context=apps" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 0.4rem;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        <span>Theme Editor</span>
+    </a>
 @endsection
 
 @section('content')
@@ -834,7 +821,7 @@
                             <div class="sim-header">
                                 <div style="display: flex; align-items: center; gap: 0.5rem;">
                                     <div class="sim-logo-mark"></div>
-                                    <span style="font-size: 0.75rem; font-weight: 800; color: var(--text-main);">Storefront Demo</span>
+                                    <span style="font-size: 0.75rem; font-weight: 800; color: var(--text-main);">{{ str_replace('.myshopify.com', '', $shop) }}</span>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 0.6rem;">
                                     <span style="font-size: 0.6875rem; color: var(--text-subtle);">Search</span>
@@ -846,7 +833,7 @@
                             <div class="sim-hero-banner">
                                 <span class="sim-tag">New Collection</span>
                                 <div class="sim-hero-title">Summer Essentials</div>
-                                <div class="sim-hero-desc">Interactive floating social dock preview</div>
+                                <div class="sim-hero-desc">Discover our latest collection</div>
                             </div>
 
                             <!-- Disabled Overlay Watermark -->
@@ -894,32 +881,6 @@
                                     <span class="socialnest-floating-cta__text" id="previewScreenCtaText">{{ $settings->floating_cta_button_text ?: 'Shop Now' }}</span>
                                 </span>
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="preview-footer-note">
-                        <span class="p-dot"></span>
-                        <span>Interactive live preview • Hover icons to test animations</span>
-                    </div>
-                </div>
-
-                <!-- Unified Configuration Informational Card -->
-                <div class="polaris-card single-truth-card">
-                    <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
-                        <div class="truth-icon-badge">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                        </div>
-                        <div>
-                            <strong style="font-size: 0.875rem; color: var(--text-main); display: block; margin-bottom: 0.25rem;">
-                                Single Source of Truth Architecture
-                            </strong>
-                            <p style="font-size: 0.8125rem; color: var(--text-muted); line-height: 1.45; margin-bottom: 0.75rem;">
-                                All dock styling, positioning, geometry, and hover animations saved here automatically synchronize across your <strong>Shopify Theme Editor preview</strong> and your <strong>live customer storefront</strong> in real-time.
-                            </p>
-                            <a href="https://{{ $shop }}/admin/themes/current/editor?context=apps" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="width: 100%; justify-content: center; gap: 0.4rem;">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                                <span>Verify in Theme Editor</span>
-                            </a>
                         </div>
                     </div>
                 </div>
@@ -1956,40 +1917,9 @@
             box-shadow: 0 6px 16px rgba(0, 0, 0, 0.22) !important;
         }
 
-        .preview-footer-note {
-            padding: 0.6rem 0.9rem;
-            background: #ffffff;
-            border-top: 1px solid #f1f2f4;
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-            font-size: 0.71875rem;
-            color: var(--text-subtle);
-        }
-
-        .p-dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: var(--success);
-        }
-
-        /* Single Source of Truth Card */
-        .single-truth-card {
-            border-left: 4px solid var(--success);
-            padding: 1.15rem;
-            margin-top: 1rem;
-        }
-
-        .truth-icon-badge {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            background: var(--success-light);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
+        /* Polish: Hide developer-facing Live & Authenticated badge on storefront settings */
+        .top-actions .badge-live {
+            display: none !important;
         }
 
         /* Product Share Button Preview in Settings */
@@ -2167,7 +2097,7 @@
             display: block !important;
         }
 
-        /* Specific rule for the live Storefront Demo overlay */
+        /* Specific rule for the live Storefront Preview overlay */
         #liveCtaPreview {
             position: absolute !important;
             bottom: 12px !important;
@@ -3227,7 +3157,7 @@
                 document.getElementById('sectionCtaText')
             );
 
-            // 2. Storefront Demo right-side preview (simulated fixed bottom-center)
+            // 2. Storefront right-side preview (simulated fixed bottom-center)
             const liveCta = document.getElementById('liveCtaPreview');
             if (liveCta) {
                 const isDeviceAllowed = (currentPreviewDevice === 'mobile') ? mobileEnabled : desktopEnabled;

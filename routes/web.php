@@ -9,6 +9,7 @@ use App\Http\Controllers\StorefrontApiController;
 use App\Http\Controllers\StorefrontSettingsController;
 use App\Http\Controllers\SupportController;
 use App\Http\Controllers\WishlistSetupController;
+use App\Http\Controllers\WishlistStorefrontController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -124,3 +125,54 @@ Route::match(['POST', 'OPTIONS'], '/api/storefront/track-click', [StorefrontApiC
 // Shopify Webhook Handling (Exempt from CSRF in bootstrap/app.php)
 Route::post('/shopify/webhooks', [ShopifyWebhookController::class, 'handle'])
     ->name('shopify.webhooks');
+
+// Shopify App Proxy Preflight CORS OPTIONS
+Route::options('/shopify/proxy/{any?}', fn () => response('', 204, [
+    'Access-Control-Allow-Origin' => '*',
+    'Access-Control-Allow-Methods' => 'GET, POST, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers' => 'Content-Type, X-Guest-UUID, Authorization, Accept, X-Shopify-Shop-Domain',
+    'Access-Control-Allow-Private-Network' => 'true',
+]))->where('any', '.*');
+
+Route::options('/api/storefront/wishlist/{any?}', fn () => response('', 204, [
+    'Access-Control-Allow-Origin' => '*',
+    'Access-Control-Allow-Methods' => 'GET, POST, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers' => 'Content-Type, X-Guest-UUID, Authorization, Accept, X-Shopify-Shop-Domain',
+    'Access-Control-Allow-Private-Network' => 'true',
+]))->where('any', '.*');
+
+// Shopify App Proxy Storefront Wishlist API (Signed with Shopify HMAC, Rate Limited)
+Route::middleware(['shopify.proxy', 'throttle:120,1'])->group(function (): void {
+    // 1. Primary App Proxy URL: /shopify/proxy/wishlist/*
+    Route::prefix('/shopify/proxy/wishlist')->name('proxy.wishlist.')->group(function (): void {
+        Route::get('/', [WishlistStorefrontController::class, 'index'])->name('index');
+        Route::get('/count', [WishlistStorefrontController::class, 'count'])->name('count');
+        Route::get('/status', [WishlistStorefrontController::class, 'status'])->name('status');
+        Route::post('/add', [WishlistStorefrontController::class, 'add'])->name('add');
+        Route::match(['POST', 'DELETE'], '/remove', [WishlistStorefrontController::class, 'remove'])->name('remove');
+        Route::post('/merge', [WishlistStorefrontController::class, 'merge'])->name('merge');
+        Route::post('/migrate-local', [WishlistStorefrontController::class, 'migrateLocal'])->name('migrate-local');
+    });
+
+    // 2. Direct subpath forwarding fallback: /shopify/proxy/*
+    Route::prefix('/shopify/proxy')->name('proxy.direct.')->group(function (): void {
+        Route::get('/', [WishlistStorefrontController::class, 'index'])->name('index');
+        Route::get('/count', [WishlistStorefrontController::class, 'count'])->name('count');
+        Route::get('/status', [WishlistStorefrontController::class, 'status'])->name('status');
+        Route::post('/add', [WishlistStorefrontController::class, 'add'])->name('add');
+        Route::match(['POST', 'DELETE'], '/remove', [WishlistStorefrontController::class, 'remove'])->name('remove');
+        Route::post('/merge', [WishlistStorefrontController::class, 'merge'])->name('merge');
+        Route::post('/migrate-local', [WishlistStorefrontController::class, 'migrateLocal'])->name('migrate-local');
+    });
+
+    // 3. API storefront alias: /api/storefront/wishlist/*
+    Route::prefix('/api/storefront/wishlist')->name('api.wishlist.')->group(function (): void {
+        Route::get('/', [WishlistStorefrontController::class, 'index'])->name('index');
+        Route::get('/count', [WishlistStorefrontController::class, 'count'])->name('count');
+        Route::get('/status', [WishlistStorefrontController::class, 'status'])->name('status');
+        Route::post('/add', [WishlistStorefrontController::class, 'add'])->name('add');
+        Route::match(['POST', 'DELETE'], '/remove', [WishlistStorefrontController::class, 'remove'])->name('remove');
+        Route::post('/merge', [WishlistStorefrontController::class, 'merge'])->name('merge');
+        Route::post('/migrate-local', [WishlistStorefrontController::class, 'migrateLocal'])->name('migrate-local');
+    });
+});

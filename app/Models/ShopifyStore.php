@@ -163,6 +163,16 @@ class ShopifyStore extends Model
     }
 
     /**
+     * Storefront customer and guest wishlist items.
+     *
+     * @return HasMany<WishlistItem, $this>
+     */
+    public function wishlistItems(): HasMany
+    {
+        return $this->hasMany(WishlistItem::class, 'shop_id');
+    }
+
+    /**
      * Subscriptions for this store.
      *
      * @return HasMany<ShopSubscription, $this>

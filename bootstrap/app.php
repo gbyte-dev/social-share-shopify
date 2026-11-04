@@ -3,6 +3,7 @@
 use App\Http\Middleware\CheckSubscription;
 use App\Http\Middleware\EnsureShopifyShopInstalled;
 use App\Http\Middleware\SetShopifyCspHeaders;
+use App\Http\Middleware\VerifyShopifyAppProxySignature;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -19,10 +20,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'shopify.auth' => EnsureShopifyShopInstalled::class,
             'shopify.csp' => SetShopifyCspHeaders::class,
             'shopify.subscription' => CheckSubscription::class,
+            'shopify.proxy' => VerifyShopifyAppProxySignature::class,
         ]);
 
         $middleware->validateCsrfTokens(except: [
             'shopify/webhooks',
+            'shopify/proxy/*',
             'api/storefront/*',
         ]);
     })

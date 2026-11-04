@@ -20,6 +20,8 @@
 </style>
 
 <div class="socialnest-wishlist-page-wrapper"
+     data-shop="{{ shop.myshopify_domain | default: shop.permanent_domain }}"
+     data-app-url="https://socialnest.test"
      data-columns="{{ block.settings.grid_columns | default: 4 }}"
      data-empty-heading="{{ block.settings.empty_heading | default: 'Your wishlist is empty' | escape }}"
      data-empty-text="{{ block.settings.empty_text | default: 'Explore our catalog and click the heart icon on any product to save it here.' | escape }}"

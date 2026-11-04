@@ -685,11 +685,17 @@ class StorefrontSettingsAndAnalyticsTest extends TestCase
 
         $content = $response->getContent();
 
-        // 1. Confirm all 4 required preview elements are present
-        $this->assertStringContainsString('Storefront Demo', $content);
-        $this->assertStringContainsString('Interactive live preview', $content);
-        $this->assertStringContainsString('Single Source of Truth Architecture', $content);
-        $this->assertStringContainsString('Verify in Theme Editor', $content);
+        // 1. Confirm polished preview elements are present and promotional/demo elements are removed
+        $this->assertStringContainsString('preview-canvas-viewport', $content);
+        $this->assertStringContainsString('preview-screen-frame', $content);
+        $this->assertStringContainsString('browser-address-pill', $content);
+        $this->assertStringContainsString('admin/themes/current/editor?context=apps', $content);
+
+        // Verify promotional & developer-facing elements were removed
+        $this->assertStringNotContainsString('Storefront Demo', $content);
+        $this->assertStringNotContainsString('Interactive live preview', $content);
+        $this->assertStringNotContainsString('Single Source of Truth Architecture', $content);
+        $this->assertStringNotContainsString('Verify in Theme Editor', $content);
 
         // 2. Confirm CSS position: sticky and required layout properties are applied to the preview column
         $this->assertStringContainsString('.settings-preview-column {', $content);

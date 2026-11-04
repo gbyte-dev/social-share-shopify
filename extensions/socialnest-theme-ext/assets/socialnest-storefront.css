@@ -1904,3 +1904,57 @@ body:has(.socialnest-wishlist-page-wrapper) .page-header h1:not(.sn-wishlist-tit
   background: #374151;
   transform: translateY(-2px);
 }
+
+/* Loading Wishlist State & Spinner Animation */
+@keyframes sn-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@-webkit-keyframes sn-spin {
+  0% {
+    -webkit-transform: rotate(0deg);
+  }
+  100% {
+    -webkit-transform: rotate(360deg);
+  }
+}
+
+.sn-wishlist-loading {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 56px 20px 64px;
+  color: #6b7280;
+  box-sizing: border-box;
+}
+
+.sn-loading-spinner {
+  display: inline-block !important;
+  width: 36px !important;
+  height: 36px !important;
+  border: 3.5px solid #e5e7eb !important;
+  border-top-color: #e11d48 !important;
+  border-radius: 50% !important;
+  box-sizing: border-box !important;
+  animation: sn-spin 0.85s linear infinite !important;
+  -webkit-animation: sn-spin 0.85s linear infinite !important;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sn-loading-spinner {
+    animation-duration: 2s !important;
+    -webkit-animation-duration: 2s !important;
+  }
+}
+
+.sn-wishlist-loading p {
+  margin: 16px 0 0;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #4b5563;
+}
