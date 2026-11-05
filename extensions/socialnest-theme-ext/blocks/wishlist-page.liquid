@@ -4,7 +4,6 @@
 {% endcomment %}
 
 {{ 'socialnest-storefront.css' | asset_url | stylesheet_tag }}
-<script type="module" src="{{ 'socialnest-wishlist.js' | asset_url }}"></script>
 
 <style>
   /* Hide the theme's default page title (e.g. Dawn/Horizon h1.main-page-title "Wishlist")
@@ -21,7 +20,7 @@
 
 <div class="socialnest-wishlist-page-wrapper"
      data-shop="{{ shop.myshopify_domain | default: shop.permanent_domain }}"
-     data-app-url="https://socialnest.test"
+     data-app-url="https://socialvire.webvire.com"
      data-columns="{{ block.settings.grid_columns | default: 4 }}"
      data-empty-heading="{{ block.settings.empty_heading | default: 'Your wishlist is empty' | escape }}"
      data-empty-text="{{ block.settings.empty_text | default: 'Explore our catalog and click the heart icon on any product to save it here.' | escape }}"
@@ -46,6 +45,7 @@
   "name": "SocialNest Wishlist",
   "target": "section",
   "stylesheet": "socialnest-storefront.css",
+  "javascript": "socialnest-wishlist.js",
   "settings": [
     {
       "type": "text",

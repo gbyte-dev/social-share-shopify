@@ -1,6 +1,6 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "60d8fbc9262b9fe86c7084ff724d590a"
+client_id = "497103da7be619c3db8c674b5ae04fb6"
 name = "Socialvire"
 handle = "socialvire-webvire"
 application_url = "https://socialvire.webvire.com"
@@ -19,10 +19,10 @@ redirect_urls = [
 ]
 
 [webhooks]
-api_version = "2025-01"
+api_version = "2025-10"
 
 [app_proxy]
-url = "https://socialvire.webvire.com/proxy"
+url = "https://socialvire.webvire.com/shopify/proxy"
 subpath = "socialvire"
 prefix = "apps"
 
