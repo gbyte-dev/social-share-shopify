@@ -4,6 +4,7 @@
 {% endcomment %}
 
 {{ 'socialnest-storefront.css' | asset_url | stylesheet_tag }}
+<script type="module" src="{{ 'socialnest-wishlist.js' | asset_url }}"></script>
 
 <style>
   /* Hide the theme's default page title (e.g. Dawn/Horizon h1.main-page-title "Wishlist")
@@ -45,7 +46,6 @@
   "name": "SocialNest Wishlist",
   "target": "section",
   "stylesheet": "socialnest-storefront.css",
-  "javascript": "socialnest-wishlist.js",
   "settings": [
     {
       "type": "text",
