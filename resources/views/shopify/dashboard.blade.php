@@ -1,351 +1,601 @@
 @extends('layouts.shopify')
 
 @section('title', 'SocialNest Dashboard - ' . $shop)
-@section('header_title', 'Dashboard & Analytics')
-@section('header_subtitle', 'Storefront social click analytics, engagement trends, and active links')
+@section('header_title', 'Dashboard')
+@section('header_subtitle', 'Store overview, social engagement, and storefront feature controls')
 
 @section('header_actions')
-    <a href="{{ route('shopify.social-links.create') }}" class="btn btn-primary btn-sm">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    <a href="{{ route('shopify.wishlist.setup') }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="padding: 0.4rem 0.75rem; font-size: 0.8125rem; color: #e11d48; border-color: #fecdd3; background: #fff1f2;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+        <span>1-Click Wishlist Setup</span>
+    </a>
+    <a href="{{ route('shopify.social-links.create') }}" class="btn btn-primary btn-sm" style="padding: 0.4rem 0.75rem; font-size: 0.8125rem;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         <span>Add Social Link</span>
     </a>
 @endsection
 
 @section('content')
-    <!-- Store Overview Metric Cards -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.75rem;">
-        <!-- Total Links -->
-        <div class="card" style="display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem;">
-            <div>
-                <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-subtle); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">Configured Links</div>
-                <div style="font-size: 1.75rem; font-weight: 800; color: var(--text-main);">{{ $totalLinks }}</div>
-                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.15rem;">{{ $activeLinks }} active &bull; {{ $inactiveLinks }} inactive</div>
-            </div>
-            <div style="width: 44px; height: 44px; border-radius: 10px; background: #e0e7ff; color: #4338ca; display: flex; align-items: center; justify-content: center;">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-            </div>
-        </div>
+    <!-- Scoped Polaris-inspired Design Styles for Dashboard -->
+    <style>
+        /* Hide developer-facing Live & Authenticated badge on Dashboard */
+        .top-actions .badge-live {
+            display: none !important;
+        }
 
-        <!-- Storefront Widget Status -->
-        <div class="card" style="display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem;">
-            <div>
-                <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-subtle); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">Floating Dock</div>
-                <div style="display: flex; align-items: center; gap: 0.4rem; margin: 0.2rem 0;">
-                    @if($settings->is_enabled)
-                        <span style="font-size: 0.8125rem; font-weight: 700; background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; padding: 0.15rem 0.6rem; border-radius: 9999px;">Enabled</span>
-                    @else
-                        <span style="font-size: 0.8125rem; font-weight: 700; background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; padding: 0.15rem 0.6rem; border-radius: 9999px;">Disabled</span>
-                    @endif
-                </div>
-                <div style="font-size: 0.75rem; color: var(--text-muted);">{{ ucfirst(str_replace('_', ' ', $settings->position)) }} &bull; {{ ucfirst($settings->icon_size) }}</div>
-            </div>
-            <div style="width: 44px; height: 44px; border-radius: 10px; background: #f0fdf4; color: #16a34a; display: flex; align-items: center; justify-content: center;">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            </div>
-        </div>
+        .sn-dash-wrap {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
 
-        <!-- Product Share Button -->
-        <div class="card" style="display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem;">
-            <div>
-                <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-subtle); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">Product Sharing</div>
-                <div style="display: flex; align-items: center; gap: 0.4rem; margin: 0.2rem 0;">
-                    @if($settings->product_share_enabled ?? true)
-                        <span style="font-size: 0.8125rem; font-weight: 700; background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; padding: 0.15rem 0.6rem; border-radius: 9999px;">Active</span>
-                    @else
-                        <span style="font-size: 0.8125rem; font-weight: 700; background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; padding: 0.15rem 0.6rem; border-radius: 9999px;">Off</span>
-                    @endif
+        .sn-card {
+            background: #ffffff;
+            border: 1px solid #e1e3e5;
+            border-radius: 8px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+            box-sizing: border-box;
+        }
+
+        .sn-metric-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.75rem;
+        }
+
+        .sn-metric-card {
+            padding: 0.625rem 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.35rem;
+            min-height: 44px;
+            white-space: nowrap;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        .sn-metric-label {
+            font-size: 0.6875rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: #5c5f62;
+            margin: 0;
+            flex-shrink: 0;
+        }
+
+        .sn-metric-body {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .sn-metric-val {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #202223;
+            line-height: 1;
+        }
+
+        .sn-metric-sub {
+            font-size: 0.75rem;
+            color: #6d7175;
+            white-space: nowrap;
+        }
+
+        .sn-nav-icon-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            color: var(--primary, #4f46e5);
+            background: #f1f2f4;
+            text-decoration: none;
+            transition: all 0.15s ease;
+            flex-shrink: 0;
+        }
+
+        .sn-nav-icon-link:hover {
+            background: #eef2ff;
+            color: #3730a3;
+        }
+
+        .sn-features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+        }
+
+        .sn-feature-card {
+            padding: 1rem 1.125rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .sn-feature-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+
+        .sn-feature-title {
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: #202223;
+            margin: 0;
+        }
+
+        .sn-badge-on {
+            font-size: 0.6875rem;
+            font-weight: 600;
+            color: #007f5f;
+            background: #e4f8ed;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+        }
+
+        .sn-badge-off {
+            font-size: 0.6875rem;
+            font-weight: 600;
+            color: #6d7175;
+            background: #f1f2f4;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+        }
+
+        .sn-feature-desc {
+            font-size: 0.75rem;
+            color: #6d7175;
+            line-height: 1.4;
+            margin: 0 0 0.75rem 0;
+            flex: 1;
+        }
+
+        .sn-feature-link {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--primary, #4f46e5);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .sn-feature-link:hover {
+            text-decoration: underline;
+        }
+
+        .sn-filter-bar {
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            border-bottom: 1px solid #f1f2f4;
+        }
+
+        .sn-seg-control {
+            display: inline-flex;
+            background: #f1f2f4;
+            padding: 2px;
+            border-radius: 6px;
+        }
+
+        .sn-seg-btn {
+            padding: 0.25rem 0.65rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: none;
+            background: transparent;
+            color: #5c5f62;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .sn-seg-btn.active {
+            background: #ffffff;
+            color: #202223;
+            font-weight: 700;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+        }
+
+        .sn-date-btn {
+            padding: 0.25rem 0.55rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: 1px solid #e1e3e5;
+            background: #ffffff;
+            color: #5c5f62;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .sn-date-btn.active {
+            border-color: var(--primary, #4f46e5);
+            background: #eef2ff;
+            color: var(--primary, #4f46e5);
+            font-weight: 700;
+        }
+
+        .sn-charts-grid {
+            display: grid;
+            grid-template-columns: 3fr 2fr;
+            gap: 0.75rem;
+        }
+
+        .sn-chart-card {
+            padding: 1rem 1.125rem;
+        }
+
+        .sn-chart-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+        }
+
+        .sn-chart-title {
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: #202223;
+            margin: 0;
+        }
+
+        .sn-chart-sub {
+            font-size: 0.75rem;
+            color: #6d7175;
+            margin: 0.1rem 0 0 0;
+        }
+
+        .sn-table-card {
+            padding: 0.875rem 1rem;
+        }
+
+        .sn-table-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+        }
+
+        .sn-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8125rem;
+            text-align: left;
+        }
+
+        .sn-table th {
+            padding: 0.5rem 0.5rem 0.5rem 0;
+            font-size: 0.6875rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #6d7175;
+            border-bottom: 1px solid #e1e3e5;
+        }
+
+        .sn-table td {
+            padding: 0.625rem 0.5rem 0.625rem 0;
+            border-bottom: 1px solid #f1f2f4;
+            color: #202223;
+            vertical-align: middle;
+        }
+
+        .sn-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        @media (max-width: 1024px) {
+            .sn-metric-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .sn-features-grid {
+                grid-template-columns: 1fr;
+            }
+            .sn-charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .sn-metric-grid {
+                grid-template-columns: 1fr;
+            }
+            .sn-filter-bar {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+
+    <div class="sn-dash-wrap">
+        <!-- 1. Store Overview Metric Cards (Single-Line Content) -->
+        <div class="sn-metric-grid">
+            <!-- Metric 1: Configured Social Links -->
+            <div class="sn-card sn-metric-card">
+                <span class="sn-metric-label">Social Links</span>
+                <div class="sn-metric-body">
+                    <span class="sn-metric-val">{{ $activeLinks }}</span>
+                    <span class="sn-metric-sub">/ {{ $totalLinks }}</span>
+                    <a href="{{ route('shopify.social-links.index') }}" class="sn-nav-icon-link" title="Manage links" aria-label="Manage links">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                    </a>
                 </div>
-                <div style="font-size: 0.75rem; color: var(--text-muted);">Product Page Button</div>
             </div>
-            <div style="width: 44px; height: 44px; border-radius: 10px; background: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center;">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-            </div>
-        </div>
 
-        <!-- Quick Settings Link -->
-        <div class="card" style="display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem;">
-            <div>
-                <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-subtle); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">Widget Controls</div>
-                <div style="font-size: 0.9375rem; font-weight: 700; color: var(--text-main); margin-top: 0.25rem;">Theme & Layout</div>
-                <a href="{{ route('shopify.settings.index') }}" style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-decoration: none; margin-top: 0.2rem; display: inline-block;">Configure &rarr;</a>
-            </div>
-            <div style="width: 44px; height: 44px; border-radius: 10px; background: #f8fafc; color: #64748b; display: flex; align-items: center; justify-content: center;">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            </div>
-        </div>
-    </div>
-
-    <!-- Social Link Click Analytics Section -->
-    <div id="sn-analytics-section" style="margin-bottom: 2rem;">
-        <!-- Analytics Header & Filter Bar -->
-        <div class="card" style="margin-bottom: 1.25rem; padding: 1.25rem 1.5rem;">
-            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
-                <div>
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        <h2 style="font-size: 1.15rem; font-weight: 800; color: var(--text-main); margin: 0;">Social Link Analytics</h2>
-                        <span style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.6875rem; font-weight: 700; color: #065f46; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 0.15rem 0.5rem; border-radius: 9999px;">
-                            <span style="width: 6px; height: 6px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
-                            Live Click Tracking
-                        </span>
-                    </div>
-                    <p style="font-size: 0.8125rem; color: var(--text-subtle); margin: 0.25rem 0 0 0;">
-                        Actual shopper clicks recorded by SocialNest widgets. Timezone: <strong id="sn-tz-display">{{ $analyticsData['filter']['timezone'] }}</strong>
-                    </p>
-                </div>
-
-                <!-- Event Type Tabs / Segmented Control -->
-                <div style="display: inline-flex; background: #f1f5f9; padding: 3px; border-radius: 8px; border: 1px solid #e2e8f0;" id="sn-event-type-tabs">
-                    <button type="button" class="sn-filter-btn active" data-type="all" style="padding: 0.35rem 0.75rem; font-size: 0.8125rem; font-weight: 700; border: none; background: #ffffff; color: var(--text-main); border-radius: 6px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: all 0.15s;">
-                        All Clicks
-                    </button>
-                    <button type="button" class="sn-filter-btn" data-type="social_links" style="padding: 0.35rem 0.75rem; font-size: 0.8125rem; font-weight: 600; border: none; background: transparent; color: var(--text-subtle); border-radius: 6px; cursor: pointer; transition: all 0.15s;">
-                        Social Links
-                    </button>
-                    <button type="button" class="sn-filter-btn" data-type="product_shares" style="padding: 0.35rem 0.75rem; font-size: 0.8125rem; font-weight: 600; border: none; background: transparent; color: var(--text-subtle); border-radius: 6px; cursor: pointer; transition: all 0.15s;">
-                        Product Shares
-                    </button>
+            <!-- Metric 2: Total Shopper Clicks -->
+            <div class="sn-card sn-metric-card">
+                <span class="sn-metric-label">Total Clicks</span>
+                <div class="sn-metric-body">
+                    <span class="sn-metric-val" id="sn-total-clicks">{{ number_format($analyticsData['summary']['total_clicks']) }}</span>
+                    <span class="sn-metric-sub" id="sn-breakdown-clicks">({{ $analyticsData['summary']['social_links_clicks'] }} dock)</span>
                 </div>
             </div>
 
-            <!-- Date Range Filters Bar -->
-            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; border-top: 1px solid #f1f5f9; padding-top: 0.85rem;">
-                <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;" id="sn-date-range-pills">
-                    <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-subtle); text-transform: uppercase; margin-right: 0.25rem;">Date Range:</span>
-                    <button type="button" class="sn-date-btn active" data-range="last_7_days" style="padding: 0.3rem 0.65rem; font-size: 0.8125rem; font-weight: 700; border: 1px solid var(--primary); background: #eef2ff; color: var(--primary); border-radius: 6px; cursor: pointer;">
-                        Last 7 Days
-                    </button>
-                    <button type="button" class="sn-date-btn" data-range="last_30_days" style="padding: 0.3rem 0.65rem; font-size: 0.8125rem; font-weight: 600; border: 1px solid var(--card-border); background: #ffffff; color: var(--text-subtle); border-radius: 6px; cursor: pointer;">
-                        Last 30 Days
-                    </button>
-                    <button type="button" class="sn-date-btn" data-range="last_90_days" style="padding: 0.3rem 0.65rem; font-size: 0.8125rem; font-weight: 600; border: 1px solid var(--card-border); background: #ffffff; color: var(--text-subtle); border-radius: 6px; cursor: pointer;">
-                        Last 90 Days
-                    </button>
-                    <button type="button" class="sn-date-btn" data-range="custom" style="padding: 0.3rem 0.65rem; font-size: 0.8125rem; font-weight: 600; border: 1px solid var(--card-border); background: #ffffff; color: var(--text-subtle); border-radius: 6px; cursor: pointer;">
-                        Custom Range
-                    </button>
-                </div>
-
-                <!-- Custom Date Inputs (hidden by default unless Custom is active) -->
-                <div id="sn-custom-date-box" style="display: none; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                    <div style="display: flex; align-items: center; gap: 0.35rem;">
-                        <label style="font-size: 0.75rem; color: var(--text-subtle);">From:</label>
-                        <input type="date" id="sn-start-date" value="{{ $analyticsData['filter']['start_date'] }}" style="padding: 0.3rem 0.5rem; font-size: 0.8125rem; border: 1px solid var(--card-border); border-radius: 6px;">
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 0.35rem;">
-                        <label style="font-size: 0.75rem; color: var(--text-subtle);">To:</label>
-                        <input type="date" id="sn-end-date" value="{{ $analyticsData['filter']['end_date'] }}" style="padding: 0.3rem 0.5rem; font-size: 0.8125rem; border: 1px solid var(--card-border); border-radius: 6px;">
-                    </div>
-                    <button type="button" id="sn-apply-custom-date" class="btn btn-secondary btn-sm" style="padding: 0.3rem 0.65rem; font-size: 0.75rem;">
-                        Apply
-                    </button>
-                </div>
-
-                <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.3rem;" id="sn-range-label">
-                    <span>Filtering:</span>
-                    <strong id="sn-range-dates">{{ $analyticsData['filter']['start_date'] }} to {{ $analyticsData['filter']['end_date'] }}</strong>
-                </div>
-            </div>
-        </div>
-
-        <!-- 4 Summary Metric Cards -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;" id="sn-summary-cards">
-            <!-- Total Clicks -->
-            <div class="card" style="padding: 1.25rem;">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
-                    <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-subtle); text-transform: uppercase; letter-spacing: 0.05em;">Total Clicks</span>
-                    <span style="width: 32px; height: 32px; border-radius: 8px; background: #e0e7ff; color: #4338ca; display: flex; align-items: center; justify-content: center;">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
-                    </span>
-                </div>
-                <div style="font-size: 2rem; font-weight: 800; color: var(--text-main); line-height: 1.1;" id="sn-total-clicks">
-                    {{ number_format($analyticsData['summary']['total_clicks']) }}
-                </div>
-                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem;" id="sn-breakdown-clicks">
-                    {{ $analyticsData['summary']['social_links_clicks'] }} dock &bull; {{ $analyticsData['summary']['product_shares_clicks'] }} shares
+            <!-- Metric 3: Today's Clicks & Weekly Total -->
+            <div class="sn-card sn-metric-card">
+                <span class="sn-metric-label">Clicks Today</span>
+                <div class="sn-metric-body">
+                    <span class="sn-metric-val" id="sn-today-clicks">{{ number_format($analyticsData['summary']['clicks_today']) }}</span>
+                    <span class="sn-metric-sub">(<span id="sn-week-clicks">{{ number_format($analyticsData['summary']['clicks_this_week']) }}</span> wk)</span>
                 </div>
             </div>
 
-            <!-- Clicks Today -->
-            <div class="card" style="padding: 1.25rem;">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
-                    <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-subtle); text-transform: uppercase; letter-spacing: 0.05em;">Clicks Today</span>
-                    <span style="width: 32px; height: 32px; border-radius: 8px; background: #ecfdf5; color: #059669; display: flex; align-items: center; justify-content: center;">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
-                    </span>
-                </div>
-                <div style="font-size: 2rem; font-weight: 800; color: #059669; line-height: 1.1;" id="sn-today-clicks">
-                    {{ number_format($analyticsData['summary']['clicks_today']) }}
-                </div>
-                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem;">
-                    Shopper clicks today
-                </div>
-            </div>
-
-            <!-- Clicks This Week -->
-            <div class="card" style="padding: 1.25rem;">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
-                    <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-subtle); text-transform: uppercase; letter-spacing: 0.05em;">Clicks This Week</span>
-                    <span style="width: 32px; height: 32px; border-radius: 8px; background: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center;">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    </span>
-                </div>
-                <div style="font-size: 2rem; font-weight: 800; color: #2563eb; line-height: 1.1;" id="sn-week-clicks">
-                    {{ number_format($analyticsData['summary']['clicks_this_week']) }}
-                </div>
-                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem;">
-                    Mon - Sun current week
-                </div>
-            </div>
-
-            <!-- Top Social Platform -->
-            <div class="card" style="padding: 1.25rem;">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
-                    <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-subtle); text-transform: uppercase; letter-spacing: 0.05em;">Most Clicked Platform</span>
-                    <span id="sn-top-platform-badge" style="width: 32px; height: 32px; border-radius: 8px; background: {{ $analyticsData['summary']['top_platform_color'] ?? '#e2e8f0' }}; color: #ffffff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden;">
+            <!-- Metric 4: Top Platform -->
+            <div class="sn-card sn-metric-card">
+                <span class="sn-metric-label">Top Platform</span>
+                <div class="sn-metric-body">
+                    <span id="sn-top-platform-badge" style="width: 18px; height: 18px; border-radius: 4px; background: {{ $analyticsData['summary']['top_platform_color'] ?? '#f1f2f4' }}; color: #ffffff; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;">
                         @if(!empty($analyticsData['summary']['top_platform_icon']))
                             {!! $analyticsData['summary']['top_platform_icon'] !!}
                         @else
-                            <span style="font-weight: 800; font-size: 0.8125rem;">—</span>
+                            <span style="font-weight: 700; font-size: 0.625rem; color: #5c5f62;">—</span>
+                        @endif
+                    </span>
+                    <strong id="sn-top-platform-name" style="font-size: 0.8125rem; font-weight: 700; color: #202223; max-width: 65px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ $analyticsData['summary']['top_platform_name'] ?? 'None yet' }}</strong>
+                    <span class="sn-metric-sub" id="sn-top-platform-clicks">
+                        @if($analyticsData['summary']['top_platform'])
+                            ({{ number_format($analyticsData['summary']['top_platform_clicks']) }})
                         @endif
                     </span>
                 </div>
-                <div style="font-size: 1.625rem; font-weight: 800; color: var(--text-main); line-height: 1.1;" id="sn-top-platform-name">
-                    {{ $analyticsData['summary']['top_platform_name'] ?? 'None yet' }}
-                </div>
-                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.35rem;" id="sn-top-platform-clicks">
-                    @if($analyticsData['summary']['top_platform'])
-                        {{ number_format($analyticsData['summary']['top_platform_clicks']) }} recorded clicks
-                    @else
-                        Awaiting first click
-                    @endif
-                </div>
             </div>
         </div>
 
-        <!-- 2 Side-by-Side Charts (Weekly Clicks & Platform Comparison) -->
-        <div style="display: grid; grid-template-columns: 3fr 2fr; gap: 1.25rem; margin-bottom: 1.5rem;" class="sn-charts-grid">
-            <!-- Weekly Clicks Daily Bar Chart (Mon - Sun) -->
-            <div class="card" style="padding: 1.25rem 1.5rem;">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
-                    <div>
-                        <h3 style="font-size: 0.95rem; font-weight: 800; color: var(--text-main); margin: 0;">Weekly Clicks Overview</h3>
-                        <p style="font-size: 0.75rem; color: var(--text-subtle); margin: 0.15rem 0 0 0;" id="sn-week-range-text">
-                            Monday to Sunday ({{ $analyticsData['weekly_chart']['week_range'] }})
-                        </p>
-                    </div>
-                    <span style="font-size: 0.75rem; font-weight: 700; color: var(--primary); background: #eef2ff; padding: 0.2rem 0.55rem; border-radius: 6px;" id="sn-week-total-pill">
-                        {{ $analyticsData['weekly_chart']['total_week_clicks'] }} clicks this week
-                    </span>
-                </div>
-
-                <div style="position: relative; height: 240px;" id="sn-weekly-chart-wrapper">
-                    <canvas id="sn-weekly-chart"></canvas>
-                    <div id="sn-weekly-empty-state" style="{{ $analyticsData['weekly_chart']['has_data'] ? 'display: none;' : 'display: flex;' }} position: absolute; inset: 0; align-items: center; justify-content: center; flex-direction: column; background: rgba(255,255,255,0.95); text-align: center; border-radius: 8px;">
-                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" style="margin-bottom: 0.5rem;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                        <div style="font-size: 0.875rem; font-weight: 700; color: var(--text-main);">No clicks recorded for this week yet</div>
-                        <div style="font-size: 0.75rem; color: var(--text-muted); max-width: 280px; margin-top: 0.2rem;">Days with zero clicks are tracked. As visitors click social icons, daily counts update automatically.</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Clicks by Social Platform Chart -->
-            <div class="card" style="padding: 1.25rem 1.5rem;">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
-                    <div>
-                        <h3 style="font-size: 0.95rem; font-weight: 800; color: var(--text-main); margin: 0;">Clicks by Platform</h3>
-                        <p style="font-size: 0.75rem; color: var(--text-subtle); margin: 0.15rem 0 0 0;">Platform distribution for selected period</p>
-                    </div>
-                </div>
-
-                <div style="position: relative; height: 240px;" id="sn-platform-chart-wrapper">
-                    <canvas id="sn-platform-chart"></canvas>
-                    <div id="sn-platform-empty-state" style="{{ $analyticsData['platform_chart']['has_data'] ? 'display: none;' : 'display: flex;' }} position: absolute; inset: 0; align-items: center; justify-content: center; flex-direction: column; background: rgba(255,255,255,0.95); text-align: center; border-radius: 8px;">
-                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" style="margin-bottom: 0.5rem;"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
-                        <div style="font-size: 0.875rem; font-weight: 700; color: var(--text-main);">No platform clicks recorded</div>
-                        <div style="font-size: 0.75rem; color: var(--text-muted); max-width: 240px; margin-top: 0.2rem;">Only active platforms for your store appear here once shoppers interact.</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Social Link Performance Table -->
-        <div class="card" style="padding: 1.25rem 1.5rem;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+        <!-- 2. Storefront Features Status & Quick Shortcuts -->
+        <div class="sn-features-grid">
+            <!-- Feature 1: Floating Social Dock -->
+            <div class="sn-card sn-feature-card">
                 <div>
-                    <h3 style="font-size: 0.95rem; font-weight: 800; color: var(--text-main); margin: 0;">Social Link Performance</h3>
-                    <p style="font-size: 0.75rem; color: var(--text-subtle); margin: 0.15rem 0 0 0;">
-                        Individual link click totals, weekly volume, and last click timestamp (including zero-click and historical links)
+                    <div class="sn-feature-head">
+                        <h3 class="sn-feature-title">Floating Social Dock</h3>
+                        @if($settings->is_enabled)
+                            <span class="sn-badge-on">Enabled</span>
+                        @else
+                            <span class="sn-badge-off">Disabled</span>
+                        @endif
+                    </div>
+                    <p class="sn-feature-desc">
+                        Floating dock displayed on storefront. Position: <strong>{{ ucfirst(str_replace('_', ' ', $settings->position)) }}</strong> ({{ ucfirst($settings->icon_size) }} icons).
                     </p>
                 </div>
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <span style="font-size: 0.75rem; color: var(--text-subtle);" id="sn-table-count">{{ count($analyticsData['social_links']['links']) }} links tracked</span>
+                <div>
+                    <a href="{{ route('shopify.settings.index') }}" class="sn-feature-link">Configure dock settings &rarr;</a>
                 </div>
+            </div>
+
+            <!-- Feature 2: Product Page Sharing -->
+            <div class="sn-card sn-feature-card">
+                <div>
+                    <div class="sn-feature-head">
+                        <h3 class="sn-feature-title">Product Sharing</h3>
+                        @if($settings->product_share_enabled ?? true)
+                            <span class="sn-badge-on">Active</span>
+                        @else
+                            <span class="sn-badge-off">Off</span>
+                        @endif
+                    </div>
+                    <p class="sn-feature-desc">
+                        Native share buttons allowing shoppers to share product URLs directly to WhatsApp, Facebook, X, and Pinterest.
+                    </p>
+                </div>
+                <div>
+                    <a href="{{ route('shopify.settings.index') }}" class="sn-feature-link">Customize buttons &rarr;</a>
+                </div>
+            </div>
+
+            <!-- Feature 3: Supported Social Networks -->
+            <div class="sn-card sn-feature-card">
+                <div>
+                    <div class="sn-feature-head">
+                        <h3 class="sn-feature-title">Connected Platforms</h3>
+                        <span class="sn-badge-on">{{ $totalPlatforms }} Supported</span>
+                    </div>
+                    <p class="sn-feature-desc">
+                        Connect Instagram, WhatsApp, Facebook, TikTok, YouTube, X, Pinterest, LinkedIn, Threads, and more.
+                    </p>
+                </div>
+                <div>
+                    <a href="{{ route('shopify.social-links.create') }}" class="sn-feature-link">Add another platform &rarr;</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Social Link Click Analytics Section -->
+        <div id="sn-analytics-section" class="sn-card" style="padding: 0; overflow: hidden;">
+            <!-- Filter Bar -->
+            <div class="sn-filter-bar">
+                <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                    <span style="font-size: 0.8125rem; font-weight: 700; color: #202223;">Click Analytics</span>
+                    <!-- Event Type Tabs -->
+                    <div class="sn-seg-control" id="sn-event-type-tabs">
+                        <button type="button" class="sn-seg-btn sn-filter-btn active" data-type="all">All Clicks</button>
+                        <button type="button" class="sn-seg-btn sn-filter-btn" data-type="social_links">Social Links</button>
+                        <button type="button" class="sn-seg-btn sn-filter-btn" data-type="product_shares">Product Shares</button>
+                    </div>
+                </div>
+
+                <!-- Date Range Filters -->
+                <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+                    <div id="sn-date-range-pills" style="display: inline-flex; gap: 0.25rem;">
+                        <button type="button" class="sn-date-btn active" data-range="last_7_days">7 Days</button>
+                        <button type="button" class="sn-date-btn" data-range="last_30_days">30 Days</button>
+                        <button type="button" class="sn-date-btn" data-range="last_90_days">90 Days</button>
+                        <button type="button" class="sn-date-btn" data-range="custom">Custom</button>
+                    </div>
+
+                    <!-- Custom Date Inputs -->
+                    <div id="sn-custom-date-box" style="display: none; align-items: center; gap: 0.35rem; margin-left: 0.25rem;">
+                        <input type="date" id="sn-start-date" value="{{ $analyticsData['filter']['start_date'] }}" style="padding: 0.2rem 0.4rem; font-size: 0.75rem; border: 1px solid #e1e3e5; border-radius: 4px;">
+                        <span style="font-size: 0.75rem; color: #6d7175;">to</span>
+                        <input type="date" id="sn-end-date" value="{{ $analyticsData['filter']['end_date'] }}" style="padding: 0.2rem 0.4rem; font-size: 0.75rem; border: 1px solid #e1e3e5; border-radius: 4px;">
+                        <button type="button" id="sn-apply-custom-date" class="btn btn-secondary btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">Apply</button>
+                    </div>
+
+                    <div style="font-size: 0.6875rem; color: #6d7175; margin-left: 0.25rem;" id="sn-range-label">
+                        <span id="sn-range-dates">{{ $analyticsData['filter']['start_date'] }} &ndash; {{ $analyticsData['filter']['end_date'] }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Container -->
+            <div style="padding: 1rem 1.125rem;">
+                <div class="sn-charts-grid">
+                    <!-- Weekly Clicks Bar Chart -->
+                    <div style="border: 1px solid #f1f2f4; border-radius: 6px; padding: 0.875rem 1rem;">
+                        <div class="sn-chart-head">
+                            <div>
+                                <h4 class="sn-chart-title">Weekly Clicks</h4>
+                                <p class="sn-chart-sub" id="sn-week-range-text">{{ $analyticsData['weekly_chart']['week_range'] }}</p>
+                            </div>
+                            <span style="font-size: 0.6875rem; font-weight: 600; color: #4f46e5; background: #eef2ff; padding: 0.15rem 0.45rem; border-radius: 4px;" id="sn-week-total-pill">
+                                {{ $analyticsData['weekly_chart']['total_week_clicks'] }} clicks this week
+                            </span>
+                        </div>
+                        <div style="position: relative; height: 190px;" id="sn-weekly-chart-wrapper">
+                            <canvas id="sn-weekly-chart"></canvas>
+                            <div id="sn-weekly-empty-state" style="{{ $analyticsData['weekly_chart']['has_data'] ? 'display: none;' : 'display: flex;' }} position: absolute; inset: 0; align-items: center; justify-content: center; flex-direction: column; background: rgba(255,255,255,0.92); text-align: center;">
+                                <div style="font-size: 0.8125rem; font-weight: 600; color: #202223;">No clicks recorded this week</div>
+                                <div style="font-size: 0.75rem; color: #6d7175; margin-top: 0.2rem;">Daily counts update automatically as visitors interact with your links.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Platform Distribution Doughnut Chart -->
+                    <div style="border: 1px solid #f1f2f4; border-radius: 6px; padding: 0.875rem 1rem;">
+                        <div class="sn-chart-head">
+                            <div>
+                                <h4 class="sn-chart-title">Clicks by Platform</h4>
+                                <p class="sn-chart-sub">
+                                    Top: <strong id="sn-top-platform-name">{{ $analyticsData['summary']['top_platform_name'] ?? 'None yet' }}</strong>
+                                    <span id="sn-top-platform-clicks" style="color: #6d7175;">
+                                        @if($analyticsData['summary']['top_platform'])
+                                            ({{ number_format($analyticsData['summary']['top_platform_clicks']) }} clicks)
+                                        @endif
+                                    </span>
+                                </p>
+                            </div>
+                            <span id="sn-top-platform-badge" style="width: 24px; height: 24px; border-radius: 6px; background: {{ $analyticsData['summary']['top_platform_color'] ?? '#f1f2f4' }}; color: #ffffff; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                                @if(!empty($analyticsData['summary']['top_platform_icon']))
+                                    {!! $analyticsData['summary']['top_platform_icon'] !!}
+                                @else
+                                    <span style="font-weight: 700; font-size: 0.6875rem; color: #5c5f62;">—</span>
+                                @endif
+                            </span>
+                        </div>
+                        <div style="position: relative; height: 190px;" id="sn-platform-chart-wrapper">
+                            <canvas id="sn-platform-chart"></canvas>
+                            <div id="sn-platform-empty-state" style="{{ $analyticsData['platform_chart']['has_data'] ? 'display: none;' : 'display: flex;' }} position: absolute; inset: 0; align-items: center; justify-content: center; flex-direction: column; background: rgba(255,255,255,0.92); text-align: center;">
+                                <div style="font-size: 0.8125rem; font-weight: 600; color: #202223;">No platform clicks recorded</div>
+                                <div style="font-size: 0.75rem; color: #6d7175; margin-top: 0.2rem;">Data appears here once shoppers click your icons.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Social Link Performance Table -->
+        <div class="sn-card sn-table-card">
+            <div class="sn-table-head">
+                <div>
+                    <h3 style="font-size: 0.875rem; font-weight: 700; color: #202223; margin: 0;">Link Performance</h3>
+                    <p style="font-size: 0.75rem; color: #6d7175; margin: 0.15rem 0 0 0;">Click volume per configured social link</p>
+                </div>
+                <span style="font-size: 0.75rem; color: #6d7175;" id="sn-table-count">{{ count($analyticsData['social_links']['links']) }} links tracked</span>
             </div>
 
             <div style="overflow-x: auto;">
-                <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.875rem;">
+                <table class="sn-table">
                     <thead>
-                        <tr style="border-bottom: 1.5px solid var(--card-border); color: var(--text-subtle); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">
-                            <th style="padding: 0.65rem 0.75rem 0.65rem 0;">Social Link</th>
-                            <th style="padding: 0.65rem 0.75rem;">Platform</th>
-                            <th style="padding: 0.65rem 0.75rem;">Status</th>
-                            <th style="padding: 0.65rem 0.75rem; text-align: right;">Total Clicks</th>
-                            <th style="padding: 0.65rem 0.75rem; text-align: right;">This Week</th>
-                            <th style="padding: 0.65rem 0 0.65rem 0.75rem; text-align: right;">Last Click</th>
+                        <tr>
+                            <th style="width: 35%;">Link</th>
+                            <th style="width: 15%;">Platform</th>
+                            <th style="width: 12%;">Status</th>
+                            <th style="width: 12%; text-align: right;">Total Clicks</th>
+                            <th style="width: 12%; text-align: right;">This Week</th>
+                            <th style="width: 14%; text-align: right;">Last Click</th>
                         </tr>
                     </thead>
                     <tbody id="sn-performance-tbody">
                         @forelse($analyticsData['social_links']['links'] as $item)
-                            <tr style="border-bottom: 1px solid #f1f5f9;" class="sn-perf-row">
-                                <td style="padding: 0.75rem 0.75rem 0.75rem 0;">
-                                    <div style="display: flex; align-items: center; gap: 0.6rem;">
-                                        <div style="width: 32px; height: 32px; border-radius: 8px; background: {{ $item['brand_color'] }}; color: #ffffff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden;">
+                            <tr class="sn-perf-row">
+                                <td>
+                                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                        <div style="width: 26px; height: 26px; border-radius: 6px; background: {{ $item['brand_color'] }}; color: #ffffff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden;">
                                             {!! $item['icon_html'] ?? $item['icon_svg'] !!}
                                         </div>
                                         <div>
-                                            <div style="font-weight: 700; color: var(--text-main);">
+                                            <div style="font-weight: 600; color: #202223; font-size: 0.8125rem;">
                                                 {{ $item['label'] }}
                                             </div>
                                             @if(!empty($item['url']))
-                                                <div style="font-size: 0.75rem; color: var(--text-muted); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                                <div style="font-size: 0.6875rem; color: #6d7175; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                                     {{ $item['url'] }}
                                                 </div>
                                             @endif
                                         </div>
                                     </div>
                                 </td>
-                                <td style="padding: 0.75rem;">
-                                    <span style="font-size: 0.75rem; font-weight: 600; text-transform: capitalize; color: var(--text-main);">
-                                        {{ $item['platform_name'] }}
-                                    </span>
+                                <td>
+                                    <span style="text-transform: capitalize; font-size: 0.75rem; font-weight: 500;">{{ $item['platform_name'] }}</span>
                                 </td>
-                                <td style="padding: 0.75rem;">
+                                <td>
                                     @if($item['is_deleted'] ?? false)
-                                        <span style="font-size: 0.75rem; font-weight: 700; color: #991b1b; background: #fef2f2; border: 1px solid #fecaca; padding: 0.15rem 0.5rem; border-radius: 9999px;">Archived</span>
+                                        <span class="sn-badge-off" style="color: #991b1b; background: #fef2f2;">Archived</span>
                                     @elseif($item['is_active'])
-                                        <span style="font-size: 0.75rem; font-weight: 700; color: #065f46; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 0.15rem 0.5rem; border-radius: 9999px;">Active</span>
+                                        <span class="sn-badge-on">Active</span>
                                     @else
-                                        <span style="font-size: 0.75rem; font-weight: 700; color: #64748b; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0.15rem 0.5rem; border-radius: 9999px;">Inactive</span>
+                                        <span class="sn-badge-off">Inactive</span>
                                     @endif
                                 </td>
-                                <td style="padding: 0.75rem; text-align: right;">
-                                    <span style="display: inline-block; font-weight: 800; font-size: 0.875rem; color: var(--text-main); background: #f8fafc; border: 1px solid #e2e8f0; padding: 0.15rem 0.6rem; border-radius: 6px;">
-                                        {{ number_format($item['total_clicks']) }}
-                                    </span>
+                                <td style="text-align: right; font-weight: 700;">
+                                    {{ number_format($item['total_clicks']) }}
                                 </td>
-                                <td style="padding: 0.75rem; text-align: right;">
-                                    <span style="font-weight: 700; color: {{ $item['week_clicks'] > 0 ? 'var(--primary)' : 'var(--text-subtle)' }}; font-size: 0.8125rem;">
-                                        {{ number_format($item['week_clicks']) }}
-                                    </span>
+                                <td style="text-align: right; color: {{ $item['week_clicks'] > 0 ? '#4f46e5' : '#6d7175' }}; font-weight: {{ $item['week_clicks'] > 0 ? '700' : '500' }};">
+                                    {{ number_format($item['week_clicks']) }}
                                 </td>
-                                <td style="padding: 0.75rem 0 0.75rem 0.75rem; text-align: right; font-size: 0.8125rem; color: {{ $item['last_clicked_formatted'] === 'Never' ? 'var(--text-subtle)' : 'var(--text-main)' }}; font-weight: {{ $item['last_clicked_formatted'] === 'Never' ? '400' : '600' }};">
+                                <td style="text-align: right; font-size: 0.75rem; color: #6d7175;">
                                     {{ $item['last_clicked_formatted'] }}
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" style="padding: 2rem; text-align: center; color: var(--text-muted); font-size: 0.875rem;">
-                                    No social links found for this store. Add links in the Social Links section to start tracking.
+                                <td colspan="6" style="padding: 1.5rem; text-align: center; color: #6d7175; font-size: 0.8125rem;">
+                                    No social links configured yet. Click "Add Social Link" above to start.
                                 </td>
                             </tr>
                         @endforelse
@@ -353,34 +603,12 @@
                 </table>
             </div>
         </div>
-    </div>
 
-    <!-- Responsive Styles for Analytics Grid & Platform Icons -->
-    <style>
-        #sn-top-platform-badge svg,
-        .sn-perf-row td svg {
-            width: 18px;
-            height: 18px;
-            display: block;
-            fill: currentColor;
-        }
-        #sn-top-platform-badge img,
-        .sn-perf-row td img {
-            max-width: 20px;
-            max-height: 20px;
-            object-fit: contain;
-            display: block;
-        }
-        @media (max-width: 900px) {
-            .sn-charts-grid {
-                grid-template-columns: 1fr !important;
-            }
-        }
-    </style>
+    </div>
 @endsection
 
 @push('scripts')
-    <!-- Chart.js 4.4.1 for interactive, Polaris-style analytics graphs -->
+    <!-- Chart.js 4.4.1 for Polaris-style analytics graphs -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
     <script>
@@ -448,8 +676,8 @@
                                 label: 'Clicks',
                                 data: dataValues,
                                 backgroundColor: backgroundColors,
-                                borderRadius: 6,
-                                maxBarThickness: 32,
+                                borderRadius: 4,
+                                maxBarThickness: 24,
                             }]
                         },
                         options: {
@@ -458,11 +686,11 @@
                             plugins: {
                                 legend: { display: false },
                                 tooltip: {
-                                    backgroundColor: '#1e293b',
-                                    titleFont: { size: 12, weight: '700' },
-                                    bodyFont: { size: 12 },
-                                    padding: 10,
-                                    cornerRadius: 6,
+                                    backgroundColor: '#202223',
+                                    titleFont: { size: 11, weight: '700' },
+                                    bodyFont: { size: 11 },
+                                    padding: 8,
+                                    cornerRadius: 4,
                                     displayColors: false,
                                     callbacks: {
                                         label: function(context) {
@@ -477,17 +705,17 @@
                                     ticks: {
                                         stepSize: 1,
                                         precision: 0,
-                                        font: { size: 11 },
-                                        color: '#64748b'
+                                        font: { size: 10 },
+                                        color: '#6d7175'
                                     },
                                     grid: {
-                                        color: '#f1f5f9'
+                                        color: '#f1f2f4'
                                     }
                                 },
                                 x: {
                                     ticks: {
-                                        font: { size: 11, weight: '600' },
-                                        color: '#475569'
+                                        font: { size: 10, weight: '600' },
+                                        color: '#5c5f62'
                                     },
                                     grid: { display: false }
                                 }
@@ -535,18 +763,18 @@
                                 legend: {
                                     position: 'bottom',
                                     labels: {
-                                        boxWidth: 12,
-                                        padding: 12,
-                                        font: { size: 11, weight: '600' },
-                                        color: '#334155'
+                                        boxWidth: 10,
+                                        padding: 10,
+                                        font: { size: 10, weight: '600' },
+                                        color: '#5c5f62'
                                     }
                                 },
                                 tooltip: {
-                                    backgroundColor: '#1e293b',
-                                    titleFont: { size: 12, weight: '700' },
-                                    bodyFont: { size: 12 },
-                                    padding: 10,
-                                    cornerRadius: 6,
+                                    backgroundColor: '#202223',
+                                    titleFont: { size: 11, weight: '700' },
+                                    bodyFont: { size: 11 },
+                                    padding: 8,
+                                    cornerRadius: 4,
                                     callbacks: {
                                         label: function(context) {
                                             const val = context.parsed;
@@ -557,7 +785,7 @@
                                     }
                                 }
                             },
-                            cutout: '62%'
+                            cutout: '66%'
                         }
                     });
                 }
@@ -574,33 +802,33 @@
                 // Update summary metrics
                 const s = data.summary || {};
                 if (totalClicksEl) totalClicksEl.textContent = Number(s.total_clicks || 0).toLocaleString();
-                if (breakdownClicksEl) breakdownClicksEl.textContent = (s.social_links_clicks || 0) + ' dock \u2022 ' + (s.product_shares_clicks || 0) + ' shares';
+                if (breakdownClicksEl) breakdownClicksEl.textContent = '(' + (s.social_links_clicks || 0) + ' dock)';
                 if (todayClicksEl) todayClicksEl.textContent = Number(s.clicks_today || 0).toLocaleString();
                 if (weekClicksEl) weekClicksEl.textContent = Number(s.clicks_this_week || 0).toLocaleString();
 
                 if (topPlatformBadge) {
-                    topPlatformBadge.style.background = s.top_platform_color || '#e2e8f0';
+                    topPlatformBadge.style.background = s.top_platform_color || '#f1f2f4';
                     if (s.top_platform_icon) {
                         topPlatformBadge.innerHTML = s.top_platform_icon;
                     } else {
-                        topPlatformBadge.innerHTML = '<span style="font-weight: 800; font-size: 0.8125rem;">—</span>';
+                        topPlatformBadge.innerHTML = '<span style="font-weight: 700; font-size: 0.6875rem; color: #5c5f62;">—</span>';
                     }
                 }
                 if (topPlatformName) {
                     topPlatformName.textContent = s.top_platform_name || 'None yet';
                 }
                 if (topPlatformClicks) {
-                    topPlatformClicks.textContent = s.top_platform ? Number(s.top_platform_clicks || 0).toLocaleString() + ' recorded clicks' : 'Awaiting first click';
+                    topPlatformClicks.textContent = s.top_platform ? '(' + Number(s.top_platform_clicks || 0).toLocaleString() + ')' : '';
                 }
 
                 // Update week range labels
                 const w = data.weekly_chart || {};
                 if (weekTotalPill) weekTotalPill.textContent = (w.total_week_clicks || 0) + ' clicks this week';
-                if (weekRangeText) weekRangeText.textContent = 'Monday to Sunday (' + (w.week_range || '') + ')';
+                if (weekRangeText) weekRangeText.textContent = w.week_range || '';
 
                 // Update date filter indicator
                 if (rangeDatesLabel && data.filter) {
-                    rangeDatesLabel.textContent = data.filter.start_date + ' to ' + data.filter.end_date;
+                    rangeDatesLabel.textContent = data.filter.start_date + ' \u2013 ' + data.filter.end_date;
                 }
 
                 // Update charts
@@ -613,37 +841,36 @@
 
                 if (tbody) {
                     if (links.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="6" style="padding: 2rem; text-align: center; color: var(--text-muted); font-size: 0.875rem;">No social links found for this store. Add links in the Social Links section to start tracking.</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="6" style="padding: 1.5rem; text-align: center; color: #6d7175; font-size: 0.8125rem;">No social links configured yet. Click "Add Social Link" above to start.</td></tr>';
                     } else {
                         tbody.innerHTML = links.map(function(item) {
                             const badge = item.is_deleted
-                                ? '<span style="font-size: 0.75rem; font-weight: 700; color: #991b1b; background: #fef2f2; border: 1px solid #fecaca; padding: 0.15rem 0.5rem; border-radius: 9999px;">Archived</span>'
+                                ? '<span class="sn-badge-off" style="color: #991b1b; background: #fef2f2;">Archived</span>'
                                 : (item.is_active
-                                    ? '<span style="font-size: 0.75rem; font-weight: 700; color: #065f46; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 0.15rem 0.5rem; border-radius: 9999px;">Active</span>'
-                                    : '<span style="font-size: 0.75rem; font-weight: 700; color: #64748b; background: #f1f5f9; border: 1px solid #cbd5e1; padding: 0.15rem 0.5rem; border-radius: 9999px;">Inactive</span>');
+                                    ? '<span class="sn-badge-on">Active</span>'
+                                    : '<span class="sn-badge-off">Inactive</span>');
 
-                            const urlHtml = item.url ? '<div style="font-size: 0.75rem; color: var(--text-muted); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + escapeHtml(item.url) + '</div>' : '';
+                            const urlHtml = item.url ? '<div style="font-size: 0.6875rem; color: #6d7175; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + escapeHtml(item.url) + '</div>' : '';
                             const isNever = item.last_clicked_formatted === 'Never';
+                            const iconContent = item.icon_html || item.icon_svg || ('<span style="font-weight: 700; font-size: 0.6875rem;">' + escapeHtml((item.platform || '').slice(0, 2).toUpperCase()) + '</span>');
 
-                            const iconContent = item.icon_html || item.icon_svg || ('<span style="font-weight: 700; font-size: 0.75rem;">' + escapeHtml((item.platform || '').slice(0, 2).toUpperCase()) + '</span>');
-
-                            return '<tr style="border-bottom: 1px solid #f1f5f9;" class="sn-perf-row">' +
-                                '<td style="padding: 0.75rem 0.75rem 0.75rem 0;">' +
-                                    '<div style="display: flex; align-items: center; gap: 0.6rem;">' +
-                                        '<div style="width: 32px; height: 32px; border-radius: 8px; background: ' + (item.brand_color || '#4f46e5') + '; color: #ffffff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden;">' +
+                            return '<tr class="sn-perf-row">' +
+                                '<td>' +
+                                    '<div style="display: flex; align-items: center; gap: 0.5rem;">' +
+                                        '<div style="width: 26px; height: 26px; border-radius: 6px; background: ' + (item.brand_color || '#4f46e5') + '; color: #ffffff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden;">' +
                                             iconContent +
                                         '</div>' +
                                         '<div>' +
-                                            '<div style="font-weight: 700; color: var(--text-main);">' + escapeHtml(item.label || item.platform_name) + '</div>' +
+                                            '<div style="font-weight: 600; color: #202223; font-size: 0.8125rem;">' + escapeHtml(item.label || item.platform_name) + '</div>' +
                                             urlHtml +
                                         '</div>' +
                                     '</div>' +
                                 '</td>' +
-                                '<td style="padding: 0.75rem;"><span style="font-size: 0.75rem; font-weight: 600; text-transform: capitalize; color: var(--text-main);">' + escapeHtml(item.platform_name) + '</span></td>' +
-                                '<td style="padding: 0.75rem;">' + badge + '</td>' +
-                                '<td style="padding: 0.75rem; text-align: right;"><span style="display: inline-block; font-weight: 800; font-size: 0.875rem; color: var(--text-main); background: #f8fafc; border: 1px solid #e2e8f0; padding: 0.15rem 0.6rem; border-radius: 6px;">' + Number(item.total_clicks || 0).toLocaleString() + '</span></td>' +
-                                '<td style="padding: 0.75rem; text-align: right;"><span style="font-weight: 700; color: ' + (item.week_clicks > 0 ? 'var(--primary)' : 'var(--text-subtle)') + '; font-size: 0.8125rem;">' + Number(item.week_clicks || 0).toLocaleString() + '</span></td>' +
-                                '<td style="padding: 0.75rem 0 0.75rem 0.75rem; text-align: right; font-size: 0.8125rem; color: ' + (isNever ? 'var(--text-subtle)' : 'var(--text-main)') + '; font-weight: ' + (isNever ? '400' : '600') + ';">' + escapeHtml(item.last_clicked_formatted) + '</td>' +
+                                '<td><span style="text-transform: capitalize; font-size: 0.75rem; font-weight: 500;">' + escapeHtml(item.platform_name) + '</span></td>' +
+                                '<td>' + badge + '</td>' +
+                                '<td style="text-align: right; font-weight: 700;">' + Number(item.total_clicks || 0).toLocaleString() + '</td>' +
+                                '<td style="text-align: right; color: ' + (item.week_clicks > 0 ? '#4f46e5' : '#6d7175') + '; font-weight: ' + (item.week_clicks > 0 ? '700' : '500') + ';">' + Number(item.week_clicks || 0).toLocaleString() + '</td>' +
+                                '<td style="text-align: right; font-size: 0.75rem; color: #6d7175;">' + escapeHtml(item.last_clicked_formatted) + '</td>' +
                             '</tr>';
                         }).join('');
                     }
@@ -713,17 +940,8 @@
 
                     eventTabs.querySelectorAll('.sn-filter-btn').forEach(function(b) {
                         b.classList.remove('active');
-                        b.style.background = 'transparent';
-                        b.style.color = 'var(--text-subtle)';
-                        b.style.fontWeight = '600';
-                        b.style.boxShadow = 'none';
                     });
-
                     btn.classList.add('active');
-                    btn.style.background = '#ffffff';
-                    btn.style.color = 'var(--text-main)';
-                    btn.style.fontWeight = '700';
-                    btn.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
 
                     state.eventType = btn.dataset.type;
                     fetchAnalytics(false);
@@ -738,22 +956,13 @@
 
                     datePills.querySelectorAll('.sn-date-btn').forEach(function(b) {
                         b.classList.remove('active');
-                        b.style.borderColor = 'var(--card-border)';
-                        b.style.background = '#ffffff';
-                        b.style.color = 'var(--text-subtle)';
-                        b.style.fontWeight = '600';
                     });
-
                     btn.classList.add('active');
-                    btn.style.borderColor = 'var(--primary)';
-                    btn.style.background = '#eef2ff';
-                    btn.style.color = 'var(--primary)';
-                    btn.style.fontWeight = '700';
 
                     state.dateRange = btn.dataset.range;
 
                     if (state.dateRange === 'custom') {
-                        if (customBox) customBox.style.display = 'flex';
+                        if (customBox) customBox.style.display = 'inline-flex';
                     } else {
                         if (customBox) customBox.style.display = 'none';
                         fetchAnalytics(false);
@@ -778,7 +987,7 @@
             initWeeklyChart(initialData.weekly_chart || {});
             initPlatformChart(initialData.platform_chart || {});
 
-            // 5-second polling interval to refresh analytics automatically while the dashboard is open
+            // Polling interval to refresh analytics automatically while the dashboard is open
             let pollTimer = null;
             function startPolling() {
                 if (pollTimer) clearInterval(pollTimer);
@@ -786,10 +995,9 @@
                     if (!document.hidden && !state.loading) {
                         fetchAnalytics(true);
                     }
-                }, 5000);
+                }, 8000);
             }
 
-            // Immediately refresh analytics when the merchant returns to the dashboard tab
             document.addEventListener('visibilitychange', function() {
                 if (!document.hidden) {
                     fetchAnalytics(true);

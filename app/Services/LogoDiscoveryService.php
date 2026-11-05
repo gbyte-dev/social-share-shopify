@@ -69,9 +69,20 @@ class LogoDiscoveryService
 
         $cacheKey = 'logo_discovery_'.md5(strtolower("{$appName}|{$destinationUrl}|{$websiteUrl}"));
 
-        return Cache::remember($cacheKey, 3600, function () use ($appName, $destinationUrl, $websiteUrl) {
-            return $this->performDiscovery($appName, $destinationUrl, $websiteUrl);
-        });
+        if (Cache::has($cacheKey)) {
+            $cached = Cache::get($cacheKey);
+            if (is_array($cached) && ! empty($cached['success']) && ! empty($cached['candidates'])) {
+                return $cached;
+            }
+        }
+
+        $result = $this->performDiscovery($appName, $destinationUrl, $websiteUrl);
+
+        if (! empty($result['success']) && ! empty($result['candidates'])) {
+            Cache::put($cacheKey, $result, 3600);
+        }
+
+        return $result;
     }
 
     /**
@@ -93,21 +104,43 @@ class LogoDiscoveryService
             }
         }
 
-        // Priority 2: Clearbit Logo API (reputable high-res brand asset)
+        // Priority 2: Unavatar Aggregator API (high-res official vector/PNG logos)
         if ($domain) {
-            $clearbitUrl = "https://logo.clearbit.com/{$domain}";
-            if ($this->verifyRemoteImage($clearbitUrl)) {
-                $candidates[] = [
-                    'url' => $clearbitUrl,
-                    'source_name' => 'Clearbit Brand Asset',
-                    'source_domain' => $domain,
-                    'is_verified' => true,
-                    'priority' => 85,
-                ];
+            $unavatarUrl = "https://unavatar.io/{$domain}";
+            try {
+                if ($this->verifyRemoteImage($unavatarUrl)) {
+                    $candidates[] = [
+                        'url' => $unavatarUrl,
+                        'source_name' => 'High-Res Brand Asset',
+                        'source_domain' => $domain,
+                        'is_verified' => true,
+                        'priority' => 88,
+                    ];
+                }
+            } catch (\Throwable) {
+                // Ignore failure
             }
         }
 
-        // Priority 3: Google Favicon API (official public favicon service, 128px high-res)
+        // Priority 3: Clearbit Logo API (reputable brand asset if reachable)
+        if ($domain) {
+            $clearbitUrl = "https://logo.clearbit.com/{$domain}";
+            try {
+                if ($this->verifyRemoteImage($clearbitUrl)) {
+                    $candidates[] = [
+                        'url' => $clearbitUrl,
+                        'source_name' => 'Clearbit Brand Asset',
+                        'source_domain' => $domain,
+                        'is_verified' => true,
+                        'priority' => 85,
+                    ];
+                }
+            } catch (\Throwable) {
+                // Silently skip if Clearbit domain is unreachable
+            }
+        }
+
+        // Priority 4: Google Favicon API (official public favicon service, 128px high-res)
         if ($domain) {
             $googleFaviconUrl = 'https://www.google.com/s2/favicons?domain='.urlencode($domain).'&sz=128';
             if ($this->verifyRemoteImage($googleFaviconUrl)) {
@@ -121,7 +154,7 @@ class LogoDiscoveryService
             }
         }
 
-        // Priority 4: DuckDuckGo Icons API
+        // Priority 5: DuckDuckGo Icons API
         if ($domain) {
             $ddgIconUrl = "https://icons.duckduckgo.com/ip3/{$domain}.ico";
             if ($this->verifyRemoteImage($ddgIconUrl)) {
@@ -135,7 +168,7 @@ class LogoDiscoveryService
             }
         }
 
-        // Priority 5: Optional Search API integration (Brandfetch API if key configured)
+        // Priority 6: Optional Search API integration (Brandfetch API if key configured)
         $brandfetchKey = config('services.brandfetch.key') ?? env('BRANDFETCH_API_KEY');
         if ($domain && $brandfetchKey) {
             $brandfetchCandidates = $this->discoverFromBrandfetch($domain, $brandfetchKey);
@@ -297,28 +330,39 @@ class LogoDiscoveryService
     protected function resolveTargetDomain(string $appName, string $destinationUrl, string $websiteUrl): ?string
     {
         if ($websiteUrl) {
-            $host = parse_url($websiteUrl, PHP_URL_HOST);
+            $formattedWeb = str_contains($websiteUrl, '://') ? $websiteUrl : 'https://'.$websiteUrl;
+            $host = parse_url($formattedWeb, PHP_URL_HOST);
             if ($host) {
                 return preg_replace('/^www\./i', '', strtolower($host));
             }
         }
 
         if ($destinationUrl) {
-            $host = parse_url($destinationUrl, PHP_URL_HOST);
+            $formattedDest = str_contains($destinationUrl, '://') ? $destinationUrl : 'https://'.$destinationUrl;
+            $host = parse_url($formattedDest, PHP_URL_HOST);
             if ($host) {
                 return preg_replace('/^www\./i', '', strtolower($host));
             }
         }
 
         if ($appName) {
-            $normalizedName = strtolower(preg_replace('/[^a-z0-9]/', '', $appName));
+            $cleanName = strtolower(trim($appName));
+            $normalizedName = preg_replace('/[^a-z0-9]/', '', $cleanName);
             if (isset(self::COMMON_PLATFORM_DOMAINS[$normalizedName])) {
                 return self::COMMON_PLATFORM_DOMAINS[$normalizedName];
             }
 
-            // If appName resembles a domain already (e.g. "discord.com")
-            if (str_contains($appName, '.') && filter_var('https://'.$appName, FILTER_VALIDATE_URL)) {
-                return parse_url('https://'.$appName, PHP_URL_HOST);
+            // If appName resembles a domain already (e.g. "discord.com" or "mybrand.io")
+            if (str_contains($cleanName, '.')) {
+                $host = parse_url('https://'.$cleanName, PHP_URL_HOST);
+                if ($host) {
+                    return preg_replace('/^www\./i', '', strtolower($host));
+                }
+            }
+
+            // Fallback for custom app name: try $normalizedName . '.com'
+            if (! empty($normalizedName)) {
+                return $normalizedName.'.com';
             }
         }
 
