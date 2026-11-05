@@ -80,7 +80,7 @@
   left: auto;
 }
 .socialnest-dock-container.sn-pos-custom[data-h-align="center"] {
-  left: 50%;
+  left: calc(50% + var(--sn-custom-x));
   right: auto;
 }
 
@@ -93,7 +93,7 @@
   top: auto;
 }
 .socialnest-dock-container.sn-pos-custom[data-v-align="center"] {
-  top: 50%;
+  top: calc(50% + var(--sn-custom-y));
   bottom: auto;
 }
 
@@ -117,11 +117,7 @@
   flex-direction: row;
 }
 
-.socialnest-dock-container.sn-pos-custom[data-h-align="left"][data-v-align="center"] {
-  transform: translateY(-50%);
-  flex-direction: column;
-}
-
+.socialnest-dock-container.sn-pos-custom[data-h-align="left"][data-v-align="center"],
 .socialnest-dock-container.sn-pos-custom[data-h-align="right"][data-v-align="center"] {
   transform: translateY(-50%);
   flex-direction: column;

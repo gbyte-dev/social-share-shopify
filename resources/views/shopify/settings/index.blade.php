@@ -2698,6 +2698,12 @@
         }
 
         function onAlignChanged(type, alignVal, updateDirty = true) {
+            const inputName = 'custom_' + (type === 'h' ? 'horizontal' : 'vertical') + '_align';
+            const radio = document.querySelector('input[name="' + inputName + '"][value="' + alignVal + '"]');
+            if (radio && !radio.checked) {
+                radio.checked = true;
+            }
+
             const items = document.querySelectorAll('.segmented-item[data-align-type="' + type + '"]');
             items.forEach(item => {
                 const isMatch = item.getAttribute('data-align') === alignVal;
@@ -2942,36 +2948,38 @@
                 let rawY = 24;
 
                 if (currentPreviewDevice === 'mobile') {
-                    rawX = parseInt(document.getElementById('custom_offset_x_mobile')?.value || 16, 10);
-                    rawY = parseInt(document.getElementById('custom_offset_y_mobile')?.value || 16, 10);
+                    rawX = parseInt(document.getElementById('custom_offset_x_mobile')?.value ?? 16, 10);
+                    rawY = parseInt(document.getElementById('custom_offset_y_mobile')?.value ?? 16, 10);
                 } else {
-                    rawX = parseInt(document.getElementById('custom_offset_x_desktop')?.value || 24, 10);
-                    rawY = parseInt(document.getElementById('custom_offset_y_desktop')?.value || 24, 10);
+                    rawX = parseInt(document.getElementById('custom_offset_x_desktop')?.value ?? 24, 10);
+                    rawY = parseInt(document.getElementById('custom_offset_y_desktop')?.value ?? 24, 10);
                 }
+                if (isNaN(rawX)) rawX = currentPreviewDevice === 'mobile' ? 16 : 24;
+                if (isNaN(rawY)) rawY = currentPreviewDevice === 'mobile' ? 16 : 24;
 
-                // Scale proportionally for preview container dimensions
-                const previewX = Math.min(Math.max(rawX * 0.4 + 4, 6), 90) + 'px';
-                const previewY = Math.min(Math.max(rawY * 0.4 + 4, 6), 75) + 'px';
+                // Scale proportionally for preview container dimensions (0px raw = 0px scaled)
+                const scaleX = Math.round(rawX * 0.4);
+                const scaleY = Math.round(rawY * 0.4);
 
                 if (hAlign === 'left') {
-                    dock.style.left = previewX;
+                    dock.style.left = scaleX + 'px';
                     dock.style.right = 'auto';
                 } else if (hAlign === 'right') {
-                    dock.style.right = previewX;
+                    dock.style.right = scaleX + 'px';
                     dock.style.left = 'auto';
                 } else {
-                    dock.style.left = '50%';
+                    dock.style.left = `calc(50% + ${scaleX}px)`;
                     dock.style.right = 'auto';
                 }
 
                 if (vAlign === 'top') {
-                    dock.style.top = previewY;
+                    dock.style.top = scaleY + 'px';
                     dock.style.bottom = 'auto';
                 } else if (vAlign === 'bottom') {
-                    dock.style.bottom = needsElevation ? `max(${previewY}, 64px)` : previewY;
+                    dock.style.bottom = needsElevation ? `calc(${scaleY}px + 64px)` : scaleY + 'px';
                     dock.style.top = 'auto';
                 } else {
-                    dock.style.top = '50%';
+                    dock.style.top = `calc(50% + ${scaleY}px)`;
                     dock.style.bottom = 'auto';
                 }
 

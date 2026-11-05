@@ -352,4 +352,116 @@ class CustomPositioningTest extends TestCase
         $this->assertSame(0, $settings['custom_offset_x_mobile']);
         $this->assertSame(0, $settings['custom_offset_y_mobile']);
     }
+
+    public function test_all_nine_alignment_combinations_with_independent_custom_offsets(): void
+    {
+        $hAligns = ['left', 'center', 'right'];
+        $vAligns = ['top', 'center', 'bottom'];
+
+        foreach ($hAligns as $h) {
+            foreach ($vAligns as $v) {
+                $response = $this->authStore($this->storeA)->put('/shopify/settings', [
+                    'position' => 'custom',
+                    'custom_horizontal_align' => $h,
+                    'custom_vertical_align' => $v,
+                    'custom_offset_x_desktop' => 40,
+                    'custom_offset_y_desktop' => 30,
+                    'custom_offset_x_mobile' => 25,
+                    'custom_offset_y_mobile' => 15,
+                    'icon_size' => 'medium',
+                    'icon_shape' => 'circle',
+                ]);
+
+                $response->assertSessionHasNoErrors();
+
+                $this->assertDatabaseHas('storefront_settings', [
+                    'shopify_store_id' => $this->storeA->id,
+                    'position' => 'custom',
+                    'custom_horizontal_align' => $h,
+                    'custom_vertical_align' => $v,
+                    'custom_offset_x_desktop' => 40,
+                    'custom_offset_y_desktop' => 30,
+                    'custom_offset_x_mobile' => 25,
+                    'custom_offset_y_mobile' => 15,
+                ]);
+
+                $apiRes = $this->getJson("/api/storefront/config?shop={$this->storeA->shop}");
+                $apiRes->assertStatus(200);
+
+                $settings = $apiRes->json('settings');
+                $this->assertEquals($h, $settings['custom_horizontal_align']);
+                $this->assertEquals($v, $settings['custom_vertical_align']);
+                $this->assertSame(40, $settings['custom_offset_x_desktop']);
+                $this->assertSame(30, $settings['custom_offset_y_desktop']);
+                $this->assertSame(25, $settings['custom_offset_x_mobile']);
+                $this->assertSame(15, $settings['custom_offset_y_mobile']);
+            }
+        }
+    }
+
+    public function test_changing_alignment_does_not_reset_saved_offsets_and_vice_versa(): void
+    {
+        // 1. Initial setup with custom offsets
+        $this->authStore($this->storeA)->put('/shopify/settings', [
+            'position' => 'custom',
+            'custom_horizontal_align' => 'left',
+            'custom_vertical_align' => 'top',
+            'custom_offset_x_desktop' => 40,
+            'custom_offset_y_desktop' => 30,
+            'custom_offset_x_mobile' => 20,
+            'custom_offset_y_mobile' => 10,
+            'icon_size' => 'medium',
+            'icon_shape' => 'circle',
+        ])->assertSessionHasNoErrors();
+
+        // 2. Change only horizontal alignment to center; offsets must be preserved
+        $this->authStore($this->storeA)->put('/shopify/settings', [
+            'position' => 'custom',
+            'custom_horizontal_align' => 'center',
+            'custom_vertical_align' => 'top',
+            'custom_offset_x_desktop' => 40,
+            'custom_offset_y_desktop' => 30,
+            'custom_offset_x_mobile' => 20,
+            'custom_offset_y_mobile' => 10,
+            'icon_size' => 'medium',
+            'icon_shape' => 'circle',
+        ])->assertSessionHasNoErrors();
+
+        $apiRes = $this->getJson("/api/storefront/config?shop={$this->storeA->shop}");
+        $settings = $apiRes->json('settings');
+        $this->assertEquals('center', $settings['custom_horizontal_align']);
+        $this->assertSame(40, $settings['custom_offset_x_desktop']);
+        $this->assertSame(30, $settings['custom_offset_y_desktop']);
+
+        // 3. Change only offset; alignments must remain intact
+        $this->authStore($this->storeA)->put('/shopify/settings', [
+            'position' => 'custom',
+            'custom_horizontal_align' => 'center',
+            'custom_vertical_align' => 'top',
+            'custom_offset_x_desktop' => 80,
+            'custom_offset_y_desktop' => 55,
+            'custom_offset_x_mobile' => 35,
+            'custom_offset_y_mobile' => 22,
+            'icon_size' => 'medium',
+            'icon_shape' => 'circle',
+        ])->assertSessionHasNoErrors();
+
+        $apiRes2 = $this->getJson("/api/storefront/config?shop={$this->storeA->shop}");
+        $settings2 = $apiRes2->json('settings');
+        $this->assertEquals('center', $settings2['custom_horizontal_align']);
+        $this->assertEquals('top', $settings2['custom_vertical_align']);
+        $this->assertSame(80, $settings2['custom_offset_x_desktop']);
+        $this->assertSame(55, $settings2['custom_offset_y_desktop']);
+    }
+
+    public function test_storefront_css_and_js_include_displacement_for_center_alignments(): void
+    {
+        $css = file_get_contents(base_path('extensions/socialnest-theme-ext/assets/socialnest-storefront.css'));
+        $this->assertStringContainsString('left: calc(50% + var(--sn-custom-x));', $css);
+        $this->assertStringContainsString('top: calc(50% + var(--sn-custom-y));', $css);
+
+        $js = file_get_contents(base_path('extensions/socialnest-theme-ext/assets/socialnest-storefront.js'));
+        $this->assertStringContainsString('calc(50% + var(${t}x))', $js);
+        $this->assertStringContainsString('calc(50% + var(${t}y))', $js);
+    }
 }

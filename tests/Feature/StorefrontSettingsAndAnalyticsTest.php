@@ -635,8 +635,10 @@ class StorefrontSettingsAndAnalyticsTest extends TestCase
 
         $liquidContent = file_get_contents($liquidPath);
 
-        // Assert liquid does not contain the old block.settings.enable_widget check
+        // Assert liquid does not contain the old block.settings checks or theme override dataset
         $this->assertStringNotContainsString('block.settings.enable_widget', $liquidContent);
+        $this->assertStringNotContainsString('data-theme-position', $liquidContent);
+        $this->assertStringNotContainsString('data-theme-h-align', $liquidContent);
 
         // Extract schema JSON
         $matched = preg_match('/\{%\s*schema\s*%\}([\s\S]*?)\{%\s*endschema\s*%\}/', $liquidContent, $matches);
@@ -646,7 +648,18 @@ class StorefrontSettingsAndAnalyticsTest extends TestCase
 
         $settingIds = array_column($schema['settings'] ?? [], 'id');
         $this->assertNotContains('enable_widget', $settingIds, 'Theme App Extension schema must NOT contain duplicate enable_widget setting.');
-        $this->assertContains('app_url', $settingIds);
+        $this->assertNotContains('position', $settingIds, 'Theme App Extension schema must NOT contain position override.');
+        $this->assertNotContains('custom_horizontal_align', $settingIds);
+        $this->assertNotContains('custom_vertical_align', $settingIds);
+        $this->assertNotContains('custom_offset_x_desktop', $settingIds);
+        $this->assertNotContains('custom_offset_y_desktop', $settingIds);
+
+        // Assert schema description directs merchants to the SocialNest Dashboard
+        $contents = array_column($schema['settings'] ?? [], 'content');
+        $this->assertTrue(
+            collect($contents)->contains(fn ($text) => str_contains($text, 'Manage all widget settings from your SocialNest Dashboard')),
+            'Theme App Extension schema must describe that settings are managed from the SocialNest Dashboard.'
+        );
     }
 
     public function test_unauthenticated_storefront_cannot_modify_laravel_settings(): void
