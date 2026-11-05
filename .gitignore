@@ -49,3 +49,7 @@ Thumbs.db
 
 # Local MCP configuration
 /.agents/mcp_config.json
+.package-lock.json
+.htaccess
+index.php
+package-lock.json
