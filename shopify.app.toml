@@ -1,31 +1,27 @@
-# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
-
 client_id = "497103da7be619c3db8c674b5ae04fb6"
 name = "Socialvire"
-handle = "socialvire-webvire"
+handle = "socialvirewebvire"
 application_url = "https://socialvire.webvire.com"
 embedded = true
-
+ 
 [build]
-
+ 
 [access_scopes]
-# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "write_online_store_pages,write_content,read_themes,write_themes"
-
+scopes = "read_app_proxy,read_themes,write_app_proxy,write_content,write_online_store_pages,write_themes"
+ 
 [auth]
 redirect_urls = [
   "https://socialvire.webvire.com/shopify/callback",
   "https://socialvire.webvire.com/callback"
 ]
-
+ 
 [webhooks]
 api_version = "2025-10"
-
+ 
 [app_proxy]
 url = "https://socialvire.webvire.com/shopify/proxy"
 subpath = "socialvire"
 prefix = "apps"
-
+ 
 [pos]
 embedded = false
- 

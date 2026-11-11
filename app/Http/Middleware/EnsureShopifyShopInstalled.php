@@ -74,7 +74,7 @@ class EnsureShopifyShopInstalled
 
             // Subcase 1B: The request comes with Shopify launch HMAC signature
             if ($request->has('hmac')) {
-                $isHmacValid = $this->shopifyService->verifyHmac($request->all());
+                $isHmacValid = $this->shopifyService->verifyHmac($request->query());
 
                 if (! $isHmacValid) {
                     Log::warning('Shopify auth state: authentication_failed - Invalid HMAC signature', [

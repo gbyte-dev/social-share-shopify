@@ -3,9 +3,13 @@
  * Manages database synchronization, optimistic updates, and API requests
  */
 
-import { getShopDomain, getDirectAppUrl, getApiBase, getGuestUuid } from './socialnest-wishlist-storage.js';
+import {
+  getShopDomain,
+  getApiBase,
+  getGuestUuid,
+} from "./socialnest-wishlist-storage.js";
 
-var win = typeof window !== 'undefined' ? window : null;
+var win = typeof window !== "undefined" ? window : null;
 
 var items = [];
 var inFlight = {};
@@ -24,17 +28,24 @@ export function getState() {
     inFlight: inFlight,
     isInitialLoading: isInitialLoading,
     hasLoadError: hasLoadError,
-    isInitialized: isInitialized
+    isInitialized: isInitialized,
   };
 }
 
 function buildRequestUrl(base, endpoint, method, guestUuid, shop) {
-  var clean = endpoint ? (endpoint.charAt(0) === '/' ? endpoint : '/' + endpoint) : '';
+  var clean = endpoint
+    ? endpoint.charAt(0) === "/"
+      ? endpoint
+      : "/" + endpoint
+    : "";
   var url = base + clean;
-  if (method === 'GET') {
-    url += (url.indexOf('?') !== -1 ? '&' : '?') + 'guest_uuid=' + encodeURIComponent(guestUuid);
+  if (method === "GET") {
+    url +=
+      (url.indexOf("?") !== -1 ? "&" : "?") +
+      "guest_uuid=" +
+      encodeURIComponent(guestUuid);
     if (shop) {
-      url += '&shop=' + encodeURIComponent(shop);
+      url += "&shop=" + encodeURIComponent(shop);
     }
   }
   return url;
@@ -42,11 +53,14 @@ function buildRequestUrl(base, endpoint, method, guestUuid, shop) {
 
 function parseResponse(res) {
   if (!res.ok) {
-    return res.json().catch(function() {
-      return { success: false, error: 'HTTP ' + res.status };
-    }).then(function(err) {
-      throw err;
-    });
+    return res
+      .json()
+      .catch(function () {
+        return { success: false, error: "HTTP " + res.status };
+      })
+      .then(function (err) {
+        throw err;
+      });
   }
   return res.json();
 }
@@ -58,19 +72,19 @@ export function apiRequest(endpoint, options) {
   options = options || {};
   var guestUuid = getGuestUuid();
   var shop = getShopDomain();
-  var method = (options.method || 'GET').toUpperCase();
-  var url = buildRequestUrl(getApiBase(), endpoint, method, guestUuid, shop);
+  var method = (options.method || "GET").toUpperCase();
+  var url = buildRequestUrl('/apps/socialvire/wishlist', endpoint, method, guestUuid, shop);
 
   var headers = {
-    'Accept': 'application/json',
-    'X-Guest-UUID': guestUuid
+    Accept: "application/json",
+    "X-Guest-UUID": guestUuid,
   };
   if (shop) {
-    headers['X-Shopify-Shop-Domain'] = shop;
+    headers["X-Shopify-Shop-Domain"] = shop;
   }
 
-  if (options.body && typeof options.body === 'string') {
-    headers['Content-Type'] = 'application/json';
+  if (options.body && typeof options.body === "string") {
+    headers["Content-Type"] = "application/json";
     try {
       var parsed = JSON.parse(options.body);
       if (shop && !parsed.shop) {
@@ -89,22 +103,18 @@ export function apiRequest(endpoint, options) {
   }
 
   options.headers = headers;
-  options.credentials = 'same-origin';
+  options.credentials = "same-origin";
 
-  console.log('[SN Wishlist] API request dispatch:', method, url);
+  console.log("[SN Wishlist] API request dispatch:", method, url);
 
   return fetch(url, options)
     .then(parseResponse)
-    .catch(function(err) {
-      console.warn('[SN Wishlist] Request error on primary endpoint:', url, err);
-
-      var directUrl = getDirectAppUrl();
-      if (directUrl && url.indexOf('/apps/socialnest/wishlist') !== -1) {
-        var fallbackUrl = buildRequestUrl(directUrl + '/api/storefront/wishlist', endpoint, method, guestUuid, shop);
-        console.log('[SN Wishlist] Retrying via direct storefront fallback API:', fallbackUrl);
-        var fallbackOptions = Object.assign({}, options);
-        return fetch(fallbackUrl, fallbackOptions).then(parseResponse);
-      }
+    .catch(function (err) {
+      console.error("[SN Wishlist] Production API request failed:", {
+        url: url,
+        method: method,
+        error: err,
+      });
 
       throw err;
     });
@@ -118,34 +128,39 @@ export function migrateLegacyLocalStorage() {
     return migrationPromise;
   }
 
-  migrationPromise = new Promise(function(resolve) {
+  migrationPromise = new Promise(function (resolve) {
     try {
-      var raw = (win && win.localStorage) ? win.localStorage.getItem('socialnest_wishlist_v1') : null;
+      var raw =
+        win && win.localStorage
+          ? win.localStorage.getItem("socialnest_wishlist_v1")
+          : null;
       if (!raw) {
         return resolve();
       }
       var legacyItems = JSON.parse(raw);
       if (!Array.isArray(legacyItems) || legacyItems.length === 0) {
         if (win && win.localStorage) {
-          win.localStorage.removeItem('socialnest_wishlist_v1');
+          win.localStorage.removeItem("socialnest_wishlist_v1");
         }
         return resolve();
       }
 
-      apiRequest('/migrate-local', {
-        method: 'POST',
+      apiRequest("/migrate-local", {
+        method: "POST",
         body: JSON.stringify({
           items: legacyItems,
-          guest_uuid: getGuestUuid()
+          guest_uuid: getGuestUuid(),
+        }),
+      })
+        .then(function (res) {
+          if (res && res.success && win && win.localStorage) {
+            win.localStorage.removeItem("socialnest_wishlist_v1");
+          }
+          resolve();
         })
-      }).then(function(res) {
-        if (res && res.success && win && win.localStorage) {
-          win.localStorage.removeItem('socialnest_wishlist_v1');
-        }
-        resolve();
-      }).catch(function() {
-        resolve();
-      });
+        .catch(function () {
+          resolve();
+        });
     } catch (err) {
       resolve();
     }
@@ -174,14 +189,14 @@ export function isInWishlist(idOrHandle) {
 export function fetchWishlist(onUpdate) {
   isInitialLoading = true;
   hasLoadError = false;
-  if (typeof onUpdate === 'function') onUpdate();
+  if (typeof onUpdate === "function") onUpdate();
 
   return migrateLegacyLocalStorage()
-    .then(function() {
-      return apiRequest('');
+    .then(function () {
+      return apiRequest("");
     })
-    .then(function(res) {
-      console.log('[SN Wishlist] fetchWishlist loaded response:', res);
+    .then(function (res) {
+      console.log("[SN Wishlist] fetchWishlist loaded response:", res);
       isInitialLoading = false;
       hasLoadError = false;
       if (res && res.success && Array.isArray(res.items)) {
@@ -189,14 +204,14 @@ export function fetchWishlist(onUpdate) {
       } else if (res && Array.isArray(res)) {
         items = res;
       }
-      if (typeof onUpdate === 'function') onUpdate();
+      if (typeof onUpdate === "function") onUpdate();
       return items;
     })
-    .catch(function(err) {
-      console.error('[SN Wishlist] fetchWishlist request failed:', err);
+    .catch(function (err) {
+      console.error("[SN Wishlist] fetchWishlist request failed:", err);
       isInitialLoading = false;
       hasLoadError = true;
-      if (typeof onUpdate === 'function') onUpdate();
+      if (typeof onUpdate === "function") onUpdate();
       return items;
     });
 }
@@ -220,15 +235,15 @@ export function addProduct(product, onUpdate) {
     id: pid,
     product_id: pid,
     variant_id: product.variant_id ? String(product.variant_id) : null,
-    handle: product.handle ? String(product.handle) : '',
-    title: product.title ? String(product.title) : '',
-    url: product.url ? String(product.url) : '',
-    img: product.img || product.image || '',
-    price: product.price ? String(product.price) : '',
-    currency: product.currency || '$'
+    handle: product.handle ? String(product.handle) : "",
+    title: product.title ? String(product.title) : "",
+    url: product.url ? String(product.url) : "",
+    img: product.img || product.image || "",
+    price: product.price ? String(product.price) : "",
+    currency: product.currency || "$",
   };
   items.unshift(optimisticItem);
-  if (typeof onUpdate === 'function') onUpdate();
+  if (typeof onUpdate === "function") onUpdate();
 
   var payload = {
     product_id: pid,
@@ -240,36 +255,44 @@ export function addProduct(product, onUpdate) {
     url: optimisticItem.url,
     currency: optimisticItem.currency,
     guest_uuid: getGuestUuid(),
-    shop: getShopDomain()
+    shop: getShopDomain(),
   };
 
-  console.log('[SN Wishlist] addProduct initiated for product:', pid, payload);
+  console.log("[SN Wishlist] addProduct initiated for product:", pid, payload);
 
-  return apiRequest('/add', {
-    method: 'POST',
-    body: JSON.stringify(payload)
-  }).then(function(res) {
-    delete inFlight[pid];
-    console.log('[SN Wishlist] addProduct successfully synced to database:', res);
-    if (res && res.success && res.item) {
-      for (var i = 0; i < items.length; i++) {
-        if (String(items[i].id || items[i].product_id) === pid) {
-          items[i] = res.item;
-          break;
+  return apiRequest("/add", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  })
+    .then(function (res) {
+      delete inFlight[pid];
+      console.log(
+        "[SN Wishlist] addProduct successfully synced to database:",
+        res,
+      );
+      if (res && res.success && res.item) {
+        for (var i = 0; i < items.length; i++) {
+          if (String(items[i].id || items[i].product_id) === pid) {
+            items[i] = res.item;
+            break;
+          }
         }
       }
-    }
-    if (typeof onUpdate === 'function') onUpdate();
-    return items;
-  }).catch(function(err) {
-    delete inFlight[pid];
-    console.error('[SN Wishlist] addProduct failed to save, rolling back UI:', err);
-    items = items.filter(function(item) {
-      return String(item.id || item.product_id) !== pid;
+      if (typeof onUpdate === "function") onUpdate();
+      return items;
+    })
+    .catch(function (err) {
+      delete inFlight[pid];
+      console.error(
+        "[SN Wishlist] addProduct failed to save, rolling back UI:",
+        err,
+      );
+      items = items.filter(function (item) {
+        return String(item.id || item.product_id) !== pid;
+      });
+      if (typeof onUpdate === "function") onUpdate();
+      throw err;
     });
-    if (typeof onUpdate === 'function') onUpdate();
-    throw err;
-  });
 }
 
 /**
@@ -282,33 +305,41 @@ export function removeProduct(idOrHandle, onUpdate) {
 
   inFlight[pid] = true;
 
-  var removedBackup = items.filter(function(item) {
-    return String(item.id || item.product_id) === pid || (item.handle && String(item.handle) === pid);
+  var removedBackup = items.filter(function (item) {
+    return (
+      String(item.id || item.product_id) === pid ||
+      (item.handle && String(item.handle) === pid)
+    );
   });
 
-  items = items.filter(function(item) {
-    return String(item.id || item.product_id) !== pid && (!item.handle || String(item.handle) !== pid);
+  items = items.filter(function (item) {
+    return (
+      String(item.id || item.product_id) !== pid &&
+      (!item.handle || String(item.handle) !== pid)
+    );
   });
-  if (typeof onUpdate === 'function') onUpdate();
+  if (typeof onUpdate === "function") onUpdate();
 
-  return apiRequest('/remove', {
-    method: 'POST',
+  return apiRequest("/remove", {
+    method: "POST",
     body: JSON.stringify({
       product_id: pid,
-      guest_uuid: getGuestUuid()
+      guest_uuid: getGuestUuid(),
+    }),
+  })
+    .then(function () {
+      delete inFlight[pid];
+      if (typeof onUpdate === "function") onUpdate();
+      return items;
     })
-  }).then(function() {
-    delete inFlight[pid];
-    if (typeof onUpdate === 'function') onUpdate();
-    return items;
-  }).catch(function(err) {
-    delete inFlight[pid];
-    if (removedBackup.length > 0) {
-      items = removedBackup.concat(items);
-    }
-    if (typeof onUpdate === 'function') onUpdate();
-    throw err;
-  });
+    .catch(function (err) {
+      delete inFlight[pid];
+      if (removedBackup.length > 0) {
+        items = removedBackup.concat(items);
+      }
+      if (typeof onUpdate === "function") onUpdate();
+      throw err;
+    });
 }
 
 /**
@@ -316,7 +347,7 @@ export function removeProduct(idOrHandle, onUpdate) {
  */
 export function toggleProduct(product, onUpdate) {
   if (!product) return Promise.resolve(items);
-  var pid = String(product.product_id || product.id || product.handle || '');
+  var pid = String(product.product_id || product.id || product.handle || "");
   if (!pid) return Promise.resolve(items);
 
   if (isInWishlist(pid)) {

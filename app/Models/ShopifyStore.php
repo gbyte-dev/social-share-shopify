@@ -65,6 +65,9 @@ class ShopifyStore extends Model
     protected $fillable = [
         'shop',
         'access_token',
+        'refresh_token',
+        'access_token_expires_at',
+        'refresh_token_expires_at',
         'scope',
         'plan_name',
         'is_active',
@@ -78,8 +81,9 @@ class ShopifyStore extends Model
      * @var list<string>
      */
     protected $hidden = [
-        'access_token',
-    ];
+    'access_token',
+    'refresh_token',
+];
 
     /**
      * Get the attributes that should be cast.
@@ -90,6 +94,9 @@ class ShopifyStore extends Model
     {
         return [
             'access_token' => 'encrypted',
+            'refresh_token' => 'encrypted',
+            'access_token_expires_at' => 'datetime',
+            'refresh_token_expires_at' => 'datetime',
             'is_active' => 'boolean',
             'installed_at' => 'datetime',
             'uninstalled_at' => 'datetime',
@@ -214,7 +221,7 @@ class ShopifyStore extends Model
             'icon_shape' => 'circle',
             'hover_animation' => 'lift',
             'show_tooltips' => true,
-            'whatsapp_message' => 'Check out this product on '.$this->shop,
+            'whatsapp_message' => 'Check out this product on ' . $this->shop,
             'product_share_enabled' => true,
             'product_share_button_text' => 'Share Product',
             'product_share_button_style' => 'outline',

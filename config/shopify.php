@@ -26,9 +26,9 @@ return [
     |
     */
 
-    'app_url' => env('SHOPIFY_APP_URL', 'https://socialnest.test'),
+    'app_url' => env('SHOPIFY_APP_URL', 'https://socialvire.webvire.com'),
 
-    'redirect_uri' => env('SHOPIFY_REDIRECT_URI', 'https://socialnest.test/shopify/callback'),
+    'redirect_uri' => env('SHOPIFY_REDIRECT_URI', 'https://socialvire.webvire.com/shopify/callback'),
 
     /*
     |--------------------------------------------------------------------------
@@ -40,7 +40,8 @@ return [
     |
     */
 
-    'api_scopes' => env('SHOPIFY_API_SCOPES') ?: 'write_content,write_online_store_pages',
+   'api_scopes' => env('SHOPIFY_API_SCOPES')
+    ?: 'write_content,write_online_store_pages,read_themes,write_themes',
 
     /*
     |--------------------------------------------------------------------------
@@ -51,7 +52,7 @@ return [
     |
     */
 
-    'api_version' => env('SHOPIFY_API_VERSION', '2025-01'),
+    'api_version' => env('SHOPIFY_API_VERSION', '2026-10'),
 
     /*
     |--------------------------------------------------------------------------

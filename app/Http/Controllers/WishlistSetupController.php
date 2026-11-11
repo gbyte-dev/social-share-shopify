@@ -22,11 +22,17 @@ class WishlistSetupController extends Controller
         $store = $this->resolveStore($request);
 
         $target = (string) $request->input('target', $request->query('target', 'mainSection'));
-        $deepLinkUrl = $shopifyService->getWishlistThemeEditorDeepLink($store->shop, $target);
         $reauthUrl = route('shopify.install', ['shop' => $store->shop]);
+        $deepLinkUrl = null;
 
         try {
             $result = $shopifyService->createWishlistPage($store);
+
+            $deepLinkUrl = $shopifyService->getWishlistThemeEditorDeepLink(
+                $store->shop,
+                $target,
+                $result['created']
+            );
 
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([
@@ -42,33 +48,43 @@ class WishlistSetupController extends Controller
             return redirect()->away($deepLinkUrl);
         } catch (\Throwable $e) {
             $errorMsg = $e->getMessage();
-            Log::warning('Could not automatically create/verify Wishlist page via GraphQL', [
+
+            $isAuthenticationIssue = str_contains($errorMsg, 'HTTP 401');
+
+            $isPermissionIssue = str_contains($errorMsg, 'Access denied')
+                || str_contains($errorMsg, '403')
+                || str_contains(strtolower($errorMsg), 'permission');
+
+            Log::warning('Wishlist setup failed', [
                 'shop' => $store->shop,
                 'target' => $target,
+                'authentication_issue' => $isAuthenticationIssue,
                 'error' => $errorMsg,
             ]);
 
-            // When missing write_content scope or 403 forbidden, gracefully provide deep link + reauth option
-            $isPermissionIssue = str_contains($errorMsg, 'Access denied')
-                || str_contains($errorMsg, '403')
-                || str_contains($errorMsg, 'permission');
-
-            $message = $isPermissionIssue
-                ? 'Theme Editor is opening! Your store needs updated page permissions to auto-create /pages/wishlist. Please approve permissions or create /pages/wishlist under Online Store → Pages.'
-                : 'Theme Editor is opening! Please ensure /pages/wishlist exists in Online Store → Pages.';
-
             if ($request->wantsJson() || $request->ajax()) {
                 return response()->json([
-                    'success' => true,
+                    'success' => false,
                     'created' => false,
-                    'requires_reauth' => $isPermissionIssue,
-                    'reauth_url' => $reauthUrl,
-                    'message' => $message,
+                    'requires_reauth' => $isAuthenticationIssue,
+                    'reauth_url' => $isAuthenticationIssue ? $reauthUrl : null,
+                    'message' => $isAuthenticationIssue
+                        ? 'Shopify authentication failed. Please reconnect your store.'
+                        : ($isPermissionIssue
+                            ? 'Shopify API permissions are insufficient. Please review app permissions.'
+                            : 'Wishlist setup failed. Please try again.'),
                     'deep_link_url' => $deepLinkUrl,
-                ]);
+                ], $isAuthenticationIssue ? 401 : 500);
             }
 
-            return redirect()->away($deepLinkUrl);
+            if ($isAuthenticationIssue) {
+                return redirect()->away($reauthUrl);
+            }
+
+            return redirect()->back()->with(
+                'error',
+                'Wishlist setup failed. Please try again.'
+            );
         }
     }
 

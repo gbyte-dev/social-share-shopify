@@ -60,9 +60,6 @@
             }
 
             // Auto-Embedding Break-in:
-            // When opened directly or refreshed outside Shopify Admin (window.top === window.self),
-            // immediately redirect the browser to Shopify Admin so the app renders embedded
-            // surrounded by Shopify Admin navigation and sidebar (like ZeoSync).
             if (window.top === window.self) {
                 const apiKey = @json($apiKey ?? config('shopify.api_key'));
                 let adminAppUrl = null;
@@ -98,8 +95,8 @@
         })();
     </script>
 
-    <!-- Shopify App Bridge CDN -->
-    <script src="https://cdn.shopifycdn.net/shopifycloud/app-bridge.js"></script>
+    <!-- CORRECT Shopify App Bridge CDN -->
+    <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -107,35 +104,68 @@
 
     <style>
         :root {
+            /* Brand & Accent Palette */
             --primary: #4f46e5;
             --primary-hover: #4338ca;
+            --primary-active: #3730a3;
             --primary-light: #eef2ff;
+            --primary-subtle: #f5f7ff;
             --primary-border: #c7d2fe;
+            --primary-focus: rgba(79, 70, 229, 0.16);
+
+            /* Surfaces & Borders */
             --surface-bg: #f8fafc;
+            --surface-hover: #f1f5f9;
             --card-bg: #ffffff;
             --card-border: #e2e8f0;
+            --card-border-hover: #cbd5e1;
+            --divider: #f1f5f9;
+
+            /* Typography Colors */
             --text-main: #0f172a;
+            --text-secondary: #334155;
             --text-muted: #475569;
             --text-subtle: #64748b;
+            --text-placeholder: #94a3b8;
+
+            /* Semantic Status Colors */
             --success: #10b981;
+            --success-dark: #059669;
             --success-light: #ecfdf5;
+            --success-border: #a7f3d0;
+
             --warning: #f59e0b;
+            --warning-dark: #d97706;
             --warning-light: #fffbeb;
+            --warning-border: #fde68a;
+
             --danger: #ef4444;
+            --danger-dark: #dc2626;
             --danger-light: #fef2f2;
+            --danger-border: #fecaca;
+
+            /* Radii & Shadows */
+            --radius-sm: 0.375rem;
             --radius-md: 0.5rem;
             --radius-lg: 0.75rem;
             --radius-xl: 1rem;
-            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+            --shadow-xs: 0 1px 2px 0 rgba(15, 23, 42, 0.03);
+            --shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.05), 0 1px 2px -1px rgba(15, 23, 42, 0.03);
+            --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.06), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+            --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.07), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
+            --shadow-primary: 0 4px 12px rgba(79, 70, 229, 0.22);
+
+            /* Layout Dimensions */
+            --header-height: 72px;
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
         body {
@@ -143,204 +173,58 @@
             color: var(--text-main);
             min-height: 100vh;
             display: flex;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            overflow-x: hidden;
         }
 
-        /* Layout Container */
+        /* Prevent App Bridge Navigation from flashing visible blue links */
+        ui-nav-menu {
+            display: none !important;
+        }
+
+        /* ==========================================================================
+           Layout Container (Full Width Native App)
+           ========================================================================== */
         .app-layout {
             display: flex;
+            flex-direction: column;
             width: 100%;
             min-height: 100vh;
+            position: relative;
         }
 
-        /* Sidebar */
-        .sidebar {
-            width: 260px;
-            background: #ffffff;
-            border-right: 1px solid var(--card-border);
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            position: fixed;
-            top: 0;
-            bottom: 0;
-            left: 0;
-            z-index: 40;
-            transition: transform 0.25s ease;
-        }
-
-        .sidebar-header {
-            padding: 1.5rem 1.25rem 1.25rem;
-            border-bottom: 1px solid var(--card-border);
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .brand-icon {
-            width: 38px;
-            height: 38px;
-            border-radius: 10px;
-            background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #ffffff;
-            box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25);
-            flex-shrink: 0;
-        }
-
-        .brand-name {
-            font-size: 1.15rem;
-            font-weight: 800;
-            letter-spacing: -0.02em;
-            color: var(--text-main);
-        }
-
-        .brand-tag {
-            font-size: 0.7rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            color: var(--primary);
-            letter-spacing: 0.05em;
-        }
-
-        /* Sidebar Navigation */
-        .sidebar-nav {
-            padding: 1.25rem 0.75rem;
-            flex: 1;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 0.25rem;
-        }
-
-        .nav-category {
-            font-size: 0.6875rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: var(--text-subtle);
-            padding: 0.5rem 0.75rem 0.25rem;
-        }
-
-        .nav-link {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.625rem 0.75rem;
-            border-radius: var(--radius-md);
-            color: var(--text-muted);
-            text-decoration: none;
-            font-size: 0.875rem;
-            font-weight: 600;
-            transition: all 0.15s ease;
-        }
-
-        .nav-link:hover {
-            color: var(--primary);
-            background: var(--primary-light);
-        }
-
-        .nav-link.active {
-            color: var(--primary);
-            background: var(--primary-light);
-            font-weight: 700;
-        }
-
-        .nav-link svg {
-            width: 18px;
-            height: 18px;
-            flex-shrink: 0;
-        }
-
-        /* Sidebar Footer / User Profile */
-        .sidebar-footer {
-            padding: 1rem 1.25rem;
-            border-top: 1px solid var(--card-border);
-            background: #ffffff;
-        }
-
-        .store-pill {
-            background: var(--surface-bg);
-            border: 1px solid var(--card-border);
-            border-radius: var(--radius-md);
-            padding: 0.75rem;
-            margin-bottom: 0.75rem;
-        }
-
-        .store-label {
-            font-size: 0.6875rem;
-            color: var(--text-subtle);
-            text-transform: uppercase;
-            font-weight: 700;
-            letter-spacing: 0.05em;
-            margin-bottom: 0.2rem;
-        }
-
-        .store-domain {
-            font-size: 0.8125rem;
-            font-weight: 700;
-            color: var(--text-main);
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .store-plan-badge {
-            display: inline-block;
-            font-size: 0.7rem;
-            font-weight: 700;
-            color: var(--primary);
-            background: var(--primary-light);
-            padding: 0.15rem 0.45rem;
-            border-radius: 4px;
-            margin-top: 0.25rem;
-        }
-
-        .btn-logout {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            padding: 0.5rem;
-            background: transparent;
-            border: 1px solid var(--card-border);
-            border-radius: var(--radius-md);
-            color: var(--text-muted);
-            font-size: 0.8125rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.15s ease;
-        }
-
-        .btn-logout:hover {
-            color: var(--danger);
-            border-color: #fca5a5;
-            background: var(--danger-light);
-        }
-
-        /* Main Content Area */
         .main-content {
-            margin-left: 260px;
+            width: 100%;
             flex: 1;
             display: flex;
             flex-direction: column;
             min-height: 100vh;
-            width: calc(100% - 260px);
+            background-color: var(--surface-bg);
+            margin-left: 0; /* Forced override of previous offset */
         }
 
-        /* Top Header */
-        .top-navbar {
-            background: #ffffff;
+        /* ==========================================================================
+           Top Header
+           ========================================================================== */
+      .top-navbar {
+            min-height: var(--header-height);
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             border-bottom: 1px solid var(--card-border);
-            padding: 1rem 2rem;
+            padding: 0.875rem 2rem;
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: 1rem;
             position: sticky;
             top: 0;
             z-index: 30;
+            max-width: 1400px;
+            width: calc(100% - 4rem); /* Dono taraf se 2rem + 2rem space chhodne ke liye */
+            margin: 0 auto;
+            box-sizing: border-box;
         }
 
         .page-header-info h2 {
@@ -348,30 +232,34 @@
             font-weight: 800;
             color: var(--text-main);
             letter-spacing: -0.02em;
+            line-height: 1.25;
         }
 
         .page-header-info p {
             font-size: 0.8125rem;
             color: var(--text-subtle);
+            margin-top: 0.125rem;
         }
 
         .top-actions {
             display: flex;
             align-items: center;
-            gap: 0.75rem;
+            gap: 1rem;
+            flex-wrap: wrap;
         }
 
         .badge-live {
             display: inline-flex;
             align-items: center;
-            gap: 0.4rem;
-            padding: 0.35rem 0.75rem;
+            gap: 0.45rem;
+            padding: 0.375rem 0.825rem;
             background: var(--success-light);
-            color: var(--success);
-            border: 1px solid #a7f3d0;
+            color: var(--success-dark);
+            border: 1px solid var(--success-border);
             border-radius: 9999px;
             font-size: 0.75rem;
             font-weight: 700;
+            white-space: nowrap;
         }
 
         .badge-live-dot {
@@ -379,82 +267,187 @@
             height: 8px;
             border-radius: 50%;
             background-color: var(--success);
-            box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.22);
+            animation: statusPulse 2.2s infinite ease-in-out;
+        }
+
+        @keyframes statusPulse {
+            0%, 100% { box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25); }
+            50% { box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.12); }
         }
 
         /* Content Canvas */
         .content-canvas {
-            padding: 2rem;
+            padding: 1.75rem 2rem 2.5rem;
             flex: 1;
             max-width: 1400px;
             width: 100%;
+            margin: 0 auto;
             box-sizing: border-box;
         }
 
-        /* Common Components */
+        /* ==========================================================================
+           Buttons
+           ========================================================================== */
         .btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 0.5rem;
-            padding: 0.55rem 1.1rem;
+            padding: 0.5625rem 1.125rem;
             font-size: 0.875rem;
             font-weight: 600;
+            line-height: 1.25;
             border-radius: var(--radius-md);
             text-decoration: none;
             cursor: pointer;
             transition: all 0.15s ease;
             border: 1px solid transparent;
+            white-space: nowrap;
+        }
+
+        .btn svg {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+        }
+
+        .btn:disabled, .btn.disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            pointer-events: none;
         }
 
         .btn-primary {
             background-color: var(--primary);
             color: #ffffff;
             border-color: var(--primary);
+            box-shadow: 0 1px 2px rgba(79, 70, 229, 0.15);
         }
 
         .btn-primary:hover {
             background-color: var(--primary-hover);
             border-color: var(--primary-hover);
-            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+            box-shadow: var(--shadow-primary);
+            transform: translateY(-1px);
         }
 
         .btn-secondary {
             background-color: #ffffff;
             color: var(--text-main);
             border-color: var(--card-border);
+            box-shadow: var(--shadow-xs);
         }
 
         .btn-secondary:hover {
             background-color: var(--surface-bg);
-            border-color: #cbd5e1;
+            border-color: var(--card-border-hover);
         }
 
-        .btn-danger {
-            background-color: var(--danger);
-            color: #ffffff;
-            border-color: var(--danger);
+        .btn-outline {
+            background-color: transparent;
+            color: var(--text-muted);
+            border-color: var(--card-border);
         }
 
-        .btn-danger:hover {
-            background-color: #dc2626;
+        .btn-outline:hover {
+            background-color: var(--danger-light);
+            color: var(--danger-dark);
+            border-color: var(--danger-border);
         }
 
         .btn-sm {
-            padding: 0.35rem 0.65rem;
+            padding: 0.375rem 0.75rem;
             font-size: 0.75rem;
             border-radius: 6px;
         }
 
+        /* ==========================================================================
+           Cards & Containers
+           ========================================================================== */
         .card {
             background: var(--card-bg);
             border: 1px solid var(--card-border);
             border-radius: var(--radius-lg);
             padding: 1.5rem;
             box-shadow: var(--shadow-sm);
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
 
-        /* Flash Message Alerts */
+        .card-hover:hover {
+            border-color: var(--card-border-hover);
+            box-shadow: var(--shadow-md);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding-bottom: 1rem;
+            margin-bottom: 1.25rem;
+            border-bottom: 1px solid var(--divider);
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        /* ==========================================================================
+           Forms & Input Controls
+           ========================================================================== */
+        .form-group { margin-bottom: 1.25rem; }
+        .form-label { display: block; font-size: 0.8125rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.4rem; }
+        .form-control {
+            width: 100%;
+            padding: 0.5625rem 0.875rem;
+            font-size: 0.875rem;
+            color: var(--text-main);
+            background-color: #ffffff;
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-md);
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+            outline: none;
+        }
+        .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-focus);
+        }
+
+        /* ==========================================================================
+           Tables
+           ========================================================================== */
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--card-border);
+            background: #ffffff;
+        }
+        table.table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.875rem; }
+        table.table th { background: var(--surface-bg); color: var(--text-subtle); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; padding: 0.875rem 1.25rem; border-bottom: 1px solid var(--card-border); }
+        table.table td { padding: 0.9375rem 1.25rem; border-bottom: 1px solid var(--divider); color: var(--text-secondary); }
+        table.table tbody tr:last-child td { border-bottom: none; }
+
+        /* ==========================================================================
+           Badges & Status Pills
+           ========================================================================== */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.2rem 0.625rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            border-radius: 9999px;
+        }
+        .badge-primary { background: var(--primary-light); color: var(--primary); border: 1px solid var(--primary-border); }
+        .badge-success { background: var(--success-light); color: var(--success-dark); border: 1px solid var(--success-border); }
+
+        /* ==========================================================================
+           Flash Message Alerts
+           ========================================================================== */
         .alert {
             display: flex;
             align-items: flex-start;
@@ -465,64 +458,20 @@
             font-size: 0.875rem;
             line-height: 1.5;
         }
+        .alert-error { background: var(--danger-light); border: 1px solid var(--danger-border); color: #991b1b; }
 
-        .alert-success {
-            background: var(--success-light);
-            border: 1px solid #a7f3d0;
-            color: #065f46;
+        /* ==========================================================================
+           Mobile & Tablet Responsive Behavior
+           ========================================================================== */
+        @media (max-width: 640px) {
+            .top-navbar { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+            .top-actions { width: 100%; justify-content: space-between; }
+            .content-canvas { padding: 1rem; }
         }
 
-        .alert-error {
-            background: var(--danger-light);
-            border: 1px solid #fecaca;
-            color: #991b1b;
-        }
-
-        .alert-warning {
-            background: var(--warning-light);
-            border: 1px solid #fde68a;
-            color: #92400e;
-        }
-
-        /* Mobile Responsive */
-        .mobile-toggle {
-            display: none;
-            background: transparent;
-            border: 1px solid var(--card-border);
-            border-radius: var(--radius-md);
-            padding: 0.4rem;
-            cursor: pointer;
-            color: var(--text-main);
-        }
-
-        @media (max-width: 900px) {
-            .sidebar {
-                transform: translateX(-100%);
-            }
-
-            .sidebar.open {
-                transform: translateX(0);
-            }
-
-            .main-content {
-                margin-left: 0;
-                width: 100%;
-            }
-
-            .mobile-toggle {
-                display: block;
-            }
-
-            .mobile-brand-icon {
-                display: flex !important;
-            }
-
-            .content-canvas {
-                padding: 1.25rem;
-            }
-        }
-
-        /* Floating Toast Notification System */
+        /* ==========================================================================
+           Floating Toast Notification System
+           ========================================================================== */
         .toast-container {
             position: fixed;
             top: 20px;
@@ -535,188 +484,73 @@
             width: calc(100% - 48px);
             pointer-events: none;
         }
-
         .toast-item {
             pointer-events: auto;
             background: #ffffff;
-            border-radius: 8px;
-            padding: 0.75rem 1rem;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            border-radius: 10px;
+            padding: 0.825rem 1rem;
+            box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.12), 0 4px 6px -2px rgba(15, 23, 42, 0.05);
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 0.75rem;
-            animation: toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            box-sizing: border-box;
+            animation: toastSlideIn 0.3s forwards;
+            transition: all 0.3s;
         }
-
-        .toast-item.toast-warning {
-            border: 1px solid #fde68a;
-            border-left: 4px solid #f59e0b;
-        }
-
-        .toast-item.toast-success {
-            border: 1px solid #a7f3d0;
-            border-left: 4px solid #10b981;
-        }
-
-        .toast-item.toast-error {
-            border: 1px solid #fecaca;
-            border-left: 4px solid #ef4444;
-        }
-
-        .toast-content {
-            display: flex;
-            align-items: center;
-            gap: 0.625rem;
-            flex: 1;
-            min-width: 0;
-        }
-
-        .toast-icon {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-
-        .toast-message {
-            font-size: 0.8125rem;
-            font-weight: 600;
-            color: #0f172a;
-            line-height: 1.4;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .toast-close-btn {
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            padding: 4px;
-            border-radius: 4px;
-            color: #64748b;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            transition: all 0.15s ease;
-        }
-
-        .toast-close-btn:hover {
-            background: #f1f5f9;
-            color: #0f172a;
-        }
-
-        @keyframes toastSlideIn {
-            from {
-                transform: translateX(40px) scale(0.95);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0) scale(1);
-                opacity: 1;
-            }
-        }
+        .toast-item.toast-warning { border: 1px solid #fde68a; border-left: 4px solid #f59e0b; }
+        .toast-item.toast-success { border: 1px solid #a7f3d0; border-left: 4px solid #10b981; }
+        .toast-item.toast-error { border: 1px solid #fecaca; border-left: 4px solid #ef4444; }
+        .toast-content { display: flex; align-items: center; gap: 0.625rem; flex: 1; }
+        .toast-message { font-size: 0.8125rem; font-weight: 600; color: #0f172a; line-height: 1.4; }
+        .toast-close-btn { background: transparent; border: none; cursor: pointer; padding: 4px; border-radius: 4px; color: #64748b; }
+        @keyframes toastSlideIn { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     </style>
     @stack('styles')
 </head>
 <body>
+    @php
+        $navParams = array_filter([
+            'host' => request('host') ?? session('shopify_host'),
+            'shop' => $shop ?? session('shopify_shop'),
+        ]);
+    @endphp
+
+    <!-- SHOPIFY NATIVE APP BRIDGE NAVIGATION -->
+    <!-- The 'hidden' attribute hides the raw links from the page, but App Bridge still reads them for the native black sidebar -->
+    <ui-nav-menu hidden>
+        <a href="{{ route('shopify.dashboard', $navParams) }}">Dashboard</a>
+        <a href="{{ route('shopify.social-links.index', $navParams) }}">My Social Links</a>
+        <a href="{{ route('shopify.settings.index', $navParams) }}">Storefront Settings</a>
+        <a href="{{ route('shopify.plans.index', $navParams) }}">Plans & Billing</a>
+        <a href="{{ route('shopify.support.index', $navParams) }}">Help & Support</a>
+    </ui-nav-menu>
+
     <div class="app-layout">
-        <!-- Sidebar Navigation -->
-        <aside class="sidebar" id="sidebarMenu">
-            <div>
-                <div class="sidebar-header">
-                    <div class="brand-icon">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-                    </div>
-                    <div>
-                        <div class="brand-name">SocialNest</div>
-                        <div class="brand-tag">Merchant Portal</div>
-                    </div>
-                </div>
-
-                @php
-                    $navParams = array_filter([
-                        'host' => request('host') ?? session('shopify_host'),
-                        'shop' => $shop ?? session('shopify_shop'),
-                    ]);
-                @endphp
-                <nav class="sidebar-nav">
-                    <div class="nav-category">Main Menu</div>
-
-                    <a href="{{ route('shopify.dashboard', $navParams) }}" class="nav-link {{ request()->routeIs('shopify.dashboard') ? 'active' : '' }}">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                        <span>Dashboard</span>
-                    </a>
-
-                    <a href="{{ route('shopify.social-links.index', $navParams) }}" class="nav-link {{ request()->routeIs('shopify.social-links.*') ? 'active' : '' }}">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                        <span>My Social Links</span>
-                    </a>
-
-                    <a href="{{ route('shopify.settings.index', $navParams) }}" class="nav-link {{ request()->routeIs('shopify.settings.*') ? 'active' : '' }}">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                        <span>Storefront Settings</span>
-                    </a>
-
-                    <div class="nav-category" style="margin-top: 1rem;">Administration</div>
-
-                    <a href="{{ route('shopify.plans.index', $navParams) }}" class="nav-link {{ request()->routeIs('shopify.plans.*') ? 'active' : '' }}">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-                        <span>Plans & Billing</span>
-                    </a>
-
-                    <a href="{{ route('shopify.support.index', $navParams) }}" class="nav-link {{ request()->routeIs('shopify.support.*') ? 'active' : '' }}">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                        <span>Help & Support</span>
-                    </a>
-                </nav>
-            </div>
-
-            <!-- Sidebar Footer -->
-            <div class="sidebar-footer">
-                <div class="store-pill">
-                    <div class="store-label">Connected Store</div>
-                    <div class="store-domain" title="{{ $shop }}">{{ $shop }}</div>
-                    <span class="store-plan-badge">{{ ucfirst($store->plan_name ?: 'Free') }} Plan</span>
-                </div>
-
-                <form action="{{ route('shopify.logout') }}" method="POST">
-                    @csrf
-                    <button type="submit" class="btn-logout" title="Log out of SocialNest session">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                        <span>Log out</span>
-                    </button>
-                </form>
-            </div>
-        </aside>
-
-        <!-- Main Content Column -->
+        <!-- Main Content Column (Now completely full width) -->
         <div class="main-content">
             <!-- Top Navbar -->
             <header class="top-navbar">
-                <div style="display: flex; align-items: center; gap: 1rem;">
-                    <button class="mobile-toggle" id="mobileToggleBtn" aria-label="Toggle navigation menu">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-                    </button>
-                    <div class="brand-icon mobile-brand-icon" style="display: none; width: 32px; height: 32px; border-radius: 8px;">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-                    </div>
-                    <div class="page-header-info">
-                        <h2>@yield('header_title', 'Merchant Portal')</h2>
-                        <p>@yield('header_subtitle', 'Manage your storefront social media sharing widget')</p>
-                    </div>
+                <div class="page-header-info">
+                    <h2>@yield('header_title', 'Merchant Portal')</h2>
+                    <p>@yield('header_subtitle', 'Manage your storefront social media sharing widget')</p>
                 </div>
 
                 <div class="top-actions">
                     <div class="badge-live">
                         <span class="badge-live-dot"></span>
-                        <span>Live & Authenticated</span>
+                        <span>Live</span>
                     </div>
 
                     @yield('header_actions')
+
+                    <!-- Preserved Backend Logic: Logout Route & CSRF Form -->
+                    <form action="{{ route('shopify.logout') }}" method="POST" style="margin: 0;">
+                        @csrf
+                        <button type="submit" class="btn btn-outline btn-sm" title="Log out of SocialNest session">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                            <span style="margin-left: 4px;">Log out</span>
+                        </button>
+                    </form>
                 </div>
             </header>
 
@@ -787,44 +621,27 @@
     </div>
 
     <script>
-        const mobileToggle = document.getElementById('mobileToggleBtn');
-        const sidebar = document.getElementById('sidebarMenu');
-        if (mobileToggle && sidebar) {
-            mobileToggle.addEventListener('click', () => {
-                sidebar.classList.toggle('open');
-            });
-        }
-
         // Automatic URL parameter preservation for internal navigation in Shopify Admin iframe
         document.addEventListener('DOMContentLoaded', function() {
             const host = window.sessionStorage ? window.sessionStorage.getItem('shopify_host') : null;
             const shop = window.sessionStorage ? window.sessionStorage.getItem('shopify_shop') : null;
 
             if (host || shop) {
-                // Ensure internal links preserve host and shop
                 document.querySelectorAll('a[href]').forEach(function(link) {
                     const href = link.getAttribute('href');
                     if (!href || href.startsWith('#') || href.startsWith('javascript:') || link.target === '_blank') {
                         return;
                     }
-
                     try {
                         const url = new URL(link.href, window.location.origin);
                         if (url.origin === window.location.origin && url.pathname.startsWith('/shopify')) {
-                            if (host && !url.searchParams.has('host')) {
-                                url.searchParams.set('host', host);
-                            }
-                            if (shop && !url.searchParams.has('shop')) {
-                                url.searchParams.set('shop', shop);
-                            }
+                            if (host && !url.searchParams.has('host')) url.searchParams.set('host', host);
+                            if (shop && !url.searchParams.has('shop')) url.searchParams.set('shop', shop);
                             link.href = url.toString();
                         }
-                    } catch (e) {
-                        // Ignore malformed URLs
-                    }
+                    } catch (e) {}
                 });
 
-                // Ensure internal forms preserve host and shop
                 document.querySelectorAll('form').forEach(function(form) {
                     const action = form.getAttribute('action') || window.location.pathname;
                     try {
@@ -845,9 +662,7 @@
                                 form.appendChild(input);
                             }
                         }
-                    } catch (e) {
-                        // Ignore malformed URLs
-                    }
+                    } catch (e) {}
                 });
             }
         });
@@ -867,17 +682,9 @@
                     const url = new URL(link.href, window.location.origin);
                     if (url.origin === window.location.origin && url.pathname.startsWith('/shopify')) {
                         let modified = false;
-                        if (host && !url.searchParams.has('host')) {
-                            url.searchParams.set('host', host);
-                            modified = true;
-                        }
-                        if (shop && !url.searchParams.has('shop')) {
-                            url.searchParams.set('shop', shop);
-                            modified = true;
-                        }
-                        if (modified) {
-                            link.href = url.toString();
-                        }
+                        if (host && !url.searchParams.has('host')) { url.searchParams.set('host', host); modified = true; }
+                        if (shop && !url.searchParams.has('shop')) { url.searchParams.set('shop', shop); modified = true; }
+                        if (modified) link.href = url.toString();
                     }
                 } catch (err) {}
             }
@@ -893,18 +700,10 @@
                     const url = new URL(form.action, window.location.origin);
                     if (url.origin === window.location.origin && url.pathname.startsWith('/shopify')) {
                         if (host && !form.querySelector('input[name="host"]')) {
-                            const input = document.createElement('input');
-                            input.type = 'hidden';
-                            input.name = 'host';
-                            input.value = host;
-                            form.appendChild(input);
+                            const input = document.createElement('input'); input.type = 'hidden'; input.name = 'host'; input.value = host; form.appendChild(input);
                         }
                         if (shop && !form.querySelector('input[name="shop"]')) {
-                            const input = document.createElement('input');
-                            input.type = 'hidden';
-                            input.name = 'shop';
-                            input.value = shop;
-                            form.appendChild(input);
+                            const input = document.createElement('input'); input.type = 'hidden'; input.name = 'shop'; input.value = shop; form.appendChild(input);
                         }
                     }
                 } catch (err) {}
@@ -917,28 +716,14 @@
             el.dataset.dismissing = 'true';
             el.style.opacity = '0';
             el.style.transform = 'translateY(-10px) scale(0.95)';
-            setTimeout(function() {
-                if (el.parentNode) {
-                    el.parentNode.removeChild(el);
-                }
-            }, 300);
+            setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 300);
         }
 
         function initAutoDismissToast(toast, duration) {
             duration = duration || 3000;
-            var timer = setTimeout(function() {
-                dismissToast(toast);
-            }, duration);
-
-            toast.addEventListener('mouseenter', function() {
-                clearTimeout(timer);
-            });
-
-            toast.addEventListener('mouseleave', function() {
-                timer = setTimeout(function() {
-                    dismissToast(toast);
-                }, 1500);
-            });
+            var timer = setTimeout(function() { dismissToast(toast); }, duration);
+            toast.addEventListener('mouseenter', function() { clearTimeout(timer); });
+            toast.addEventListener('mouseleave', function() { timer = setTimeout(function() { dismissToast(toast); }, 1500); });
         }
 
         window.showToast = function(message, type, duration) {
@@ -951,28 +736,17 @@
             toast.className = 'toast-item toast-' + type;
             toast.setAttribute('role', 'alert');
 
-            var iconSvg = type === 'success'
-                ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
-                : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+            var iconSvg = type === 'success' ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>' 
+                : (type === 'error' ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
+                : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>');
 
-            toast.innerHTML =
-                '<div class="toast-content">' +
-                    '<div class="toast-icon">' + iconSvg + '</div>' +
-                    '<div class="toast-message">' + message + '</div>' +
-                '</div>' +
-                '<button type="button" class="toast-close-btn" onclick="dismissToast(this.closest(\'.toast-item\'))" aria-label="Close notification" title="Close">' +
-                    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
-                '</button>';
-
+            toast.innerHTML = '<div class="toast-content"><div class="toast-icon">' + iconSvg + '</div><div class="toast-message">' + message + '</div></div><button type="button" class="toast-close-btn" onclick="dismissToast(this.closest(\'.toast-item\'))"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
             container.appendChild(toast);
             initAutoDismissToast(toast, duration);
         };
 
         document.addEventListener('DOMContentLoaded', function() {
-            var autoDismissToasts = document.querySelectorAll('.toast-auto-dismiss');
-            autoDismissToasts.forEach(function(toast) {
-                initAutoDismissToast(toast, 3000);
-            });
+            document.querySelectorAll('.toast-auto-dismiss').forEach(function(toast) { initAutoDismissToast(toast, 3000); });
         });
     </script>
     @stack('scripts')

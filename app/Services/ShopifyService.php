@@ -6,6 +6,7 @@ use App\Models\ShopifyStore;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 class ShopifyService
@@ -28,8 +29,8 @@ class ShopifyService
 
         if (empty($apiKey) || empty($apiSecret)) {
             throw new RuntimeException(
-                'Shopify API credentials missing in configuration. '.
-                'Ensure SHOPIFY_API_KEY and SHOPIFY_API_SECRET are set in your environment file.'
+                'Shopify API credentials missing in configuration. ' .
+                    'Ensure SHOPIFY_API_KEY and SHOPIFY_API_SECRET are set in your environment file.'
             );
         }
     }
@@ -115,7 +116,7 @@ class ShopifyService
             'state' => $state,
         ];
 
-        return "https://{$canonicalShop}/admin/oauth/authorize?".http_build_query($query);
+        return "https://{$canonicalShop}/admin/oauth/authorize?" . http_build_query($query);
     }
 
     /**
@@ -134,7 +135,7 @@ class ShopifyService
             }
             $decoded = base64_decode($base64, true);
             if ($decoded && (str_contains($decoded, 'admin.shopify.com') || str_contains($decoded, '.myshopify.com'))) {
-                return 'https://'.rtrim($decoded, '/').'/apps/'.$apiKey;
+                return 'https://' . rtrim($decoded, '/') . '/apps/' . $apiKey;
             }
         }
 
@@ -215,6 +216,7 @@ class ShopifyService
         $this->validateCredentials();
 
         $canonicalShop = $this->normalizeShopDomain($shop);
+
         if (! $canonicalShop) {
             throw new RuntimeException("Invalid Shopify store domain: {$shop}");
         }
@@ -222,47 +224,55 @@ class ShopifyService
         $url = "https://{$canonicalShop}/admin/oauth/access_token";
 
         try {
-            /** @var Response $response */
-            $response = Http::asJson()
+            $response = Http::asForm()
                 ->timeout(15)
                 ->post($url, [
                     'client_id' => config('shopify.api_key'),
                     'client_secret' => config('shopify.api_secret'),
                     'code' => $code,
+                    'expiring' => 1,
                 ]);
         } catch (\Throwable $e) {
-            // Note: Never log client_secret or sensitive codes
             Log::error('Shopify OAuth token exchange network error', [
                 'shop' => $canonicalShop,
                 'message' => $e->getMessage(),
             ]);
 
-            throw new RuntimeException('Failed to connect to Shopify for token exchange: '.$e->getMessage());
+            throw new RuntimeException('Failed to connect to Shopify for token exchange.');
         }
 
         if (! $response->successful()) {
-            Log::error('Shopify OAuth token exchange rejected by Shopify', [
+            Log::error('Shopify OAuth token exchange rejected', [
                 'shop' => $canonicalShop,
                 'status' => $response->status(),
-                'error' => $response->json('error_description') ?? $response->json('error') ?? 'Unknown error',
+                'error' => $response->json('error_description')
+                    ?? $response->json('error')
+                    ?? 'Unknown error',
             ]);
 
-            $errorMsg = $response->json('error_description')
-                ?? $response->json('error')
-                ?? "Shopify rejected token exchange with HTTP {$response->status()}";
-
-            throw new RuntimeException($errorMsg);
+            throw new RuntimeException(
+                "Shopify rejected token exchange with HTTP {$response->status()}"
+            );
         }
 
         $data = $response->json();
-        $accessToken = $data['access_token'] ?? null;
 
-        if (empty($accessToken)) {
-            throw new RuntimeException('Shopify response did not contain an access token.');
+        if (
+            empty($data['access_token']) ||
+            empty($data['refresh_token']) ||
+            empty($data['expires_in']) ||
+            empty($data['refresh_token_expires_in'])
+        ) {
+            throw new RuntimeException(
+                'Shopify did not return the required expiring token data.'
+            );
         }
 
         return [
-            'access_token' => (string) $accessToken,
+            'access_token' => (string) $data['access_token'],
+            'refresh_token' => (string) $data['refresh_token'],
+            'expires_in' => (int) $data['expires_in'],
+            'refresh_token_expires_in' => (int) $data['refresh_token_expires_in'],
             'scope' => isset($data['scope']) ? (string) $data['scope'] : null,
         ];
     }
@@ -270,26 +280,131 @@ class ShopifyService
     /**
      * Persist or update store record with the newly acquired access token idempotently.
      */
-    public function persistInstalledStore(string $shop, string $accessToken, ?string $scope = null): ShopifyStore
+    public function persistInstalledStore(string $shop, array $tokenData): ShopifyStore
     {
         $canonicalShop = $this->normalizeShopDomain($shop);
+
         if (! $canonicalShop) {
             throw new RuntimeException("Cannot persist invalid shop domain: {$shop}");
         }
 
-        /** @var ShopifyStore $store */
-        $store = ShopifyStore::updateOrCreate(
+        foreach (
+            [
+                'access_token',
+                'refresh_token',
+                'expires_in',
+                'refresh_token_expires_in',
+            ] as $key
+        ) {
+            if (empty($tokenData[$key])) {
+                throw new RuntimeException("Missing required Shopify token field: {$key}");
+            }
+        }
+
+        return ShopifyStore::updateOrCreate(
             ['shop' => $canonicalShop],
             [
-                'access_token' => $accessToken,
-                'scope' => $scope ?? config('shopify.api_scopes'),
+                'access_token' => $tokenData['access_token'],
+                'refresh_token' => $tokenData['refresh_token'],
+                'access_token_expires_at' => now()->addSeconds(
+                    (int) $tokenData['expires_in']
+                ),
+                'refresh_token_expires_at' => now()->addSeconds(
+                    (int) $tokenData['refresh_token_expires_in']
+                ),
+                'scope' => $tokenData['scope'] ?? config('shopify.api_scopes'),
                 'is_active' => true,
                 'installed_at' => now(),
                 'uninstalled_at' => null,
             ]
         );
+    }
 
-        return $store;
+    public function refreshAccessToken(ShopifyStore $store): ShopifyStore
+    {
+        return DB::transaction(function () use ($store) {
+            $lockedStore = ShopifyStore::whereKey($store->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            // Another request may already have refreshed the token.
+            if (
+                $lockedStore->access_token_expires_at &&
+                $lockedStore->access_token_expires_at->isAfter(now()->addMinutes(5))
+            ) {
+                return $lockedStore;
+            }
+
+            if (
+                empty($lockedStore->refresh_token) ||
+                ! $lockedStore->refresh_token_expires_at ||
+                $lockedStore->refresh_token_expires_at->isPast()
+            ) {
+                throw new RuntimeException(
+                    'Shopify refresh token is missing or expired. Store reauthorization is required.'
+                );
+            }
+
+            $canonicalShop = $this->normalizeShopDomain($lockedStore->shop);
+
+            if (! $canonicalShop) {
+                throw new RuntimeException('Invalid Shopify store domain.');
+            }
+
+            $response = Http::asForm()
+                ->timeout(15)
+                ->post("https://{$canonicalShop}/admin/oauth/access_token", [
+                    'client_id' => config('shopify.api_key'),
+                    'client_secret' => config('shopify.api_secret'),
+                    'grant_type' => 'refresh_token',
+                    'refresh_token' => $lockedStore->refresh_token,
+                ]);
+
+            if (! $response->successful()) {
+                Log::error('Shopify token refresh rejected', [
+                    'shop' => $canonicalShop,
+                    'status' => $response->status(),
+                    'error' => $response->json('error_description')
+                        ?? $response->json('error')
+                        ?? 'Unknown error',
+                ]);
+
+                throw new RuntimeException(
+                    "Shopify token refresh failed with HTTP {$response->status()}."
+                );
+            }
+
+            $data = $response->json();
+
+            if (
+                empty($data['access_token']) ||
+                empty($data['refresh_token']) ||
+                empty($data['expires_in']) ||
+                empty($data['refresh_token_expires_in'])
+            ) {
+                throw new RuntimeException(
+                    'Shopify refresh response is missing required token fields.'
+                );
+            }
+
+            $lockedStore->update([
+                'access_token' => $data['access_token'],
+                'refresh_token' => $data['refresh_token'],
+                'access_token_expires_at' => now()->addSeconds(
+                    (int) $data['expires_in']
+                ),
+                'refresh_token_expires_at' => now()->addSeconds(
+                    (int) $data['refresh_token_expires_in']
+                ),
+            ]);
+
+            Log::info('Shopify access token refreshed successfully', [
+                'shop' => $canonicalShop,
+                'access_token_expires_at' => $lockedStore->access_token_expires_at,
+            ]);
+
+            return $lockedStore->fresh();
+        });
     }
 
     /**
@@ -329,7 +444,7 @@ class ShopifyService
                 'message' => $e->getMessage(),
             ]);
 
-            throw new RuntimeException('Failed to exchange legacy token with Shopify: '.$e->getMessage());
+            throw new RuntimeException('Failed to exchange legacy token with Shopify: ' . $e->getMessage());
         }
 
         if (! $response->successful()) {
@@ -348,8 +463,21 @@ class ShopifyService
             throw new RuntimeException('Shopify response did not contain a new access token.');
         }
 
+        $expiresIn = (int) ($data['expires_in'] ?? 0);
+        $refreshTokenExpiresIn = (int) ($data['refresh_token_expires_in'] ?? 0);
+        $refreshToken = $data['refresh_token'] ?? null;
+
+        if (! $refreshToken || $expiresIn <= 0 || $refreshTokenExpiresIn <= 0) {
+            throw new RuntimeException(
+                'Shopify migration response is missing required expiring token data.'
+            );
+        }
+
         $store->update([
             'access_token' => $newAccessToken,
+            'refresh_token' => $refreshToken,
+            'access_token_expires_at' => now()->addSeconds($expiresIn),
+            'refresh_token_expires_at' => now()->addSeconds($refreshTokenExpiresIn),
         ]);
 
         Log::info('Successfully migrated store token to expiring token', [
@@ -359,8 +487,9 @@ class ShopifyService
 
         return [
             'access_token' => (string) $newAccessToken,
-            'refresh_token' => isset($data['refresh_token']) ? (string) $data['refresh_token'] : null,
-            'expires_in' => isset($data['expires_in']) ? (int) $data['expires_in'] : null,
+            'refresh_token' => (string) $refreshToken,
+            'expires_in' => $expiresIn,
+            'refresh_token_expires_in' => $refreshTokenExpiresIn,
         ];
     }
 
@@ -379,11 +508,16 @@ class ShopifyService
             throw new RuntimeException("Invalid Shopify store domain: {$store->shop}");
         }
 
+        // Refresh expiring offline access token before making Shopify API request.
+        if ($store->access_token_expires_at) {
+            $store = $this->refreshAccessToken($store);
+        }
+
         if (empty($store->access_token)) {
             throw new RuntimeException("Store {$store->shop} is missing an access token.");
         }
 
-        $apiVersion = config('shopify.api_version', '2025-01');
+        $apiVersion = config('shopify.api_version', '2026-10');
         $endpoint = "https://{$canonicalShop}/admin/api/{$apiVersion}/graphql.json";
 
         $payload = ['query' => $query];
@@ -407,7 +541,7 @@ class ShopifyService
                 'message' => $e->getMessage(),
             ]);
 
-            throw new RuntimeException('Failed to communicate with Shopify GraphQL API: '.$e->getMessage());
+            throw new RuntimeException('Failed to communicate with Shopify GraphQL API: ' . $e->getMessage());
         }
 
         if (! $response->successful()) {
@@ -607,8 +741,11 @@ GRAPHQL;
      * @param  string  $shop  Shopify store domain
      * @param  string  $target  Target section ("mainSection" or "newAppsSection")
      */
-    public function getWishlistThemeEditorDeepLink(string $shop, string $target = 'mainSection'): string
-    {
+    public function getWishlistThemeEditorDeepLink(
+        string $shop,
+        string $target = 'mainSection',
+        bool $addWishlistBlock = true
+    ): string {
         $canonicalShop = $this->normalizeShopDomain($shop);
         if (! $canonicalShop) {
             throw new RuntimeException("Invalid Shopify store domain: {$shop}");
@@ -625,10 +762,12 @@ GRAPHQL;
 
         $query = [
             'template' => 'page',
-            'addAppBlockId' => "{$apiKey}/{$blockHandle}",
             'target' => $resolvedTarget,
         ];
 
-        return "https://{$canonicalShop}/admin/themes/current/editor?".http_build_query($query);
+        if ($addWishlistBlock) {
+            $query['addAppBlockId'] = "{$apiKey}/{$blockHandle}";
+        }
+        return "https://{$canonicalShop}/admin/themes/current/editor?" . http_build_query($query);
     }
 }

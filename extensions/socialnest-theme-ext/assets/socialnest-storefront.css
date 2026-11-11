@@ -1954,3 +1954,32 @@ body:has(.socialnest-wishlist-page-wrapper) .page-header h1:not(.sn-wishlist-tit
   font-weight: 500;
   color: #4b5563;
 }
+
+
+/* Custom platform logos - follow selected icon shape */
+.sn-dock-item:has(img.sn-custom-logo) {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+}
+
+.sn-dock-item:has(img.sn-custom-logo):hover {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+/* Preserve logo dimensions and selected shape */
+.sn-dock-item img.sn-custom-logo {
+    width: 62% !important;
+    height: 62% !important;
+    object-fit: contain !important;
+    border-radius: inherit;
+}
+
+/* GitHub PNG transparency background */
+.sn-dock-item:has(img.sn-custom-logo) img.sn-custom-logo {
+    background-color: #f7f3f3;
+    box-sizing: border-box;
+    padding: 4px;
+}

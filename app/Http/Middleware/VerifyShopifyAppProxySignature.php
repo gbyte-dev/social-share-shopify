@@ -135,22 +135,47 @@ class VerifyShopifyAppProxySignature
      *
      * @param  array<string, mixed>  $queryParams
      */
-    public function validateSignature(array $queryParams, string $expectedSignature, string $secret): bool
-    {
+    public function validateSignature(
+        array $queryParams,
+        string $expectedSignature,
+        string $secret
+    ): bool {
+        Log::debug('[WishlistProxy] HMAC verification started', [
+            'parameter_keys' => array_keys($queryParams),
+            'signature_length' => strlen($expectedSignature),
+            'secret_configured' => ! empty($secret),
+        ]);
+
         unset($queryParams['signature']);
         ksort($queryParams);
 
-        $signatureString = '';
+        $signatureParts = [];
+
         foreach ($queryParams as $key => $val) {
             if (is_array($val)) {
                 $val = implode(',', $val);
             }
-            $signatureString .= $key.'='.$val;
+
+            $signatureParts[] = $key . '=' . $val;
         }
 
-        $calculatedSignature = hash_hmac('sha256', $signatureString, $secret);
+        $signatureString = implode('', $signatureParts);
 
-        return hash_equals($calculatedSignature, $expectedSignature);
+        $calculatedSignature = hash_hmac(
+            'sha256',
+            $signatureString,
+            $secret
+        );
+
+        $valid = hash_equals($calculatedSignature, $expectedSignature);
+
+        Log::debug('[WishlistProxy] HMAC verification result', [
+            'valid' => $valid,
+            'parameter_keys' => array_keys($queryParams),
+            'calculated_length' => strlen($calculatedSignature),
+        ]);
+
+        return $valid;
     }
 
     /**

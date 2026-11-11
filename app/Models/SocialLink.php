@@ -41,69 +41,45 @@ class SocialLink extends Model
         ];
     }
 
-    /**
-     * Determine whether this link is a custom social platform.
-     */
     public function isCustom(): bool
     {
         return $this->platform_type === 'custom' || $this->platform === 'other';
     }
 
-    /**
-     * Determine whether this link is a built-in platform.
-     */
     public function isBuiltIn(): bool
     {
         return ! $this->isCustom();
     }
 
-    /**
-     * Get the owning Shopify store.
-     */
     public function store(): BelongsTo
     {
         return $this->belongsTo(ShopifyStore::class, 'shopify_store_id');
     }
 
-    /**
-     * Get recorded click events for this link.
-     */
     public function clicks(): HasMany
     {
         return $this->hasMany(SocialLinkClick::class, 'social_link_id');
     }
 
-    /**
-     * Get human-readable platform name.
-     */
     public function getPlatformNameAttribute(): string
     {
         if ($this->isCustom() && ! empty($this->custom_platform_name)) {
             return $this->custom_platform_name;
         }
-
         return SocialPlatformService::name($this->platform);
     }
 
-    /**
-     * Get platform brand color.
-     */
     public function getBrandColorAttribute(): string
     {
         if ($this->isCustom()) {
             if (! empty($this->custom_platform_name) && strtolower(trim($this->custom_platform_name)) === 'reddit') {
                 return '#FF4500';
             }
-
             return '#4f46e5';
         }
-
         return SocialPlatformService::get($this->platform)['brand_color'] ?? '#4f46e5';
     }
 
-    /**
-     * Get SVG icon markup for the platform.
-     */
     public function getIconSvgAttribute(): string
     {
         if ($this->isCustom() && ! empty($this->custom_platform_name)) {
@@ -112,51 +88,63 @@ class SocialLink extends Model
                 return SocialPlatformService::iconSvg('reddit');
             }
         }
-
         return SocialPlatformService::iconSvg($this->platform);
     }
 
-    /**
-     * Get small logo URL.
-     */
-    public function getLogoSmallUrlAttribute(): ?string
+    // Yahan 'public/' add kiya gaya hai taaki shared hosting par URL effectively map ho sake
+  public function getLogoSmallUrlAttribute(): ?string
     {
-        return $this->logo_small_path ? asset('storage/'.$this->logo_small_path) : null;
+        if (! $this->logo_small_path) return null;
+        
+        // Agar pehle se http, https ya data URI hai toh direct return karo[cite: 19, 22]
+        if (str_starts_with($this->logo_small_path, 'http://') || str_starts_with($this->logo_small_path, 'https://')) {
+            return $this->logo_small_path;
+        }
+        
+        if (str_starts_with($this->logo_small_path, 'data:image')) {
+            return $this->logo_small_path;
+        }
+
+        return asset('public/' . $this->logo_small_path);
     }
 
-    /**
-     * Get medium logo URL.
-     */
     public function getLogoMediumUrlAttribute(): ?string
     {
-        return $this->logo_medium_path ? asset('storage/'.$this->logo_medium_path) : null;
+        if (! $this->logo_medium_path) return null;
+
+        // Agar pehle se http ya https URL hai, toh direct return karo[cite: 22]
+        if (str_starts_with($this->logo_medium_path, 'http://') || str_starts_with($this->logo_medium_path, 'https://')) {
+            return $this->logo_medium_path;
+        }
+
+        return asset('public/' . $this->logo_medium_path);
     }
 
-    /**
-     * Get large logo URL.
-     */
     public function getLogoLargeUrlAttribute(): ?string
     {
-        return $this->logo_large_path ? asset('storage/'.$this->logo_large_path) : null;
+        return $this->logo_large_path ? asset('public/' . $this->logo_large_path) : null;
     }
 
-    /**
-     * Get original logo URL.
-     */
     public function getOriginalLogoUrlAttribute(): ?string
     {
-        return $this->original_logo_path ? asset('storage/'.$this->original_logo_path) : null;
+        return $this->original_logo_path ? asset('public/' . $this->original_logo_path) : null;
     }
 
-    /**
-     * Get icon HTML representation (custom logo image if available, else SVG).
-     */
     public function getIconHtmlAttribute(): string
     {
         if ($this->isCustom() && $this->logo_small_url) {
             $alt = htmlspecialchars($this->alt_text ?: $this->platform_name, ENT_QUOTES, 'UTF-8');
 
-            return '<img src="'.htmlspecialchars($this->logo_small_url, ENT_QUOTES, 'UTF-8').'" alt="'.$alt.'" style="width: 22px; height: 22px; object-fit: contain; display: block;" />';
+            // Fallback SVG code
+            $fallbackSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>';
+
+            // Base64 encode the SVG to completely prevent HTML quote conflicts
+            $base64Svg = base64_encode($fallbackSvg);
+
+            // Replace the broken image source with the Base64 SVG cleanly
+            $fallback = "this.onerror=null; this.src='data:image/svg+xml;base64," . $base64Svg . "';";
+
+            return '<img src="' . htmlspecialchars($this->logo_small_url, ENT_QUOTES, 'UTF-8') . '" alt="' . $alt . '" style="width: 20px; height: 20px; object-fit: contain; display: block;" onerror="' . $fallback . '" />';
         }
 
         return $this->icon_svg;

@@ -5,10 +5,15 @@
 @section('header_subtitle', 'Store overview, social engagement, and storefront feature controls')
 
 @section('header_actions')
-    <a href="{{ route('shopify.wishlist.setup') }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="padding: 0.4rem 0.75rem; font-size: 0.8125rem; color: #e11d48; border-color: #fecdd3; background: #fff1f2;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-        <span>1-Click Wishlist Setup</span>
-    </a>
+   <button
+    type="button"
+    id="wishlist-setup-btn"
+    data-url="{{ route('shopify.wishlist.setup') }}"
+    class="btn btn-secondary btn-sm"
+    style="padding: 0.4rem 0.75rem; font-size: 0.8125rem; color: #e11d48; border-color: #fecdd3; background: #fff1f2;"
+>
+    <span>1-Click Wishlist Setup</span>
+</button>
     <a href="{{ route('shopify.social-links.create') }}" class="btn btn-primary btn-sm" style="padding: 0.4rem 0.75rem; font-size: 0.8125rem;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         <span>Add Social Link</span>
@@ -1009,5 +1014,74 @@
 
             startPolling();
         })();
+
+   
+document.addEventListener('DOMContentLoaded', function () {
+    const button = document.getElementById('wishlist-setup-btn');
+
+    if (!button) return;
+
+    button.addEventListener('click', async function () {
+        const originalText = button.innerHTML;
+
+        button.disabled = true;
+        button.textContent = 'Setting up Wishlist...';
+
+        try {
+            const response = await fetch(button.dataset.url, {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            const responseText = await response.text();
+
+            let data;
+
+            try {
+                data = JSON.parse(responseText);
+            } catch (error) {
+                console.error('Wishlist invalid JSON response:', {
+                    status: response.status,
+                    response: responseText
+                });
+
+                throw new Error('Server returned an invalid response.');
+            }
+
+            if (!response.ok || !data.success) {
+                console.error('Wishlist setup API failed:', {
+                    status: response.status,
+                    response: data
+                });
+
+                throw new Error(
+                    data.message || `Request failed: ${response.status}`
+                );
+            }
+
+            if (!data.deep_link_url) {
+                throw new Error('Theme Editor URL missing.');
+            }
+
+            console.info('Wishlist setup successful:', data);
+
+            // Navigate outside Shopify embedded iframe.
+            window.top.location.href = data.deep_link_url;
+
+        } catch (error) {
+            console.error('Wishlist setup failed:', error);
+
+            alert(error.message || 'Wishlist setup failed.');
+
+            button.disabled = false;
+            button.innerHTML = originalText;
+        }
+    });
+});
+
     </script>
 @endpush

@@ -206,28 +206,135 @@ class ShopifyAuthController extends Controller
     /**
      * Generate cryptographically secure OAuth state and redirect to Shopify authorization.
      */
-    protected function startOAuthFlow(Request $request, string $canonicalShop): Response|RedirectResponse
-    {
+    protected function startOAuthFlow(
+        Request $request,
+        string $canonicalShop
+    ): Response|RedirectResponse {
+
         // Generate cryptographically secure nonce
         $state = Str::random(40);
 
-        // Cache state for 15 minutes to prevent replay and CSRF attacks
+        // Store OAuth state for CSRF protection
         Cache::put("shopify_oauth_state_{$state}", [
             'shop' => $canonicalShop,
             'host' => $request->query('host'),
         ], now()->addMinutes(15));
 
-        $authUrl = $this->shopifyService->getAuthorizeUrl($canonicalShop, $state);
+        $authUrl = $this->shopifyService->getAuthorizeUrl(
+            $canonicalShop,
+            $state
+        );
 
-        // Break out of iframe if loaded embedded inside Shopify Admin
-        if ($request->query('embedded') === '1' || $request->header('Sec-Fetch-Dest') === 'iframe') {
-            return response(
-                '<!DOCTYPE html><html><head><title>Redirecting to Shopify...</title>'.
-                '<script>window.top.location.href = '.json_encode($authUrl, JSON_UNESCAPED_SLASHES).';</script></head>'.
-                '<body>Redirecting to Shopify authorization...</body></html>'
+        // Break out of Shopify Admin iframe
+        if (
+            $request->query('embedded') === '1' ||
+            $request->header('Sec-Fetch-Dest') === 'iframe'
+        ) {
+            $escapedAuthUrl = e($authUrl);
+
+            $authUrlJson = json_encode(
+                $authUrl,
+                JSON_HEX_TAG |
+                    JSON_HEX_APOS |
+                    JSON_HEX_AMP |
+                    JSON_HEX_QUOT
             );
+
+            $html = <<<HTML
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Redirecting to Shopify</title>
+
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    min-height: 100vh;
+                    margin: 0;
+                    background: #f6f6f7;
+                    color: #202223;
+                }
+
+                .container {
+                    text-align: center;
+                    background: #fff;
+                    padding: 35px;
+                    border-radius: 12px;
+                    max-width: 420px;
+                    width: calc(100% - 40px);
+                    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+                }
+
+                .button {
+                    display: inline-block;
+                    margin-top: 20px;
+                    padding: 13px 24px;
+                    background: #008060;
+                    color: #fff;
+                    text-decoration: none;
+                    border-radius: 6px;
+                    font-weight: 600;
+                }
+
+                .button:hover {
+                    background: #006e52;
+                }
+
+                .message {
+                    color: #6d7175;
+                    font-size: 14px;
+                    line-height: 1.6;
+                }
+            </style>
+        </head>
+
+        <body>
+            <div class="container">
+                <h2>Connecting to Shopify</h2>
+
+                <p class="message">
+                    Redirecting you to Shopify authorization.
+                    If automatic redirection does not work,
+                    click the button below.
+                </p>
+
+                <a
+                    href="{$escapedAuthUrl}"
+                    target="_top"
+                    class="button"
+                >
+                    Complete Verification
+                </a>
+            </div>
+
+            <script>
+                (function () {
+                    const authUrl = {$authUrlJson};
+
+                    try {
+                        window.top.location.assign(authUrl);
+                    } catch (error) {
+                        console.warn(
+                            'Automatic Shopify redirect failed:',
+                            error
+                        );
+                    }
+                })();
+            </script>
+        </body>
+        </html>
+        HTML;
+
+            return response($html, 200)
+                ->header('Content-Type', 'text/html; charset=UTF-8');
         }
 
+        // Normal non-embedded OAuth redirect
         return redirect()->away($authUrl);
     }
 
@@ -281,16 +388,21 @@ class ShopifyAuthController extends Controller
         } catch (RuntimeException $e) {
             return response()->view('shopify.error', [
                 'title' => 'Token Exchange Failed',
-                'message' => 'Failed to obtain access token from Shopify: '.$e->getMessage(),
+                'message' => 'Failed to obtain access token from Shopify: ' . $e->getMessage(),
             ], 502);
         }
 
         // Idempotently store authenticated merchant identity
         $store = $this->shopifyService->persistInstalledStore(
             $canonicalShop,
-            $tokenData['access_token'],
-            $tokenData['scope']
+            $tokenData
         );
+
+        Log::info('Shopify OAuth token persisted', [
+            'shop' => $canonicalShop,
+            'token_present' => !empty($tokenData['access_token']),
+            'scope' => $tokenData['scope'] ?? null,
+        ]);
 
         // Bind user session
         session([

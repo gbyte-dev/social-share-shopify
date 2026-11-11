@@ -71,6 +71,9 @@ Route::middleware(['shopify.csp', 'shopify.auth', 'shopify.subscription'])->grou
     Route::put('/shopify/social-links/{id}', [SocialLinkController::class, 'update'])
         ->name('shopify.social-links.update');
 
+    Route::post('/shopify/social-links/store-global-custom-app', [SocialLinkController::class, 'storeGlobalCustomApp'])
+        ->name('shopify.social-links.store-global-custom-app');
+
     Route::match(['POST', 'PATCH'], '/shopify/social-links/{id}/toggle', [SocialLinkController::class, 'toggle'])
         ->name('shopify.social-links.toggle');
 
@@ -127,14 +130,14 @@ Route::post('/shopify/webhooks', [ShopifyWebhookController::class, 'handle'])
     ->name('shopify.webhooks');
 
 // Shopify App Proxy Preflight CORS OPTIONS
-Route::options('/shopify/proxy/{any?}', fn () => response('', 204, [
+Route::options('/shopify/proxy/{any?}', fn() => response('', 204, [
     'Access-Control-Allow-Origin' => '*',
     'Access-Control-Allow-Methods' => 'GET, POST, DELETE, OPTIONS',
     'Access-Control-Allow-Headers' => 'Content-Type, X-Guest-UUID, Authorization, Accept, X-Shopify-Shop-Domain',
     'Access-Control-Allow-Private-Network' => 'true',
 ]))->where('any', '.*');
 
-Route::options('/api/storefront/wishlist/{any?}', fn () => response('', 204, [
+Route::options('/api/storefront/wishlist/{any?}', fn() => response('', 204, [
     'Access-Control-Allow-Origin' => '*',
     'Access-Control-Allow-Methods' => 'GET, POST, DELETE, OPTIONS',
     'Access-Control-Allow-Headers' => 'Content-Type, X-Guest-UUID, Authorization, Accept, X-Shopify-Shop-Domain',

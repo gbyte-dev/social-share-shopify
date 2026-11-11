@@ -22,9 +22,6 @@ class SocialLinkController extends Controller
         protected LogoDiscoveryService $logoDiscoveryService
     ) {}
 
-    /**
-     * Display a listing of social links for the authenticated store.
-     */
     public function index(Request $request): View
     {
         /** @var ShopifyStore $store */
@@ -32,10 +29,16 @@ class SocialLinkController extends Controller
 
         $links = $store->socialLinks()->orderBy('sort_order', 'asc')->get();
         $configuredBuiltInPlatforms = $links->where('platform', '!=', 'other')->pluck('platform')->toArray();
-        $allPlatforms = SocialPlatformService::all();
 
-        // Built-ins can only be added once, but "other" (custom platform) is always available
+        // Track configured custom apps for this store to disable them in the modal picker
+        $configuredCustomNames = $links->where('platform', 'other')->pluck('custom_platform_name')->map(fn($n) => strtolower(trim($n)))->toArray();
+
+        $allPlatforms = SocialPlatformService::all();
         $availablePlatforms = array_diff_key($allPlatforms, array_flip($configuredBuiltInPlatforms));
+        $nextOrder = (int) $store->socialLinks()->max('sort_order') + 1;
+
+        // Fetch all globally public custom apps created by any merchant
+        $globalCustomApps = DB::table('global_custom_platforms')->orderBy('name', 'asc')->get();
 
         return view('shopify.social-links.index', [
             'store' => $store,
@@ -44,88 +47,47 @@ class SocialLinkController extends Controller
             'links' => $links,
             'allPlatforms' => $allPlatforms,
             'availablePlatforms' => $availablePlatforms,
-        ]);
-    }
-
-    /**
-     * Show the form for creating a new social link.
-     */
-    public function create(Request $request): View
-    {
-        /** @var ShopifyStore $store */
-        $store = $this->resolveStore($request);
-
-        $configuredBuiltInPlatforms = $store->socialLinks()->where('platform', '!=', 'other')->pluck('platform')->toArray();
-        $allPlatforms = SocialPlatformService::all();
-        $availablePlatforms = array_diff_key($allPlatforms, array_flip($configuredBuiltInPlatforms));
-
-        $maxOrder = (int) $store->socialLinks()->max('sort_order');
-        $nextOrder = $maxOrder + 1;
-
-        return view('shopify.social-links.create', [
-            'store' => $store,
-            'shop' => $store->shop,
-            'host' => session('shopify_host') ?? $request->query('host'),
-            'allPlatforms' => $allPlatforms,
-            'availablePlatforms' => $availablePlatforms,
             'nextOrder' => $nextOrder,
+            'globalCustomApps' => $globalCustomApps,
+            'configuredCustomNames' => $configuredCustomNames,
         ]);
     }
 
-    /**
-     * AJAX endpoint: automatic logo discovery for a platform name, destination, or official website.
-     */
+    public function create(Request $request): RedirectResponse
+    {
+        return redirect()->route('shopify.social-links.index', $this->redirectParams($request));
+    }
+
     public function discoverLogos(Request $request): JsonResponse
     {
-        // Enforce store authentication
         $this->resolveStore($request);
-
         $validated = $request->validate([
             'name' => ['nullable', 'string', 'max:100'],
             'url' => ['nullable', 'string', 'max:1000'],
             'website_url' => ['nullable', 'string', 'max:1000'],
         ]);
-
-        $result = $this->logoDiscoveryService->discover(
-            $validated['name'] ?? null,
-            $validated['url'] ?? null,
-            $validated['website_url'] ?? null
-        );
-
+        $result = $this->logoDiscoveryService->discover($validated['name'] ?? null, $validated['url'] ?? null, $validated['website_url'] ?? null);
         return response()->json($result);
     }
 
-    /**
-     * Store a newly created social link in database.
-     */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request)
     {
         /** @var ShopifyStore $store */
         $store = $this->resolveStore($request);
-
         $platform = strtolower(trim((string) $request->input('platform')));
 
         if ($platform === 'other') {
             return $this->storeCustomLink($request, $store);
         }
-
         return $this->storeBuiltInLink($request, $store, $platform);
     }
 
-    /**
-     * Store a built-in platform link.
-     */
-    protected function storeBuiltInLink(Request $request, ShopifyStore $store, string $platform): RedirectResponse
+    protected function storeBuiltInLink(Request $request, ShopifyStore $store, string $platform)
     {
         $allowedPlatforms = SocialPlatformService::builtInKeys();
 
         $validated = $request->validate([
-            'platform' => [
-                'required',
-                'string',
-                Rule::in($allowedPlatforms),
-                Rule::unique('social_links')->where(fn ($q) => $q->where('shopify_store_id', $store->id)),
-            ],
+            'platform' => ['required', 'string', Rule::in($allowedPlatforms), Rule::unique('social_links')->where(fn($q) => $q->where('shopify_store_id', $store->id))],
             'url' => ['required', 'string', 'max:1000'],
             'label' => ['nullable', 'string', 'max:100'],
             'is_active' => ['sometimes', 'boolean'],
@@ -137,12 +99,10 @@ class SocialLinkController extends Controller
 
         $urlValidation = SocialPlatformService::validatePlatformUrl($validated['platform'], $validated['url']);
         if (! $urlValidation['is_valid']) {
-            return back()->withInput()->withErrors(['url' => $urlValidation['error']]);
+            return $this->respondError($request, ['url' => $urlValidation['error']]);
         }
 
-        $sortOrder = isset($validated['sort_order']) && $validated['sort_order'] !== ''
-            ? (int) $validated['sort_order']
-            : ((int) $store->socialLinks()->max('sort_order') + 1);
+        $sortOrder = isset($validated['sort_order']) && $validated['sort_order'] !== '' ? (int) $validated['sort_order'] : ((int) $store->socialLinks()->max('sort_order') + 1);
 
         $store->socialLinks()->create([
             'platform' => strtolower($validated['platform']),
@@ -153,14 +113,10 @@ class SocialLinkController extends Controller
             'sort_order' => $sortOrder,
         ]);
 
-        return redirect()->route('shopify.social-links.index', $this->redirectParams($request))
-            ->with('success', 'Social link added successfully!');
+        return $this->respondSuccess($request, 'Social link added successfully!');
     }
 
-    /**
-     * Store a custom platform link with automatic or manual logo.
-     */
-    protected function storeCustomLink(Request $request, ShopifyStore $store): RedirectResponse
+    protected function storeCustomLink(Request $request, ShopifyStore $store)
     {
         $validated = $request->validate([
             'platform' => ['required', 'string', Rule::in(['other'])],
@@ -168,7 +124,7 @@ class SocialLinkController extends Controller
                 'required',
                 'string',
                 'max:100',
-                Rule::unique('social_links')->where(fn ($q) => $q->where('shopify_store_id', $store->id)->where('custom_platform_name', $request->input('custom_platform_name'))),
+                Rule::unique('social_links', 'custom_platform_name')->where(fn($q) => $q->where('shopify_store_id', $store->id)),
             ],
             'url' => ['required', 'string', 'max:1000'],
             'official_website_url' => ['nullable', 'string', 'max:1000'],
@@ -179,28 +135,22 @@ class SocialLinkController extends Controller
             'logo_file' => ['nullable', 'file', 'max:5120'],
             'selected_logo_url' => ['nullable', 'string', 'max:1000'],
         ], [
-            'custom_platform_name.required' => 'Please enter the app or platform name (e.g. Discord, Telegram).',
-            'custom_platform_name.unique' => 'A custom platform with this name already exists in your store.',
+            'custom_platform_name.unique' => 'You already have this custom app configured in your channels. Please edit the existing link instead.',
         ]);
 
-        // Validate destination URL
         $urlValidation = SocialPlatformService::validatePlatformUrl('other', $validated['url']);
         if (! $urlValidation['is_valid']) {
-            return back()->withInput()->withErrors(['url' => $urlValidation['error']]);
+            return $this->respondError($request, ['url' => $urlValidation['error']]);
         }
 
-        // Validate official website URL if provided
         $officialWebsite = null;
         if (! empty($validated['official_website_url'])) {
             $webValidation = SocialPlatformService::validatePlatformUrl('other', $validated['official_website_url']);
-            if (! $webValidation['is_valid']) {
-                return back()->withInput()->withErrors(['official_website_url' => $webValidation['error']]);
-            }
+            if (! $webValidation['is_valid']) return $this->respondError($request, ['official_website_url' => $webValidation['error']]);
             $officialWebsite = $webValidation['normalized_url'];
         }
 
-        // Process Logo: Manual upload takes precedence, followed by discovered logo URL
-        $logoData = null;
+        $logoData = ['original_logo_path' => null, 'logo_small_path' => null, 'logo_medium_path' => null, 'logo_large_path' => null];
         $logoSourceUrl = null;
         $logoSourceDomain = null;
 
@@ -208,26 +158,33 @@ class SocialLinkController extends Controller
             if ($request->hasFile('logo_file')) {
                 $logoData = $this->logoProcessingService->processUploadedFile($request->file('logo_file'), $store->id);
             } elseif ($request->filled('selected_logo_url')) {
+
                 $selectedUrl = $request->input('selected_logo_url');
+
                 $binary = $this->logoDiscoveryService->downloadRemoteImage($selectedUrl);
 
                 if (! $binary) {
-                    return back()->withInput()->withErrors(['logo_file' => 'Failed to download the selected logo. Please upload an image file directly.']);
+                    return $this->respondError($request, [
+                        'logo_file' => 'Failed to download selected logo.'
+                    ]);
                 }
 
-                $logoData = $this->logoProcessingService->processBinaryData($binary, $store->id, 'discovered_logo');
+                $logoData = $this->logoProcessingService->processBinaryData(
+                    $binary,
+                    $store->id,
+                    'discovered_logo'
+                );
+
                 $logoSourceUrl = $selectedUrl;
                 $logoSourceDomain = parse_url($selectedUrl, PHP_URL_HOST);
             } else {
-                return back()->withInput()->withErrors(['logo_file' => 'A logo is required for custom platforms. Please upload a logo file or choose an automatically discovered candidate.']);
+                return $this->respondError($request, ['logo_file' => 'A logo is required for custom platforms.']);
             }
         } catch (\Throwable $e) {
-            return back()->withInput()->withErrors(['logo_file' => $e->getMessage()]);
+            return $this->respondError($request, ['logo_file' => $e->getMessage()]);
         }
 
-        $sortOrder = isset($validated['sort_order']) && $validated['sort_order'] !== ''
-            ? (int) $validated['sort_order']
-            : ((int) $store->socialLinks()->max('sort_order') + 1);
+        $sortOrder = isset($validated['sort_order']) && $validated['sort_order'] !== '' ? (int) $validated['sort_order'] : ((int) $store->socialLinks()->max('sort_order') + 1);
 
         $store->socialLinks()->create([
             'platform' => 'other',
@@ -247,89 +204,135 @@ class SocialLinkController extends Controller
             'sort_order' => $sortOrder,
         ]);
 
-        return redirect()->route('shopify.social-links.index', $this->redirectParams($request))
-            ->with('success', "{$validated['custom_platform_name']} custom link added successfully!");
+        // Global custom platforms table mein URL check karke save karein taaki asset() ka panga na ho
+        $smallPath = $logoData['logo_small_path'];
+        $publicLogoUrl = (str_starts_with($smallPath, 'http://') || str_starts_with($smallPath, 'https://'))
+            ? $smallPath
+            : asset('public/' . $smallPath);
+
+        DB::table('global_custom_platforms')->updateOrInsert(
+            ['name' => $validated['custom_platform_name']],
+            [
+                'website_url' => $officialWebsite,
+                'logo_url' => $publicLogoUrl,
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]
+        );
+
+        return $this->respondSuccess($request, "{$validated['custom_platform_name']} link added successfully!");
     }
 
-    /**
-     * Show the form for editing an existing social link.
-     */
-    public function edit(Request $request, int $id): View
+
+    public function storeGlobalCustomApp(Request $request)
     {
-        /** @var ShopifyStore $store */
-        $store = $this->resolveStore($request);
+        $this->resolveStore($request);
 
-        $link = $store->socialLinks()->findOrFail($id);
-
-        $configuredBuiltInPlatforms = $store->socialLinks()
-            ->where('id', '!=', $link->id)
-            ->where('platform', '!=', 'other')
-            ->pluck('platform')
-            ->toArray();
-
-        $allPlatforms = SocialPlatformService::all();
-        $availablePlatforms = array_diff_key($allPlatforms, array_flip($configuredBuiltInPlatforms));
-
-        return view('shopify.social-links.edit', [
-            'store' => $store,
-            'shop' => $store->shop,
-            'host' => session('shopify_host') ?? $request->query('host'),
-            'link' => $link,
-            'allPlatforms' => $allPlatforms,
-            'availablePlatforms' => $availablePlatforms,
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:100', 'unique:global_custom_platforms,name'],
+            'website_url' => ['nullable', 'string', 'max:1000'],
+            'logo_file' => ['nullable', 'file', 'image', 'max:5120'],
+            'selected_logo_url' => ['nullable', 'string', 'max:1000'],
         ]);
-    }
 
-    /**
-     * Update an existing social link in database.
-     */
-    public function update(Request $request, int $id): RedirectResponse
-    {
-        /** @var ShopifyStore $store */
-        $store = $this->resolveStore($request);
-
-        $link = $store->socialLinks()->findOrFail($id);
-
-        if ($link->isCustom()) {
-            return $this->updateCustomLink($request, $link);
+        if (!$request->hasFile('logo_file') && !$request->filled('selected_logo_url')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'A logo is required.',
+            ], 422);
         }
 
+        try {
+            if ($request->hasFile('logo_file')) {
+                $logoData = $this->logoProcessingService->processUploadedFile(
+                    $request->file('logo_file'),
+                    $request->attributes->get('shopify_store')->id
+                );
+            } else {
+                $selectedUrl = $validated['selected_logo_url'];
+                $binary = $this->logoDiscoveryService->downloadRemoteImage($selectedUrl);
+
+                if (!$binary) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Failed to download selected logo.',
+                    ], 422);
+                }
+
+                $logoData = $this->logoProcessingService->processBinaryData(
+                    $binary,
+                    $request->attributes->get('shopify_store')->id,
+                    'discovered_logo'
+                );
+            }
+
+            $smallPath = $logoData['logo_small_path'];
+
+            $logoUrl = str_starts_with($smallPath, 'http://') ||
+                str_starts_with($smallPath, 'https://')
+                ? $smallPath
+                : asset('public/' . $smallPath);
+
+            DB::table('global_custom_platforms')->insert([
+                'name' => $validated['name'],
+                'website_url' => $validated['website_url'] ?? null,
+                'logo_url' => $logoUrl,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'app' => [
+                    'name' => $validated['name'],
+                    'website' => $validated['website_url'] ?? null,
+                    'logo' => $logoUrl,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('Global custom app save failed', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to save custom app.',
+            ], 500);
+        }
+    }
+
+
+    public function edit(Request $request, int $id): RedirectResponse
+    {
+        return redirect()->route('shopify.social-links.index', $this->redirectParams($request));
+    }
+
+    public function update(Request $request, int $id)
+    {
+        /** @var ShopifyStore $store */
+        $store = $this->resolveStore($request);
+        $link = $store->socialLinks()->findOrFail($id);
+
+        if ($link->isCustom()) return $this->updateCustomLink($request, $link);
         return $this->updateBuiltInLink($request, $store, $link);
     }
 
-    /**
-     * Update a built-in platform link.
-     */
-    protected function updateBuiltInLink(Request $request, ShopifyStore $store, SocialLink $link): RedirectResponse
+    protected function updateBuiltInLink(Request $request, ShopifyStore $store, SocialLink $link)
     {
         $allowedPlatforms = SocialPlatformService::builtInKeys();
 
         $validated = $request->validate([
-            'platform' => [
-                'required',
-                'string',
-                Rule::in($allowedPlatforms),
-                Rule::unique('social_links')
-                    ->where(fn ($q) => $q->where('shopify_store_id', $store->id))
-                    ->ignore($link->id),
-            ],
+            'platform' => ['required', 'string', Rule::in($allowedPlatforms), Rule::unique('social_links')->where(fn($q) => $q->where('shopify_store_id', $store->id))->ignore($link->id)],
             'url' => ['required', 'string', 'max:1000'],
             'label' => ['nullable', 'string', 'max:100'],
             'is_active' => ['sometimes', 'boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:9999'],
-        ], [
-            'platform.unique' => 'A link for this platform already exists for your store.',
-            'platform.in' => 'Selected social media platform is not supported.',
         ]);
 
         $urlValidation = SocialPlatformService::validatePlatformUrl($validated['platform'], $validated['url']);
-        if (! $urlValidation['is_valid']) {
-            return back()->withInput()->withErrors(['url' => $urlValidation['error']]);
-        }
+        if (! $urlValidation['is_valid']) return $this->respondError($request, ['url' => $urlValidation['error']]);
 
-        $sortOrder = isset($validated['sort_order']) && $validated['sort_order'] !== ''
-            ? (int) $validated['sort_order']
-            : $link->sort_order;
+        $sortOrder = isset($validated['sort_order']) && $validated['sort_order'] !== '' ? (int) $validated['sort_order'] : $link->sort_order;
 
         $link->update([
             'platform' => strtolower($validated['platform']),
@@ -339,24 +342,13 @@ class SocialLinkController extends Controller
             'sort_order' => $sortOrder,
         ]);
 
-        return redirect()->route('shopify.social-links.index', $this->redirectParams($request))
-            ->with('success', 'Social link updated successfully!');
+        return $this->respondSuccess($request, 'Social link updated successfully!');
     }
 
-    /**
-     * Update a custom platform link.
-     */
-    protected function updateCustomLink(Request $request, SocialLink $link): RedirectResponse
+    protected function updateCustomLink(Request $request, SocialLink $link)
     {
         $validated = $request->validate([
-            'custom_platform_name' => [
-                'required',
-                'string',
-                'max:100',
-                Rule::unique('social_links')
-                    ->where(fn ($q) => $q->where('shopify_store_id', $link->shopify_store_id)->where('custom_platform_name', $request->input('custom_platform_name')))
-                    ->ignore($link->id),
-            ],
+            'custom_platform_name' => ['required', 'string', 'max:100'],
             'url' => ['required', 'string', 'max:1000'],
             'official_website_url' => ['nullable', 'string', 'max:1000'],
             'label' => ['nullable', 'string', 'max:100'],
@@ -368,16 +360,12 @@ class SocialLinkController extends Controller
         ]);
 
         $urlValidation = SocialPlatformService::validatePlatformUrl('other', $validated['url']);
-        if (! $urlValidation['is_valid']) {
-            return back()->withInput()->withErrors(['url' => $urlValidation['error']]);
-        }
+        if (! $urlValidation['is_valid']) return $this->respondError($request, ['url' => $urlValidation['error']]);
 
         $officialWebsite = null;
         if (! empty($validated['official_website_url'])) {
             $webValidation = SocialPlatformService::validatePlatformUrl('other', $validated['official_website_url']);
-            if (! $webValidation['is_valid']) {
-                return back()->withInput()->withErrors(['official_website_url' => $webValidation['error']]);
-            }
+            if (! $webValidation['is_valid']) return $this->respondError($request, ['official_website_url' => $webValidation['error']]);
             $officialWebsite = $webValidation['normalized_url'];
         }
 
@@ -387,42 +375,20 @@ class SocialLinkController extends Controller
             if ($request->hasFile('logo_file')) {
                 $newLogoData = $this->logoProcessingService->processUploadedFile($request->file('logo_file'), $link->shopify_store_id);
                 $this->logoProcessingService->deleteOldLogoFiles($link);
-
-                $logoUpdates = [
-                    'original_logo_path' => $newLogoData['original_logo_path'],
-                    'logo_small_path' => $newLogoData['logo_small_path'],
-                    'logo_medium_path' => $newLogoData['logo_medium_path'],
-                    'logo_large_path' => $newLogoData['logo_large_path'],
-                    'logo_source_url' => null,
-                    'logo_source_domain' => null,
-                ];
+                $logoUpdates = array_merge($newLogoData, ['logo_source_url' => null, 'logo_source_domain' => null]);
             } elseif ($request->filled('selected_logo_url')) {
                 $selectedUrl = $request->input('selected_logo_url');
                 $binary = $this->logoDiscoveryService->downloadRemoteImage($selectedUrl);
-
-                if (! $binary) {
-                    return back()->withInput()->withErrors(['logo_file' => 'Failed to download selected logo.']);
-                }
-
+                if (! $binary) return $this->respondError($request, ['logo_file' => 'Failed to download selected logo.']);
                 $newLogoData = $this->logoProcessingService->processBinaryData($binary, $link->shopify_store_id, 'discovered_logo');
                 $this->logoProcessingService->deleteOldLogoFiles($link);
-
-                $logoUpdates = [
-                    'original_logo_path' => $newLogoData['original_logo_path'],
-                    'logo_small_path' => $newLogoData['logo_small_path'],
-                    'logo_medium_path' => $newLogoData['logo_medium_path'],
-                    'logo_large_path' => $newLogoData['logo_large_path'],
-                    'logo_source_url' => $selectedUrl,
-                    'logo_source_domain' => parse_url($selectedUrl, PHP_URL_HOST),
-                ];
+                $logoUpdates = array_merge($newLogoData, ['logo_source_url' => $selectedUrl, 'logo_source_domain' => parse_url($selectedUrl, PHP_URL_HOST)]);
             }
         } catch (\Throwable $e) {
-            return back()->withInput()->withErrors(['logo_file' => $e->getMessage()]);
+            return $this->respondError($request, ['logo_file' => $e->getMessage()]);
         }
 
-        $sortOrder = isset($validated['sort_order']) && $validated['sort_order'] !== ''
-            ? (int) $validated['sort_order']
-            : $link->sort_order;
+        $sortOrder = isset($validated['sort_order']) && $validated['sort_order'] !== '' ? (int) $validated['sort_order'] : $link->sort_order;
 
         $link->update(array_merge([
             'custom_platform_name' => $validated['custom_platform_name'],
@@ -434,65 +400,32 @@ class SocialLinkController extends Controller
             'sort_order' => $sortOrder,
         ], $logoUpdates));
 
-        return redirect()->route('shopify.social-links.index', $this->redirectParams($request))
-            ->with('success', "{$validated['custom_platform_name']} link updated successfully!");
+        return $this->respondSuccess($request, "{$validated['custom_platform_name']} link updated successfully!");
     }
 
-    /**
-     * Toggle active/inactive status of a social link.
-     */
     public function toggle(Request $request, int $id): RedirectResponse
     {
-        /** @var ShopifyStore $store */
         $store = $this->resolveStore($request);
-
         $link = $store->socialLinks()->findOrFail($id);
-
-        $link->update([
-            'is_active' => ! $link->is_active,
-        ]);
-
+        $link->update(['is_active' => ! $link->is_active]);
         $statusText = $link->is_active ? 'activated' : 'deactivated';
-
-        return redirect()->route('shopify.social-links.index', $this->redirectParams($request))
-            ->with('success', "{$link->platform_name} link {$statusText} successfully.");
+        return redirect()->route('shopify.social-links.index', $this->redirectParams($request))->with('success', "{$link->platform_name} link {$statusText} successfully.");
     }
 
-    /**
-     * Delete an existing social link.
-     */
     public function destroy(Request $request, int $id): RedirectResponse
     {
-        /** @var ShopifyStore $store */
         $store = $this->resolveStore($request);
-
         $link = $store->socialLinks()->findOrFail($id);
         $platformName = $link->platform_name;
-
-        // Clean up logo files if custom
-        if ($link->isCustom()) {
-            $this->logoProcessingService->deleteOldLogoFiles($link);
-        }
-
+        if ($link->isCustom()) $this->logoProcessingService->deleteOldLogoFiles($link);
         $link->delete();
-
-        return redirect()->route('shopify.social-links.index', $this->redirectParams($request))
-            ->with('success', "{$platformName} link deleted successfully.");
+        return redirect()->route('shopify.social-links.index', $this->redirectParams($request))->with('success', "{$platformName} link deleted successfully.");
     }
 
-    /**
-     * Reorder social links within the authenticated store.
-     */
     public function reorder(Request $request): RedirectResponse
     {
-        /** @var ShopifyStore $store */
         $store = $this->resolveStore($request);
-
-        $request->validate([
-            'order' => ['required', 'array'],
-            'order.*' => ['integer'],
-        ]);
-
+        $request->validate(['order' => ['required', 'array'], 'order.*' => ['integer']]);
         DB::transaction(function () use ($store, $request): void {
             $order = $request->input('order');
             foreach ($order as $key => $val) {
@@ -503,16 +436,28 @@ class SocialLinkController extends Controller
                 }
             }
         });
-
-        return redirect()->route('shopify.social-links.index', $this->redirectParams($request))
-            ->with('success', 'Display order updated successfully.');
+        return redirect()->route('shopify.social-links.index', $this->redirectParams($request))->with('success', 'Display order updated successfully.');
     }
 
-    /**
-     * Build parameters to preserve Shopify embedded launch context during redirects.
-     *
-     * @return array<string, string>
-     */
+    protected function respondError(Request $request, array $errors)
+    {
+        if ($request->wantsJson() || $request->ajax()) {
+            $formatted = [];
+            foreach ($errors as $key => $msg) $formatted[$key] = [$msg];
+            return response()->json(['message' => 'The given data was invalid.', 'errors' => $formatted], 422);
+        }
+        return back()->withInput()->withErrors($errors);
+    }
+
+    protected function respondSuccess(Request $request, string $message)
+    {
+        session()->flash('success', $message);
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json(['success' => true, 'redirect' => route('shopify.social-links.index', $this->redirectParams($request))]);
+        }
+        return redirect()->route('shopify.social-links.index', $this->redirectParams($request));
+    }
+
     protected function redirectParams(Request $request): array
     {
         $params = [];
@@ -520,41 +465,24 @@ class SocialLinkController extends Controller
         if ($host) {
             $params['host'] = $host;
             $shop = $request->query('shop') ?? $request->input('shop');
-            if ($shop) {
-                $params['shop'] = $shop;
-            }
+            if ($shop) $params['shop'] = $shop;
         }
-
         return $params;
     }
 
-    /**
-     * Resolve and strictly verify the authenticated Shopify store.
-     */
     protected function resolveStore(Request $request): ShopifyStore
     {
-        /** @var ShopifyStore|null $store */
         $store = $request->attributes->get('shopify_store');
-
         if (! $store || ! $store->isInstalled()) {
             $sessionShop = session('shopify_shop');
             $sessionStoreId = session('shopify_store_id');
-
             if ($sessionShop && $sessionStoreId) {
-                $store = ShopifyStore::where('shop', $sessionShop)
-                    ->where('id', $sessionStoreId)
-                    ->where('is_active', true)
-                    ->whereNotNull('access_token')
-                    ->first();
+                $store = ShopifyStore::where('shop', $sessionShop)->where('id', $sessionStoreId)->where('is_active', true)->whereNotNull('access_token')->first();
             }
-
             if (! $store || ! $store->isInstalled()) {
-                throw new HttpResponseException(
-                    redirect()->route('shopify.install')->with('error', 'Authentication required.')
-                );
+                throw new HttpResponseException(redirect()->route('shopify.install')->with('error', 'Authentication required.'));
             }
         }
-
         return $store;
     }
 }
