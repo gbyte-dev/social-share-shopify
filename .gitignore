@@ -53,3 +53,4 @@ Thumbs.db
 .htaccess
 index.php
 package-lock.json
+/public/uploads/logos/*
