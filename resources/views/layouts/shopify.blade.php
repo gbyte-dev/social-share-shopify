@@ -126,7 +126,7 @@
             --text-secondary: #334155;
             --text-muted: #475569;
             --text-subtle: #64748b;
-            --text-placeholder: #94a3b8;
+            --text-placeholder: #000000;
 
             /* Semantic Status Colors */
             --success: #10b981;
@@ -237,7 +237,7 @@
 
         .page-header-info p {
             font-size: 0.8125rem;
-            color: var(--text-subtle);
+             
             margin-top: 0.125rem;
         }
 
@@ -289,6 +289,10 @@
         /* ==========================================================================
            Buttons
            ========================================================================== */
+        [hidden] {
+            display: none !important;
+        }
+
         .btn {
             display: inline-flex;
             align-items: center;
@@ -427,7 +431,7 @@
             background: #ffffff;
         }
         table.table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.875rem; }
-        table.table th { background: var(--surface-bg); color: var(--text-subtle); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; padding: 0.875rem 1.25rem; border-bottom: 1px solid var(--card-border); }
+        table.table th { background: var(--surface-bg);   font-size: 0.75rem; font-weight: 700; text-transform: uppercase; padding: 0.875rem 1.25rem; border-bottom: 1px solid var(--card-border); }
         table.table td { padding: 0.9375rem 1.25rem; border-bottom: 1px solid var(--divider); color: var(--text-secondary); }
         table.table tbody tr:last-child td { border-bottom: none; }
 
@@ -544,13 +548,6 @@
                     @yield('header_actions')
 
                     <!-- Preserved Backend Logic: Logout Route & CSRF Form -->
-                    <form action="{{ route('shopify.logout') }}" method="POST" style="margin: 0;">
-                        @csrf
-                        <button type="submit" class="btn btn-outline btn-sm" title="Log out of SocialNest session">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                            <span style="margin-left: 4px;">Log out</span>
-                        </button>
-                    </form>
                 </div>
             </header>
 
@@ -748,6 +745,124 @@
         document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('.toast-auto-dismiss').forEach(function(toast) { initAutoDismissToast(toast, 3000); });
         });
+    </script>
+    <script>
+        (function () {
+            const EMBED_HANDLE = 'floating-social-dock';
+
+            function setEmbedStatus(status, message) {
+                document.querySelectorAll('[data-embed-status-badge]').forEach((element) => {
+                    element.classList.remove('is-active', 'is-inactive');
+
+                    if (status === 'active') {
+                        element.textContent = 'Storefront Widget Enabled';
+                        element.classList.add('is-active');
+                    } else if (status === 'available') {
+                        element.textContent = 'Storefront Widget Not Enabled';
+                        element.classList.add('is-inactive');
+                    } else if (status === 'unavailable') {
+                        element.textContent = 'Storefront Widget Unavailable';
+                        element.classList.add('is-inactive');
+                    } else {
+                        element.textContent = message || 'Storefront status unavailable';
+                    }
+                });
+
+                document.querySelectorAll('[data-embed-status-label]').forEach((element) => {
+                    element.textContent = status === 'active'
+                        ? 'Enabled on published theme'
+                        : status === 'available'
+                            ? 'Not enabled on published theme'
+                            : status === 'unavailable'
+                                ? 'Unavailable on published theme'
+                                : 'Status could not be verified';
+                    element.className = status === 'active' ? 'sn-badge-on' : 'sn-badge-off';
+                });
+
+                document.querySelectorAll('[data-embed-enable]').forEach((button) => {
+                    button.hidden = status === 'active';
+                });
+
+                const warning = document.getElementById('sn-embed-warning');
+                if (warning) {
+                    warning.hidden = status === 'active';
+                }
+            }
+
+            async function checkEmbedStatus() {
+                if (!window.shopify?.app?.extensions) {
+                    setEmbedStatus('unknown', 'Shopify status check unavailable');
+                    console.warn('SocialNest: Shopify App Bridge extensions API is unavailable.');
+                    return;
+                }
+
+                try {
+                    const extensions = await window.shopify.app.extensions();
+                    const themeExtensions = extensions.filter(
+                        (extension) => extension.type === 'theme_app_extension'
+                    );
+
+                    const embed = themeExtensions
+                        .flatMap((extension) => extension.activations || [])
+                        .find((activation) => activation.handle === EMBED_HANDLE);
+
+                    if (!embed) {
+                        setEmbedStatus('unknown', 'SocialNest embed status not returned by Shopify');
+                        console.warn('SocialNest embed handle was not found in Shopify extension status.', {
+                            expectedHandle: EMBED_HANDLE,
+                            extensions
+                        });
+                        return;
+                    }
+
+                    setEmbedStatus(embed.status);
+
+                    console.info('SocialNest published-theme embed status:', {
+                        handle: embed.handle,
+                        status: embed.status
+                    });
+                } catch (error) {
+                    setEmbedStatus('unknown', 'Could not verify storefront status');
+                    console.error('SocialNest embed status check failed:', error);
+                }
+            }
+
+            document.addEventListener('DOMContentLoaded', function () {
+                checkEmbedStatus();
+
+                document.querySelectorAll('[data-embed-enable]').forEach((button) => {
+                    button.addEventListener('click', async function () {
+                        const originalText = button.textContent.trim();
+                        button.disabled = true;
+                        button.textContent = 'Opening Theme Editor...';
+
+                        try {
+                            const response = await fetch(button.dataset.url, {
+                                method: 'GET',
+                                credentials: 'same-origin',
+                                headers: {
+                                    Accept: 'application/json',
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                }
+                            });
+
+                            const data = await response.json();
+
+                            if (!response.ok || !data.success || !data.redirect_url) {
+                                throw new Error(data.message || 'Unable to open Theme Editor.');
+                            }
+
+                            window.open(data.redirect_url, '_top');
+                        } catch (error) {
+                            console.error('SocialNest embed activation failed:', error);
+                            alert(error.message || 'Unable to open Shopify Theme Editor.');
+                            button.disabled = false;
+                            button.textContent = originalText;
+                        }
+                    });
+                });
+            });
+        })();
     </script>
     @stack('scripts')
 </body>

@@ -2,7 +2,7 @@
 
 @section('title', 'Storefront Settings - ' . $shop)
 @section('header_title', 'Storefront Settings')
-@section('header_subtitle', 'Customize floating widget position, styling, and prepared sharing messages')
+@section('header_subtitle', 'Manage product sharing and floating custom call-to-action settings')
 
 @section('header_actions')
     <a href="https://{{ $shop }}/admin/themes/current/editor?context=apps" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 0.4rem;">
@@ -22,371 +22,21 @@
                 @csrf
                 @method('PUT')
 
-                <!-- Section A: General Settings -->
-                <div class="polaris-card">
-                    <div class="polaris-card-header">
-                        <div>
-                            <h3 class="polaris-card-title">General Settings</h3>
-                            <p class="polaris-card-subtitle">Visibility and master activation for customer storefront</p>
-                        </div>
-                    </div>
-                    <div class="polaris-card-body">
-                        <div class="polaris-setting-row">
-                            <div class="polaris-setting-info">
-                                <label for="isEnabledInput" class="polaris-label" style="cursor: pointer;">Enable Floating Storefront Widget</label>
-                                <p class="polaris-help-text">
-                                    When enabled, social icons appear floating across your storefront theme. When disabled, the dock is completely hidden from shoppers.
-                                </p>
-                            </div>
-                            <div class="polaris-setting-control">
-                                <label class="polaris-switch" for="isEnabledInput">
-                                    <input type="checkbox" name="is_enabled" id="isEnabledInput" value="1" {{ old('is_enabled', $settings->is_enabled ? '1' : '0') == '1' ? 'checked' : '' }} onchange="onSettingChanged()">
-                                    <span class="polaris-switch-slider"></span>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Section B: Widget Position -->
-                <div class="polaris-card">
-                    <div class="polaris-card-header">
-                        <div>
-                            <h3 class="polaris-card-title">Widget Position</h3>
-                            <p class="polaris-card-subtitle">Choose where the social dock is anchored on your customer screen</p>
-                        </div>
-                    </div>
-                    <div class="polaris-card-body">
-                        <label class="polaris-label" style="margin-bottom: 0.65rem; display: block;">
-                            Dock Placement Position <span style="color: var(--danger);">*</span>
-                        </label>
-
-                        @php
-                            $positions = [
-                                'bottom_right' => [
-                                    'label' => 'Bottom Right',
-                                    'desc' => 'Classic floating corner',
-                                    'icon' => 'pos-icon-br',
-                                ],
-                                'bottom_left' => [
-                                    'label' => 'Bottom Left',
-                                    'desc' => 'Alternate lower corner',
-                                    'icon' => 'pos-icon-bl',
-                                ],
-                                'vertical_right' => [
-                                    'label' => 'Vertical Right',
-                                    'desc' => 'Middle-right screen edge',
-                                    'icon' => 'pos-icon-vr',
-                                ],
-                                'vertical_left' => [
-                                    'label' => 'Vertical Left',
-                                    'desc' => 'Middle-left screen edge',
-                                    'icon' => 'pos-icon-vl',
-                                ],
-                                'custom' => [
-                                    'label' => 'Custom Position',
-                                    'desc' => 'Custom 9-way alignment & independent desktop/mobile X/Y offsets',
-                                    'icon' => 'pos-icon-custom',
-                                ],
-                            ];
-                            $selectedPos = old('position', $settings->position);
-                        @endphp
-
-                        <div class="polaris-choice-grid">
-                            @foreach($positions as $posKey => $pos)
-                                <label class="polaris-choice-card {{ $selectedPos === $posKey ? 'is-selected' : '' }} {{ $posKey === 'custom' ? 'grid-span-full' : '' }}" data-pos="{{ $posKey }}">
-                                    <input type="radio" name="position" value="{{ $posKey }}" {{ $selectedPos === $posKey ? 'checked' : '' }} onchange="onPositionChanged(this.value)">
-                                    <div class="choice-card-diagram {{ $pos['icon'] }}">
-                                        <div class="screen-box">
-                                            <div class="screen-dock-dot"></div>
-                                        </div>
-                                    </div>
-                                    <div class="choice-card-text">
-                                        <div class="choice-card-title">{{ $pos['label'] }}</div>
-                                        <div class="choice-card-desc">{{ $pos['desc'] }}</div>
-                                    </div>
-                                    <div class="choice-card-radio">
-                                        <span class="radio-circle"></span>
-                                    </div>
-                                </label>
-                            @endforeach
-                        </div>
-
-                        <!-- Conditional Custom Position Controls Panel -->
-                        <div id="customPositionPanel" class="polaris-subcard" style="display: {{ $selectedPos === 'custom' ? 'block' : 'none' }}; margin-top: 1.25rem;">
-                            <div class="subcard-header">
-                                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
-                                    <strong style="font-size: 0.875rem; color: var(--text-main);">Custom Placement & Viewport Offsets</strong>
-                                </div>
-                                <span class="polaris-badge polaris-badge-info">Pixel-Perfect</span>
-                            </div>
-                            <p class="polaris-help-text" style="margin-bottom: 1.25rem;">
-                                Select viewport edge alignment and adjust pixel offsets (0–200 px) independently for desktop and mobile devices.
-                            </p>
-
-                            <!-- Alignment Segmented Controls -->
-                            <div class="form-row-2col" style="margin-bottom: 1.25rem;">
-                                <!-- Horizontal Alignment -->
-                                <div>
-                                    <label class="polaris-label" style="font-size: 0.75rem; margin-bottom: 0.35rem;">Horizontal Alignment</label>
-                                    <div class="polaris-segmented-control">
-                                        @php $curHAlign = old('custom_horizontal_align', $settings->custom_horizontal_align ?? 'right'); @endphp
-                                        @foreach(['left' => 'Left', 'center' => 'Center', 'right' => 'Right'] as $hVal => $hLabel)
-                                            <label class="segmented-item {{ $curHAlign === $hVal ? 'is-active' : '' }}" data-align-type="h" data-align="{{ $hVal }}">
-                                                <input type="radio" name="custom_horizontal_align" value="{{ $hVal }}" {{ $curHAlign === $hVal ? 'checked' : '' }} onchange="onAlignChanged('h', this.value)">
-                                                <span>{{ $hLabel }}</span>
-                                            </label>
-                                        @endforeach
-                                    </div>
-                                </div>
-
-                                <!-- Vertical Alignment -->
-                                <div>
-                                    <label class="polaris-label" style="font-size: 0.75rem; margin-bottom: 0.35rem;">Vertical Alignment</label>
-                                    <div class="polaris-segmented-control">
-                                        @php $curVAlign = old('custom_vertical_align', $settings->custom_vertical_align ?? 'bottom'); @endphp
-                                        @foreach(['top' => 'Top', 'center' => 'Center', 'bottom' => 'Bottom'] as $vVal => $vLabel)
-                                            <label class="segmented-item {{ $curVAlign === $vVal ? 'is-active' : '' }}" data-align-type="v" data-align="{{ $vVal }}">
-                                                <input type="radio" name="custom_vertical_align" value="{{ $vVal }}" {{ $curVAlign === $vVal ? 'checked' : '' }} onchange="onAlignChanged('v', this.value)">
-                                                <span>{{ $vLabel }}</span>
-                                            </label>
-                                        @endforeach
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Desktop Offsets Section -->
-                            <div class="offset-device-box" style="margin-bottom: 1rem;">
-                                <div class="offset-box-header">
-                                    <div style="display: flex; align-items: center; gap: 0.4rem;">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-                                        <span style="font-size: 0.8125rem; font-weight: 700; color: var(--text-main);">Desktop Viewport Offsets</span>
-                                    </div>
-                                    <span style="font-size: 0.7rem; color: var(--text-subtle);">Laptops & Desktops</span>
-                                </div>
-                                <div class="form-row-2col">
-                                    <!-- Desktop X -->
-                                    <div class="offset-control">
-                                        <div class="offset-control-top">
-                                            <span class="offset-name">Horizontal Offset (X)</span>
-                                            <span class="offset-val-badge" id="label_offset_x_desktop">{{ old('custom_offset_x_desktop', $settings->custom_offset_x_desktop ?? 24) }}px</span>
-                                        </div>
-                                        <div class="offset-inputs-group">
-                                            <input type="range" min="0" max="200" step="1" id="slider_offset_x_desktop" value="{{ old('custom_offset_x_desktop', $settings->custom_offset_x_desktop ?? 24) }}" oninput="syncOffset('custom_offset_x_desktop', this.value, 'slider')" class="polaris-slider" aria-label="Desktop horizontal offset slider">
-                                            <input type="number" min="0" max="200" step="1" name="custom_offset_x_desktop" id="custom_offset_x_desktop" value="{{ old('custom_offset_x_desktop', $settings->custom_offset_x_desktop ?? 24) }}" oninput="syncOffset('custom_offset_x_desktop', this.value, 'number')" class="polaris-number-input" aria-label="Desktop horizontal offset px">
-                                        </div>
-                                    </div>
-                                    <!-- Desktop Y -->
-                                    <div class="offset-control">
-                                        <div class="offset-control-top">
-                                            <span class="offset-name">Vertical Offset (Y)</span>
-                                            <span class="offset-val-badge" id="label_offset_y_desktop">{{ old('custom_offset_y_desktop', $settings->custom_offset_y_desktop ?? 24) }}px</span>
-                                        </div>
-                                        <div class="offset-inputs-group">
-                                            <input type="range" min="0" max="200" step="1" id="slider_offset_y_desktop" value="{{ old('custom_offset_y_desktop', $settings->custom_offset_y_desktop ?? 24) }}" oninput="syncOffset('custom_offset_y_desktop', this.value, 'slider')" class="polaris-slider" aria-label="Desktop vertical offset slider">
-                                            <input type="number" min="0" max="200" step="1" name="custom_offset_y_desktop" id="custom_offset_y_desktop" value="{{ old('custom_offset_y_desktop', $settings->custom_offset_y_desktop ?? 24) }}" oninput="syncOffset('custom_offset_y_desktop', this.value, 'number')" class="polaris-number-input" aria-label="Desktop vertical offset px">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Mobile Offsets Section -->
-                            <div class="offset-device-box">
-                                <div class="offset-box-header">
-                                    <div style="display: flex; align-items: center; gap: 0.4rem;">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-                                        <span style="font-size: 0.8125rem; font-weight: 700; color: var(--text-main);">Mobile Screen Offsets</span>
-                                    </div>
-                                    <span style="font-size: 0.7rem; color: var(--text-subtle);">Smartphones & Tablets</span>
-                                </div>
-                                <div class="form-row-2col">
-                                    <!-- Mobile X -->
-                                    <div class="offset-control">
-                                        <div class="offset-control-top">
-                                            <span class="offset-name">Mobile Offset (X)</span>
-                                            <span class="offset-val-badge" id="label_offset_x_mobile">{{ old('custom_offset_x_mobile', $settings->custom_offset_x_mobile ?? 16) }}px</span>
-                                        </div>
-                                        <div class="offset-inputs-group">
-                                            <input type="range" min="0" max="200" step="1" id="slider_offset_x_mobile" value="{{ old('custom_offset_x_mobile', $settings->custom_offset_x_mobile ?? 16) }}" oninput="syncOffset('custom_offset_x_mobile', this.value, 'slider')" class="polaris-slider" aria-label="Mobile horizontal offset slider">
-                                            <input type="number" min="0" max="200" step="1" name="custom_offset_x_mobile" id="custom_offset_x_mobile" value="{{ old('custom_offset_x_mobile', $settings->custom_offset_x_mobile ?? 16) }}" oninput="syncOffset('custom_offset_x_mobile', this.value, 'number')" class="polaris-number-input" aria-label="Mobile horizontal offset px">
-                                        </div>
-                                    </div>
-                                    <!-- Mobile Y -->
-                                    <div class="offset-control">
-                                        <div class="offset-control-top">
-                                            <span class="offset-name">Mobile Offset (Y)</span>
-                                            <span class="offset-val-badge" id="label_offset_y_mobile">{{ old('custom_offset_y_mobile', $settings->custom_offset_y_mobile ?? 16) }}px</span>
-                                        </div>
-                                        <div class="offset-inputs-group">
-                                            <input type="range" min="0" max="200" step="1" id="slider_offset_y_mobile" value="{{ old('custom_offset_y_mobile', $settings->custom_offset_y_mobile ?? 16) }}" oninput="syncOffset('custom_offset_y_mobile', this.value, 'slider')" class="polaris-slider" aria-label="Mobile vertical offset slider">
-                                            <input type="number" min="0" max="200" step="1" name="custom_offset_y_mobile" id="custom_offset_y_mobile" value="{{ old('custom_offset_y_mobile', $settings->custom_offset_y_mobile ?? 16) }}" oninput="syncOffset('custom_offset_y_mobile', this.value, 'number')" class="polaris-number-input" aria-label="Mobile vertical offset px">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Section C: Appearance -->
-                <div class="polaris-card">
-                    <div class="polaris-card-header">
-                        <div>
-                            <h3 class="polaris-card-title">Icon Appearance</h3>
-                            <p class="polaris-card-subtitle">Scale and geometry of floating social dock icons</p>
-                        </div>
-                    </div>
-                    <div class="polaris-card-body">
-                        <div class="form-row-2col">
-                            <!-- Icon Size -->
-                            <div>
-                                <label for="icon_size" class="polaris-label" style="margin-bottom: 0.5rem; display: block;">Icon Size</label>
-                                @php $curSize = old('icon_size', $settings->icon_size); @endphp
-                                <div class="polaris-segmented-control polaris-segmented-tall">
-                                    <label class="segmented-item {{ $curSize === 'small' ? 'is-active' : '' }}" data-size="small">
-                                        <input type="radio" name="icon_size" value="small" {{ $curSize === 'small' ? 'checked' : '' }} onchange="onSizeChanged(this.value)">
-                                        <span class="size-dot size-dot-sm"></span>
-                                        <span>Small (32px)</span>
-                                    </label>
-                                    <label class="segmented-item {{ $curSize === 'medium' ? 'is-active' : '' }}" data-size="medium">
-                                        <input type="radio" name="icon_size" value="medium" {{ $curSize === 'medium' ? 'checked' : '' }} onchange="onSizeChanged(this.value)">
-                                        <span class="size-dot size-dot-md"></span>
-                                        <span>Medium (40px)</span>
-                                    </label>
-                                    <label class="segmented-item {{ $curSize === 'large' ? 'is-active' : '' }}" data-size="large">
-                                        <input type="radio" name="icon_size" value="large" {{ $curSize === 'large' ? 'checked' : '' }} onchange="onSizeChanged(this.value)">
-                                        <span class="size-dot size-dot-lg"></span>
-                                        <span>Large (48px)</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <!-- Icon Shape -->
-                            <div>
-                                <label for="icon_shape" class="polaris-label" style="margin-bottom: 0.5rem; display: block;">Icon Shape</label>
-                                @php $curShape = old('icon_shape', $settings->icon_shape); @endphp
-                                <div class="polaris-segmented-control polaris-segmented-tall">
-                                    <label class="segmented-item {{ $curShape === 'circle' ? 'is-active' : '' }}" data-shape="circle">
-                                        <input type="radio" name="icon_shape" value="circle" {{ $curShape === 'circle' ? 'checked' : '' }} onchange="onShapeChanged(this.value)">
-                                        <span class="shape-preview shape-preview-circle"></span>
-                                        <span>Circle</span>
-                                    </label>
-                                    <label class="segmented-item {{ $curShape === 'rounded' ? 'is-active' : '' }}" data-shape="rounded">
-                                        <input type="radio" name="icon_shape" value="rounded" {{ $curShape === 'rounded' ? 'checked' : '' }} onchange="onShapeChanged(this.value)">
-                                        <span class="shape-preview shape-preview-rounded"></span>
-                                        <span>Rounded</span>
-                                    </label>
-                                    <label class="segmented-item {{ $curShape === 'square' ? 'is-active' : '' }}" data-shape="square">
-                                        <input type="radio" name="icon_shape" value="square" {{ $curShape === 'square' ? 'checked' : '' }} onchange="onShapeChanged(this.value)">
-                                        <span class="shape-preview shape-preview-square"></span>
-                                        <span>Square</span>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Section D: Hover Animation Effects -->
-                <div class="polaris-card">
-                    <div class="polaris-card-header">
-                        <div>
-                            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                <h3 class="polaris-card-title">Hover Animation Effects</h3>
-                                <span class="polaris-badge polaris-badge-success">All Free</span>
-                            </div>
-                            <p class="polaris-card-subtitle">Subtle interactive animations triggered when shoppers hover their cursor over icons</p>
-                        </div>
-                    </div>
-                    <div class="polaris-card-body">
-                        @php
-                            $curAnim = old('hover_animation', $settings->hover_animation ?? 'lift');
-                            $animOptions = [
-                                'none' => ['label' => 'None', 'desc' => 'No hover animation', 'preview' => 'mini-anim-none', 'tag' => null],
-                                'scale' => ['label' => 'Scale', 'desc' => 'Smooth zoom in slightly', 'preview' => 'mini-anim-scale', 'tag' => null],
-                                'bounce' => ['label' => 'Bounce', 'desc' => 'Subtle lively bounce', 'preview' => 'mini-anim-bounce', 'tag' => null],
-                                'lift' => ['label' => 'Lift', 'desc' => 'Moves slightly upward', 'preview' => 'mini-anim-lift', 'tag' => 'Default'],
-                                'glow' => ['label' => 'Glow', 'desc' => 'Soft radial aura & glow', 'preview' => 'mini-anim-glow', 'tag' => null],
-                                'swing' => ['label' => 'Swing', 'desc' => 'Smooth tilt left and right', 'preview' => 'mini-anim-swing', 'tag' => null],
-                            ];
-                        @endphp
-
-                        <div class="polaris-anim-grid">
-                            @foreach($animOptions as $aKey => $aData)
-                                <label class="polaris-anim-card {{ $curAnim === $aKey ? 'is-selected' : '' }}" data-anim="{{ $aKey }}">
-                                    <input type="radio" name="hover_animation" value="{{ $aKey }}" {{ $curAnim === $aKey ? 'checked' : '' }} onchange="onAnimationChanged(this.value)">
-                                    
-                                    <div class="anim-card-top">
-                                        <div class="mini-anim-icon {{ $aData['preview'] }}" title="Hover to test animation">
-                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                                        </div>
-                                        @if($aData['tag'])
-                                            <span class="polaris-badge polaris-badge-primary" style="font-size: 0.65rem; padding: 1px 6px;">{{ $aData['tag'] }}</span>
-                                        @endif
-                                    </div>
-                                    
-                                    <div class="anim-card-body">
-                                        <div class="anim-card-title">{{ $aData['label'] }}</div>
-                                        <div class="anim-card-desc">{{ $aData['desc'] }}</div>
-                                    </div>
-
-                                    <div class="anim-card-radio">
-                                        <span class="radio-circle"></span>
-                                    </div>
-                                </label>
-                            @endforeach
-                        </div>
-                        @error('hover_animation')
-                            <div class="polaris-field-error">{{ $message }}</div>
-                        @enderror
-                    </div>
-                </div>
-
-                <!-- Section E: Tooltips & Sharing -->
-                <div class="polaris-card">
-                    <div class="polaris-card-header">
-                        <div>
-                            <h3 class="polaris-card-title">Tooltips & Sharing Message</h3>
-                            <p class="polaris-card-subtitle">Platform tooltip labels on hover and prepared WhatsApp sharing template</p>
-                        </div>
-                    </div>
-                    <div class="polaris-card-body">
-                        <!-- Platform Tooltips Switch -->
-                        <div class="polaris-setting-row" style="margin-bottom: 1.5rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--card-border);">
-                            <div class="polaris-setting-info">
-                                <label for="showTooltipsInput" class="polaris-label" style="cursor: pointer;">Display Platform Tooltips on Hover</label>
-                                <p class="polaris-help-text">
-                                    Shows the social channel name or custom label in a floating tooltip above each icon when hovered by visitors.
-                                </p>
-                            </div>
-                            <div class="polaris-setting-control">
-                                <label class="polaris-switch" for="showTooltipsInput">
-                                    <input type="checkbox" name="show_tooltips" id="showTooltipsInput" value="1" {{ old('show_tooltips', $settings->show_tooltips ? '1' : '0') == '1' ? 'checked' : '' }} onchange="onSettingChanged()">
-                                    <span class="polaris-switch-slider"></span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- WhatsApp Message -->
-                        <div>
-                            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.35rem;">
-                                <label for="whatsapp_message" class="polaris-label">Prepared WhatsApp Sharing Message</label>
-                                <span style="font-size: 0.72rem; color: var(--text-subtle);" id="whatsappCharCount">0 / 500</span>
-                            </div>
-                            <textarea id="whatsapp_message" name="whatsapp_message" rows="3" maxlength="500" placeholder="Check out this product: {product_title} - {product_url}" class="polaris-textarea" oninput="onWhatsAppInput(this)">{{ old('whatsapp_message', $settings->whatsapp_message) }}</textarea>
-                            <div class="textarea-hint-row">
-                                <span style="font-size: 0.75rem; color: var(--text-subtle);">Click placeholder tags to insert:</span>
-                                <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
-                                    <button type="button" class="placeholder-chip" onclick="insertTag('{product_title}')" title="Insert product title tag">+{product_title}</button>
-                                    <button type="button" class="placeholder-chip" onclick="insertTag('{product_url}')" title="Insert product URL tag">+{product_url}</button>
-                                </div>
-                            </div>
-                            @error('whatsapp_message')
-                                <div class="polaris-field-error">{{ $message }}</div>
-                            @enderror
-                        </div>
-                    </div>
+                {{-- Retain moved social-dock values in the legacy settings form for accurate dirty-state tracking. --}}
+                <div hidden aria-hidden="true">
+                    <input type="checkbox" id="isEnabledInput" {{ $settings->is_enabled ? 'checked' : '' }}>
+                    <input type="radio" name="position" value="{{ $settings->position }}" checked>
+                    <input type="radio" name="custom_horizontal_align" value="{{ $settings->custom_horizontal_align ?? 'right' }}" checked>
+                    <input type="radio" name="custom_vertical_align" value="{{ $settings->custom_vertical_align ?? 'bottom' }}" checked>
+                    <input type="radio" name="icon_size" value="{{ $settings->icon_size }}" checked>
+                    <input type="radio" name="icon_shape" value="{{ $settings->icon_shape }}" checked>
+                    <input type="radio" name="hover_animation" value="{{ $settings->hover_animation ?? 'lift' }}" checked>
+                    <input type="number" id="custom_offset_x_desktop" value="{{ $settings->custom_offset_x_desktop ?? 24 }}">
+                    <input type="number" id="custom_offset_y_desktop" value="{{ $settings->custom_offset_y_desktop ?? 24 }}">
+                    <input type="number" id="custom_offset_x_mobile" value="{{ $settings->custom_offset_x_mobile ?? 16 }}">
+                    <input type="number" id="custom_offset_y_mobile" value="{{ $settings->custom_offset_y_mobile ?? 16 }}">
+                    <input type="checkbox" id="showTooltipsInput" {{ $settings->show_tooltips ? 'checked' : '' }}>
+                    <textarea id="whatsapp_message">{{ $settings->whatsapp_message }}</textarea>
                 </div>
 
                 <!-- Section F: Product Page Share Button -->
@@ -478,13 +128,13 @@
 
                             <!-- Button Live Preview Widget -->
                             <div style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 1rem; margin-top: 0.75rem;">
-                                <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-subtle); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">Button Preview</div>
+                                <div style="font-size: 0.75rem; font-weight: 700;   margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">Button Preview</div>
                                 <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
                                     <div id="productShareBtnPreview" class="sn-product-share-btn sn-share-btn-{{ $curBtnStyle }}" style="cursor: default;">
                                         <svg class="sn-product-share-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
                                         <span id="productShareBtnPreviewText">{{ old('product_share_button_text', $settings->product_share_button_text ?? 'Share Product') }}</span>
                                     </div>
-                                    <span style="font-size: 0.75rem; color: var(--text-subtle);">Renders beside product purchase buttons on product pages</span>
+                                    <span style="font-size: 0.75rem;  ">Renders beside product purchase buttons on product pages</span>
                                 </div>
                             </div>
                         </div>
@@ -588,7 +238,7 @@
                                         </button>
                                         <input type="hidden" name="remove_floating_cta_icon" id="remove_floating_cta_icon" value="0">
                                     </div>
-                                    <span id="ctaIconFilename" style="font-size: 0.75rem; color: var(--text-subtle);"></span>
+                                    <span id="ctaIconFilename" style="font-size: 0.75rem;  "></span>
                                 </div>
                                 @error('floating_cta_icon')
                                     <div class="polaris-field-error">{{ $message }}</div>
@@ -674,7 +324,7 @@
 
                             <!-- In-Section Live Preview -->
                             <div style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 1.25rem; margin-top: 1rem; text-align: center;">
-                                <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-subtle); margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">Floating CTA Live Preview</div>
+                                <div style="font-size: 0.75rem; font-weight: 700;   margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;">Floating CTA Live Preview</div>
                                 <div style="display: inline-flex; justify-content: center; align-items: center;">
                                     <div id="sectionCtaPreview" class="socialnest-floating-cta socialnest-floating-cta--{{ $curCtaSize }}" style="position: static !important; transform: none !important; cursor: default !important; background: {{ old('floating_cta_background_color', $settings->floating_cta_background_color ?? '#111827') }}; color: {{ old('floating_cta_text_color', $settings->floating_cta_text_color ?? '#ffffff') }};">
                                         <span class="socialnest-floating-cta__icon" id="sectionCtaIconWrap" style="{{ old('floating_cta_show_icon', $settings->floating_cta_show_icon ? '1' : '0') == '1' && $settings->getFloatingCtaIconUrl() ? '' : 'display: none !important;' }}">
@@ -824,7 +474,7 @@
                                     <span style="font-size: 0.75rem; font-weight: 800; color: var(--text-main);">{{ str_replace('.myshopify.com', '', $shop) }}</span>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 0.6rem;">
-                                    <span style="font-size: 0.6875rem; color: var(--text-subtle);">Search</span>
+                                    <span style="font-size: 0.6875rem;  ">Search</span>
                                     <div class="sim-cart-badge">Cart (0)</div>
                                 </div>
                             </div>
@@ -843,6 +493,10 @@
                             </div>
 
                             <!-- Live Floating Social Dock -->
+                            @php
+                                // Initialize before the preview uses this value.
+                                $curAnim = old('hover_animation', $settings->hover_animation ?? 'lift');
+                            @endphp
                             <div id="liveDockPreview" class="preview-floating-dock sn-anim-{{ $curAnim }}">
                                 @if($activeLinks->isEmpty())
                                     <!-- Fallback Sample Active Icons for Instant Preview -->
@@ -974,7 +628,7 @@
 
         .polaris-card-subtitle {
             font-size: 0.8125rem;
-            color: var(--text-subtle);
+             
             margin-top: 0.15rem;
         }
 
@@ -991,7 +645,7 @@
 
         .polaris-help-text {
             font-size: 0.75rem;
-            color: var(--text-subtle);
+             
             line-height: 1.45;
             margin-top: 0.2rem;
         }
@@ -1143,7 +797,7 @@
         }
 
         .polaris-choice-card:hover {
-            border-color: #94a3b8;
+            border-color: #000000;
             background: #f8fafc;
         }
 
@@ -1169,7 +823,7 @@
         .screen-box {
             position: absolute;
             inset: 3px;
-            border: 1px dashed #94a3b8;
+            border: 1px dashed #000000;
             border-radius: 3px;
         }
 
@@ -1205,7 +859,7 @@
 
         .choice-card-desc {
             font-size: 0.71875rem;
-            color: var(--text-subtle);
+             
             line-height: 1.35;
         }
 
@@ -1439,7 +1093,7 @@
         }
 
         .polaris-anim-card:hover {
-            border-color: #94a3b8;
+            border-color: #000000;
             background: #f8fafc;
         }
 
@@ -1480,7 +1134,7 @@
 
         .anim-card-desc {
             font-size: 0.6875rem;
-            color: var(--text-subtle);
+             
             line-height: 1.25;
             margin-top: 0.1rem;
         }
@@ -1705,7 +1359,7 @@
             padding: 3px 6px;
             border-radius: 4px;
             cursor: pointer;
-            color: var(--text-subtle);
+             
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1800,7 +1454,7 @@
 
         .sim-hero-desc {
             font-size: 0.6875rem;
-            color: var(--text-subtle);
+             
         }
 
         .preview-disabled-badge {
@@ -2174,7 +1828,7 @@
 
         .color-chevron-icon {
             flex-shrink: 0;
-            color: #6d7175;
+            color:  #000000;
             transition: transform 0.2s ease;
         }
 
@@ -2883,7 +2537,11 @@
             const disabledBadge = document.getElementById('previewDisabledBadge');
             const icons = document.querySelectorAll('.preview-icon-item');
 
-            if (!dock) return;
+            if (!dock) {
+                // The social dock controls now live on My Social Links; keep the CTA preview active here.
+                updateCtaLivePreview();
+                return;
+            }
 
             // Visibility
             if (isEnabled) {

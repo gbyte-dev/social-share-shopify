@@ -44,15 +44,15 @@ class StorefrontSettingsController extends Controller
 
         $validated = $request->validate([
             'is_enabled' => ['sometimes', 'boolean'],
-            'position' => ['required', 'string', Rule::in(['bottom_right', 'bottom_left', 'vertical_right', 'vertical_left', 'custom'])],
+            'position' => ['sometimes', 'string', Rule::in(['bottom_right', 'bottom_left', 'vertical_right', 'vertical_left', 'custom'])],
             'custom_horizontal_align' => ['nullable', 'string', Rule::in(['left', 'center', 'right'])],
             'custom_vertical_align' => ['nullable', 'string', Rule::in(['top', 'center', 'bottom'])],
             'custom_offset_x_desktop' => ['nullable', 'integer', 'min:0', 'max:200'],
             'custom_offset_y_desktop' => ['nullable', 'integer', 'min:0', 'max:200'],
             'custom_offset_x_mobile' => ['nullable', 'integer', 'min:0', 'max:200'],
             'custom_offset_y_mobile' => ['nullable', 'integer', 'min:0', 'max:200'],
-            'icon_size' => ['required', 'string', Rule::in(['small', 'medium', 'large'])],
-            'icon_shape' => ['required', 'string', Rule::in(['circle', 'rounded', 'square'])],
+            'icon_size' => ['sometimes', 'string', Rule::in(['small', 'medium', 'large'])],
+            'icon_shape' => ['sometimes', 'string', Rule::in(['circle', 'rounded', 'square'])],
             'hover_animation' => ['sometimes', 'nullable', 'string', Rule::in(['none', 'scale', 'bounce', 'lift', 'glow', 'swing'])],
             'show_tooltips' => ['sometimes', 'boolean'],
             'whatsapp_message' => ['nullable', 'string', 'max:500'],
@@ -130,7 +130,9 @@ class StorefrontSettingsController extends Controller
         $hoverAnimation = ! empty($validated['hover_animation'])
             ? $validated['hover_animation']
             : ($settings->hover_animation ?? 'lift');
-        $productShareEnabled = $request->boolean('product_share_enabled');
+        $productShareEnabled = $request->has('product_share_enabled')
+            ? $request->boolean('product_share_enabled')
+            : (bool) $settings->product_share_enabled;
         $productShareButtonText = ! empty($validated['product_share_button_text'])
             ? $validated['product_share_button_text']
             : ($settings->product_share_button_text ?? 'Share Product');
@@ -165,14 +167,16 @@ class StorefrontSettingsController extends Controller
             $iconPath = $file->store('cta_icons', 'public');
         }
 
-        $floatingCtaEnabled = $request->boolean('floating_cta_enabled');
-        $floatingCtaAppName = isset($validated['floating_cta_app_name']) ? trim($validated['floating_cta_app_name']) : null;
-        $floatingCtaBtnText = ! empty($validated['floating_cta_button_text'])
-            ? trim($validated['floating_cta_button_text'])
+        $floatingCtaEnabled = $request->has('floating_cta_enabled')
+            ? $request->boolean('floating_cta_enabled')
+            : (bool) $settings->floating_cta_enabled;
+        $floatingCtaAppName = array_key_exists('floating_cta_app_name', $validated) ? trim((string) $validated['floating_cta_app_name']) : $settings->floating_cta_app_name;
+        $floatingCtaBtnText = array_key_exists('floating_cta_button_text', $validated)
+            ? (trim((string) $validated['floating_cta_button_text']) !== '' ? trim((string) $validated['floating_cta_button_text']) : ($settings->floating_cta_button_text ?? 'Get Started'))
             : ($settings->floating_cta_button_text ?? 'Get Started');
-        $floatingCtaDestUrl = ! empty($validated['floating_cta_destination_url'])
-            ? trim($validated['floating_cta_destination_url'])
-            : null;
+        $floatingCtaDestUrl = array_key_exists('floating_cta_destination_url', $validated)
+            ? ($validated['floating_cta_destination_url'] !== null && $validated['floating_cta_destination_url'] !== '' ? trim($validated['floating_cta_destination_url']) : null)
+            : $settings->floating_cta_destination_url;
         $floatingCtaShowIcon = $request->has('floating_cta_show_icon')
             ? $request->boolean('floating_cta_show_icon')
             : ($settings->floating_cta_show_icon ?? true);
@@ -192,20 +196,20 @@ class StorefrontSettingsController extends Controller
             ? $request->boolean('floating_cta_mobile_enabled')
             : ($settings->floating_cta_mobile_enabled ?? true);
 
-        $settings->update([
-            'is_enabled' => $request->boolean('is_enabled'),
-            'position' => $validated['position'],
+        $updates = [
+            'is_enabled' => $request->has('is_enabled') ? $request->boolean('is_enabled') : (bool) $settings->is_enabled,
+            'position' => $validated['position'] ?? $settings->position,
             'custom_horizontal_align' => $customHAlign,
             'custom_vertical_align' => $customVAlign,
             'custom_offset_x_desktop' => $offsetXDesktop,
             'custom_offset_y_desktop' => $offsetYDesktop,
             'custom_offset_x_mobile' => $offsetXMobile,
             'custom_offset_y_mobile' => $offsetYMobile,
-            'icon_size' => $validated['icon_size'],
-            'icon_shape' => $validated['icon_shape'],
+            'icon_size' => $validated['icon_size'] ?? $settings->icon_size,
+            'icon_shape' => $validated['icon_shape'] ?? $settings->icon_shape,
             'hover_animation' => $hoverAnimation,
-            'show_tooltips' => $request->boolean('show_tooltips'),
-            'whatsapp_message' => $validated['whatsapp_message'] ?? null,
+            'show_tooltips' => $request->has('show_tooltips') ? $request->boolean('show_tooltips') : (bool) $settings->show_tooltips,
+            'whatsapp_message' => array_key_exists('whatsapp_message', $validated) ? $validated['whatsapp_message'] : $settings->whatsapp_message,
             'product_share_enabled' => $productShareEnabled,
             'product_share_button_text' => $productShareButtonText,
             'product_share_button_style' => $productShareButtonStyle,
@@ -221,7 +225,10 @@ class StorefrontSettingsController extends Controller
             'floating_cta_button_size' => $floatingCtaSize,
             'floating_cta_desktop_enabled' => $floatingCtaDesktop,
             'floating_cta_mobile_enabled' => $floatingCtaMobile,
-        ]);
+        ];
+
+        // A tab submits only its own fields. Preserve every omitted setting to prevent cross-tab resets.
+        $settings->update($updates);
 
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([

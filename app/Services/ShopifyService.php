@@ -770,4 +770,24 @@ GRAPHQL;
         }
         return "https://{$canonicalShop}/admin/themes/current/editor?" . http_build_query($query);
     }
+
+    public function getSocialNestEmbedActivationUrl(string $shop): string
+    {
+        $canonicalShop = $this->normalizeShopDomain($shop);
+
+        if (! $canonicalShop) {
+            throw new \RuntimeException("Invalid Shopify store domain: {$shop}");
+        }
+
+        $apiKey = (string) config('shopify.api_key');
+
+        if ($apiKey === '') {
+            throw new \RuntimeException('Shopify API key is not configured.');
+        }
+
+        return "https://{$canonicalShop}/admin/themes/current/editor?" . http_build_query([
+            'context' => 'apps',
+            'activateAppId' => "{$apiKey}/floating-social-dock",
+        ]);
+    }
 }

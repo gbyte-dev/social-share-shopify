@@ -719,7 +719,7 @@
   border-radius: var(--buttons-radius, var(--button-border-radius, 6px)) !important;
 }
 .sn-product-share-btn.sn-btn-minimal:hover {
-  border-color: var(--sn-share-border, var(--sn-share-color, #94a3b8)) !important;
+  border-color: var(--sn-share-border, var(--sn-share-color, #000000)) !important;
   background-color: var(--sn-share-hover-bg, rgba(15, 23, 42, 0.05)) !important;
   color: var(--sn-share-color, inherit) !important;
   transform: translateY(-1px);

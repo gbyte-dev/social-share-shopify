@@ -2,7 +2,7 @@
 
 @section('title', 'Subscription & Billing - ' . $shop)
 @section('header_title', 'Subscription & Billing')
-@section('header_subtitle', 'Manage your SocialNest plan and subscription.')
+@section('header_subtitle', 'Manage your Socialvire plan, access period and billing status.')
 
 @section('content')
 @php
@@ -10,8 +10,8 @@
     $statusBg = '#f1f5f9';
     $statusBorder = '#e2e8f0';
     $statusColor = '#475569';
-    $statusDot = '#94a3b8';
-    $statusNotice = 'Subscribe to SocialNest Pro to unlock all features.';
+    $statusDot = '#000000';
+    $statusNotice = 'Subscribe to Socialvire Pro to unlock all features.';
 
     if ($hasActiveSubscription) {
         $statusText = 'Active';
@@ -19,18 +19,20 @@
         $statusBorder = '#a7f3d0';
         $statusColor = '#065f46';
         $statusDot = '#10b981';
-        $expiryDateStr = $activeSubscription->current_period_end ? $activeSubscription->current_period_end->format('M d, Y') : 'the end of your period';
-        if ($activeSubscription->cancel_at_period_end) {
-            $statusNotice = "Your subscription will not renew. Access remains available until {$expiryDateStr}.";
-        } else {
-            $statusNotice = "Your subscription is active until {$expiryDateStr}.";
-        }
+        $expiryDateStr = $activeSubscription->current_period_end
+            ? $activeSubscription->current_period_end->format('M d, Y')
+            : 'the end of your period';
+
+        $statusNotice = $activeSubscription->cancel_at_period_end
+            ? "Your subscription will not renew. Access remains available until {$expiryDateStr}."
+            : "Your subscription is active until {$expiryDateStr}.";
     } elseif ($latestSubscription && $latestSubscription->status === 'cancelled') {
         $statusText = 'Cancelled';
         $statusBg = '#fef2f2';
         $statusBorder = '#fecaca';
         $statusColor = '#991b1b';
         $statusDot = '#ef4444';
+
         if ($latestSubscription->current_period_end && $latestSubscription->current_period_end->isFuture()) {
             $expiryDateStr = $latestSubscription->current_period_end->format('M d, Y');
             $statusNotice = "Your subscription will not renew. Access remains available until {$expiryDateStr}.";
@@ -45,145 +47,516 @@
         $statusDot = '#f59e0b';
         $statusNotice = 'Your subscription has expired. Subscribe again to restore access.';
     }
+
+    $subscriptionDate = $activeSubscription?->activated_at
+        ?? $latestSubscription?->activated_at;
+
+    $subscriptionExpiry = $activeSubscription?->current_period_end
+        ?? $latestSubscription?->current_period_end;
 @endphp
 
 <style>
-    .billing-full-container {
+    .sv-billing {
+        --sv-ink: #172033;
+        --sv-border: #e5eaf2;
+        --sv-soft: #f7f9fc;
+        --sv-primary: #5146e5;
+        --sv-primary-dark: #4338ca;
         width: 100%;
-        max-width: 1400px;
+        max-width: 1360px;
         margin: 0 auto;
-        box-sizing: border-box;
+        color: var(--sv-ink);
     }
 
-    .billing-grid {
-        display: grid;
-        grid-template-columns: 1.35fr 1fr;
+    .sv-billing * { box-sizing: border-box; }
+
+    .sv-billing-hero {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
         gap: 24px;
+        padding: 14px 18px;
+        margin-bottom: 11px;
+        border: 1px solid var(--sv-border);
+        border-radius: 16px;
+        background:
+            radial-gradient(circle at 90% 0%, rgba(99,102,241,.10), transparent 28%),
+            linear-gradient(135deg, #fff 0%, #f8faff 100%);
+    }
+
+    .sv-billing-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        color: var(--sv-primary);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+    }
+
+    .sv-billing-hero h2 {
+        margin: 9px 0 6px;
+        color: #111827;
+        font-size: clamp(22px, 3vw, 29px);
+        line-height: 1.2;
+        font-weight: 800;
+        letter-spacing: -.04em;
+    }
+
+    .sv-billing-hero p {
+        margin: 0;
+        font-size: 13px;
+        line-height: 1.65;
+    }
+
+    .sv-status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+        padding: 0px 4px;
+        border: 1px solid {{ $statusBorder }};
+        border-radius: 999px;
+        background: {{ $statusBg }};
+        color: {{ $statusColor }};
+        font-size: 12px;
+        font-weight: 750;
+        white-space: nowrap;
+    }
+
+    .sv-status-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: {{ $statusDot }};
+        box-shadow: 0 0 0 3px {{ $statusBg }};
+    }
+
+    .sv-status-notice {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 8px 11px;
+        margin-bottom: 11px;
+        border: 1px solid {{ $statusBorder }};
+        border-radius: 11px;
+        background: {{ $statusBg }};
+        color: {{ $statusColor }};
+        font-size: 12px;
+        line-height: 1.6;
+    }
+
+    .sv-status-notice svg { flex: 0 0 auto; margin-top: 1px; }
+
+    .sv-billing-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr);
+        gap: 12px;
         align-items: start;
-        width: 100%;
     }
 
-    .billing-card {
-        background: #ffffff;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    .sv-panel {
+        min-width: 0;
         overflow: hidden;
-        box-sizing: border-box;
+        border: 1px solid var(--sv-border);
+        border-radius: 15px;
+        background: #fff;
+        box-shadow: 0 3px 14px rgba(15, 23, 42, .035);
     }
 
-    .features-grid-list {
+    .sv-panel-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 13px 15px;
+        border-bottom: 1px solid #edf0f5;
+    }
+
+    .sv-plan-kicker {
+        margin-bottom: 7px;
+        color: #000000;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: .1em;
+        text-transform: uppercase;
+    }
+
+    .sv-plan-title {
+        margin: 0;
+        color: #111827;
+        font-size: 21px;
+        line-height: 1.3;
+        font-weight: 800;
+        letter-spacing: -.035em;
+    }
+
+    .sv-plan-description {
+        max-width: 620px;
+        margin: 7px 0 0;
+        color: var(-- );
+        font-size: 12px;
+        line-height: 1.65;
+    }
+
+    .sv-price {
+        flex-shrink: 0;
+        text-align: right;
+    }
+
+    .sv-price strong {
+        display: block;
+        color: #111827;
+        font-size: 30px;
+        line-height: 1.1;
+        font-weight: 850;
+        letter-spacing: -.045em;
+    }
+
+    .sv-price span {
+        display: block;
+        margin-top: 5px;
+        color: var(-- );
+        font-size: 11px;
+    }
+
+    .sv-plan-facts {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 0.75rem 1rem;
+        gap: 0;
+        border-bottom: 1px solid #edf0f5;
+        background: #fbfcfe;
     }
 
-    @media (max-width: 1024px) {
-        .billing-grid {
-            grid-template-columns: 1fr;
-            gap: 20px;
-        }
+    .sv-fact {
+        min-width: 0;
+        padding: 9px 13px;
+        border-bottom: 1px solid #edf0f5;
+    }
+
+    .sv-fact:nth-child(odd) { border-right: 1px solid #edf0f5; }
+    .sv-fact:nth-last-child(-n+2) { border-bottom: 0; }
+
+    .sv-fact-label {
+        display: block;
+        margin-bottom: 6px;
+        color: #000000;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: .07em;
+        text-transform: uppercase;
+    }
+
+    .sv-fact-value {
+        display: block;
+        overflow-wrap: anywhere;
+        color: #1e293b;
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.5;
+    }
+
+    .sv-panel-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 10px 13px;
+    }
+
+    .sv-action-note {
+        max-width: 420px;
+        margin: 0;
+        color: var(-- );
+        font-size: 11px;
+        line-height: 1.6;
+    }
+
+    .sv-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 41px;
+        padding: 0 16px;
+        border: 1px solid transparent;
+        border-radius: 9px;
+        font-size: 12px;
+        font-weight: 750;
+        text-decoration: none !important;
+        cursor: pointer;
+        transition: background .18s ease, border-color .18s ease, transform .18s ease;
+        white-space: nowrap;
+    }
+
+    .sv-btn:hover { transform: translateY(-1px); }
+
+    .sv-btn-primary {
+        background: var(--sv-primary);
+        color: #fff !important;
+        box-shadow: 0 5px 12px rgba(79,70,229,.18);
+    }
+
+    .sv-btn-primary:hover { background: var(--sv-primary-dark); }
+
+    .sv-btn-danger {
+        border-color: #fecaca;
+        background: #fff;
+        color: #b91c1c !important;
+    }
+
+    .sv-btn-danger:hover { background: #fef2f2; }
+
+    .sv-btn-muted {
+        border-color: var(--sv-border);
+        background: #fff;
+        color: #334155 !important;
+    }
+
+    .sv-side-head {
+        padding: 13px 15px 9px;
+        border-bottom: 1px solid #edf0f5;
+    }
+
+    .sv-side-head h3 {
+        margin: 0;
+        color: #172033;
+        font-size: 15px;
+        font-weight: 800;
+        letter-spacing: -.02em;
+    }
+
+    .sv-side-head p {
+        margin: 6px 0 0;
+        color: var(-- );
+        font-size: 11px;
+        line-height: 1.6;
+    }
+
+    .sv-feature-list {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        column-gap: 12px;
+        gap: 0;
+        padding: 3px 15px 6px;
+    }
+
+    .sv-feature {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 7px 0;
+        border-bottom: 1px solid #f1f3f7;
+        color: #334155;
+        font-size: 12px;
+        line-height: 1.5;
+    }
+
+    .sv-feature:last-child { border-bottom: 0; }
+
+    .sv-feature-check {
+        display: grid;
+        place-items: center;
+        flex: 0 0 19px;
+        width: 19px;
+        height: 19px;
+        border-radius: 6px;
+        background: #ecfdf5;
+        color: #059669;
+    }
+
+    .sv-plan-terms {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 9px;
+        padding: 9px 11px;
+        border-top: 1px solid #edf0f5;
+        background: #fbfcfe;
+    }
+
+    .sv-term {
+        text-align: center;
+        padding: 8px 4px;
+        border-radius: 8px;
+        background: #fff;
+        border: 1px solid #edf0f5;
+    }
+
+    .sv-term span {
+        display: block;
+        margin-bottom: 4px;
+        color: #000000;
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+    }
+
+    .sv-term strong { color: #334155; font-size: 11px; }
+
+    .sv-billing-footnote {
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+        margin-top: 9px;
+        padding: 8px 11px;
+        border: 1px solid #e6eaf2;
+        border-radius: 10px;
+        background: #fff;
+        color: #64748b;
+        font-size: 10px;
+        line-height: 1.65;
+    }
+
+    .sv-billing-footnote svg { flex: 0 0 auto; margin-top: 1px; color: #64748b; }
+
+    .sv-modal-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        align-items: center;
+        justify-content: center;
+        padding: 18px;
+        background: rgba(15, 23, 42, .58);
+        backdrop-filter: blur(4px);
+    }
+
+    .sv-modal-backdrop.is-open { display: flex; }
+
+    .sv-modal {
+        width: 100%;
+        max-width: 440px;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,.7);
+        border-radius: 16px;
+        background: #fff;
+        box-shadow: 0 24px 70px rgba(15,23,42,.25);
+    }
+
+    .sv-modal-content { padding: 19px; }
+
+    .sv-modal-icon {
+        display: grid;
+        place-items: center;
+        width: 42px;
+        height: 42px;
+        margin-bottom: 15px;
+        border-radius: 12px;
+        background: #fef2f2;
+        color: #dc2626;
+    }
+
+    .sv-modal h3 {
+        margin: 0 0 8px;
+        color: #111827;
+        font-size: 18px;
+        font-weight: 800;
+    }
+
+    .sv-modal p {
+        margin: 0;
+        color: #64748b;
+        font-size: 12px;
+        line-height: 1.7;
+    }
+
+    .sv-modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 9px;
+        padding: 10px 18px;
+        border-top: 1px solid #edf0f5;
+        background: #fbfcfe;
+    }
+
+    @media (max-width: 760px) {
+        .sv-billing-grid { grid-template-columns: 1fr; }
     }
 
     @media (max-width: 640px) {
-        .features-grid-list {
-            grid-template-columns: 1fr;
-            gap: 0.65rem;
-        }
-
-        .billing-card-header {
-            flex-direction: column;
-            align-items: flex-start !important;
-        }
-
-        .billing-price-lockup {
-            text-align: left !important;
-            margin-top: 0.5rem;
-        }
-
-        .billing-action-bar {
-            flex-direction: column;
-            align-items: stretch !important;
-            gap: 0.75rem;
-        }
-
-        .billing-action-btn {
-            width: 100%;
-            text-align: center;
-        }
+        .sv-feature-list { grid-template-columns: 1fr; }
+        .sv-billing-hero { flex-direction: column; padding: 20px; }
+        .sv-panel-head { flex-direction: column; padding: 19px; }
+        .sv-price { text-align: left; }
+        .sv-price strong { font-size: 27px; }
+        .sv-plan-facts { grid-template-columns: 1fr; }
+        .sv-fact, .sv-fact:nth-child(odd) { border-right: 0; border-bottom: 1px solid #edf0f5; }
+        .sv-fact:last-child { border-bottom: 0; }
+        .sv-panel-actions { align-items: stretch; flex-direction: column; padding: 17px 19px; }
+        .sv-panel-actions .sv-btn { width: 100%; }
+        .sv-plan-terms { gap: 6px; padding: 12px; }
+        .sv-term strong { font-size: 10px; }
+        .sv-modal-actions { flex-direction: column-reverse; }
+        .sv-modal-actions .sv-btn { width: 100%; }
     }
 </style>
 
-<div class="billing-full-container">
-
-    <!-- Subtle, Full-Width Contextual Status Row -->
-    <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.65rem 1.25rem; margin-bottom: 1.25rem; font-size: 0.8125rem;">
-        <div style="display: flex; align-items: center; gap: 0.5rem; color: #334155; min-width: 0;">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" style="flex-shrink: 0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ $statusNotice }}</span>
+<div class="sv-billing">
+    <!-- <section class="sv-billing-hero">
+        <div>
+            <span class="sv-billing-eyebrow">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-4z"/><path d="m9 12 2 2 4-4"/></svg>
+                Account billing
+            </span>
+            <h2>Your plan & subscription</h2>
+            <p>Review your current access, subscription period and Socialvire Pro benefits.</p>
         </div>
-        <span style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.75rem; font-weight: 600; background: {{ $statusBg }}; color: {{ $statusColor }}; border: 1px solid {{ $statusBorder }}; padding: 0.15rem 0.55rem; border-radius: 6px; white-space: nowrap; flex-shrink: 0;">
-            <span style="width: 6px; height: 6px; border-radius: 50%; background: {{ $statusDot }};"></span>
+
+        <span class="sv-status-pill">
+            <span class="sv-status-dot"></span>
             {{ $statusText }}
         </span>
+    </section> -->
+
+    <div class="sv-status-notice" role="status">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+        <span>{{ $statusNotice }}</span>
     </div>
 
-
-    <!-- Two-Column Desktop Layout (Left ~58%, Right ~42%) -->
-    <div class="billing-grid">
-        
-        <!-- LEFT COLUMN: Main SocialNest Pro Subscription Card -->
-        <div class="billing-card">
-            
-            <!-- Card Header: Plan Name, Price, and Status -->
-            <div class="billing-card-header" style="display: flex; align-items: flex-start; justify-content: space-between; padding: 1.25rem 1.5rem; border-bottom: 1px solid #f1f5f9; gap: 1rem;">
+    <div class="sv-billing-grid">
+        <section class="sv-panel">
+            <div class="sv-panel-head">
                 <div>
-                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                        <h3 style="font-size: 1.15rem; font-weight: 700; color: #0f172a; margin: 0; letter-spacing: -0.01em;">
-                            {{ $plan->name }}
-                        </h3>
-                        <span style="font-size: 0.75rem; font-weight: 600; background: {{ $statusBg }}; color: {{ $statusColor }}; border: 1px solid {{ $statusBorder }}; padding: 0.125rem 0.5rem; border-radius: 4px;">
-                            {{ $statusText }}
-                        </span>
-                    </div>
-                    <p style="font-size: 0.8125rem; color: #64748b; margin: 0.25rem 0 0 0; line-height: 1.4;">
-                        {{ $plan->description }}
-                    </p>
+                    <div class="sv-plan-kicker">Your subscription</div>
+                    <h3 class="sv-plan-title">{{ $plan->name }} <span class="sv-status-pill">
+            <span class="sv-status-dot"></span>
+            {{ $statusText }}
+        </span> </h3>
+                    <p class="sv-plan-description">{{ $plan->description }}</p>
                 </div>
 
-                <div class="billing-price-lockup" style="text-align: right; flex-shrink: 0;">
-                    <div style="display: flex; align-items: baseline; justify-content: flex-end; gap: 0.25rem;">
-                        <span style="font-size: 1.65rem; font-weight: 750; color: #0f172a; line-height: 1;">{{ $plan->formattedPrice() }}</span>
-                        <span style="font-size: 0.8125rem; color: #64748b; font-weight: 500;">/ 30 days</span>
-                    </div>
-                    <div style="font-size: 0.6875rem; color: #94a3b8; margin-top: 0.25rem;">Manual renewal &bull; Single tier</div>
+                <div class="sv-price">
+                    <strong>{{ $plan->formattedPrice() }}</strong>
+                    <span>per 30-day period</span>
                 </div>
             </div>
 
-            <!-- Horizontal Information Strip -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem; padding: 1rem 1.5rem; background: #f8fafc; border-bottom: 1px solid #f1f5f9; font-size: 0.8125rem;">
-                <div>
-                    <div style="font-size: 0.6875rem; color: #64748b; text-transform: uppercase; font-weight: 600; letter-spacing: 0.03em;">Connected Store</div>
-                    <div style="font-weight: 600; color: #0f172a; margin-top: 0.2rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ $shop }}">{{ $shop }}</div>
+            <div class="sv-plan-facts">
+                <div class="sv-fact">
+                    <span class="sv-fact-label">Connected store</span>
+                    <span class="sv-fact-value" title="{{ $shop }}">{{ $shop }}</span>
                 </div>
 
-                <div>
-                    <div style="font-size: 0.6875rem; color: #64748b; text-transform: uppercase; font-weight: 600; letter-spacing: 0.03em;">Activation Date</div>
-                    <div style="font-weight: 600; color: #0f172a; margin-top: 0.2rem;">
-                        {{ $activeSubscription?->activated_at?->format('M d, Y') ?? ($latestSubscription?->activated_at?->format('M d, Y') ?? '—') }}
-                    </div>
+                <div class="sv-fact">
+                    <span class="sv-fact-label">Subscription status</span>
+                    <span class="sv-fact-value">{{ $statusText }}</span>
                 </div>
 
-                <div>
-                    <div style="font-size: 0.6875rem; color: #64748b; text-transform: uppercase; font-weight: 600; letter-spacing: 0.03em;">Expiry Date</div>
-                    <div style="font-weight: 600; color: #0f172a; margin-top: 0.2rem;">
-                        {{ $activeSubscription?->current_period_end?->format('M d, Y') ?? ($latestSubscription?->current_period_end?->format('M d, Y') ?? '—') }}
-                    </div>
+                <div class="sv-fact">
+                    <span class="sv-fact-label">Activation date</span>
+                    <span class="sv-fact-value">{{ $subscriptionDate?->format('M d, Y') ?? '—' }}</span>
                 </div>
 
-                <div>
-                    <div style="font-size: 0.6875rem; color: #64748b; text-transform: uppercase; font-weight: 600; letter-spacing: 0.03em;">Remaining Days</div>
-                    <div style="font-weight: 600; color: {{ $hasActiveSubscription ? '#0f172a' : '#64748b' }}; margin-top: 0.2rem;">
+                <div class="sv-fact">
+                    <span class="sv-fact-label">Expiry date</span>
+                    <span class="sv-fact-value">{{ $subscriptionExpiry?->format('M d, Y') ?? '—' }}</span>
+                </div>
+
+                <div class="sv-fact">
+                    <span class="sv-fact-label">Remaining access</span>
+                    <span class="sv-fact-value">
                         @if($hasActiveSubscription)
                             {{ $activeSubscription->daysRemaining() }} days left
                         @elseif($latestSubscription && $latestSubscription->status === 'cancelled')
@@ -191,121 +564,102 @@
                         @elseif($latestSubscription && $latestSubscription->isExpired())
                             Expired
                         @else
-                            None
+                            Not active
                         @endif
-                    </div>
+                    </span>
+                </div>
+
+                <div class="sv-fact">
+                    <span class="sv-fact-label">Renewal method</span>
+                    <span class="sv-fact-value">Manual renewal</span>
                 </div>
             </div>
 
-            <!-- Action Bar -->
-            <div class="billing-action-bar" style="display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.5rem; flex-wrap: wrap; gap: 0.75rem;">
-                <div style="font-size: 0.8125rem; color: #64748b;">
+            <div class="sv-panel-actions">
+                <p class="sv-action-note">
                     @if($hasActiveSubscription)
-                        Subscription is active. Access is enabled for all features.
+                        Your subscription is active and all plan features are available.
                     @elseif($subscriptionStatus === 'cancelled')
-                        Subscription is cancelled. Re-subscribe at any time.
+                        Your subscription is cancelled. You can subscribe again whenever you need access.
                     @elseif($subscriptionStatus === 'expired')
-                        Subscription expired. Renew to continue using SocialNest.
+                        Your subscription has expired. Renew your plan to restore access.
                     @else
-                        Active subscription required to use SocialNest.
+                        An active subscription is required to access Socialvire Pro features.
                     @endif
-                </div>
+                </p>
 
                 <div>
                     @if($hasActiveSubscription)
-                        <button type="button" onclick="openCancelModal()" class="billing-action-btn" style="background: #ffffff; border: 1px solid #e2e8f0; color: #dc2626; font-size: 0.8125rem; font-weight: 500; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">
-                            Cancel Subscription
+                        <button type="button" onclick="openCancelModal()" class="sv-btn sv-btn-danger">
+                            Cancel subscription
                         </button>
                     @elseif($subscriptionStatus === 'cancelled' || $subscriptionStatus === 'expired')
-                        <a href="{{ route('shopify.plans.checkout', ['plan' => $plan->id, 'shop' => $shop, 'host' => $host]) }}" class="billing-action-btn" style="display: inline-block; background: #0f172a; color: #ffffff; text-decoration: none; font-size: 0.8125rem; font-weight: 600; padding: 0.5rem 1.15rem; border-radius: 6px; transition: background 0.15s ease;">
-                            Subscribe Again ($5.00 / 30 Days)
+                        <a href="{{ route('shopify.plans.checkout', ['plan' => $plan->id, 'shop' => $shop, 'host' => $host]) }}" class="sv-btn sv-btn-primary">
+                            Subscribe again
                         </a>
                     @else
-                        <a href="{{ route('shopify.plans.checkout', ['plan' => $plan->id, 'shop' => $shop, 'host' => $host]) }}" class="billing-action-btn" style="display: inline-block; background: #0f172a; color: #ffffff; text-decoration: none; font-size: 0.8125rem; font-weight: 600; padding: 0.5rem 1.15rem; border-radius: 6px; transition: background 0.15s ease;">
-                            Subscribe Now ($5.00 / 30 Days)
+                        <a href="{{ route('shopify.plans.checkout', ['plan' => $plan->id, 'shop' => $shop, 'host' => $host]) }}" class="sv-btn sv-btn-primary">
+                            Subscribe now
                         </a>
                     @endif
                 </div>
             </div>
-        </div>
+        </section>
 
-        <!-- RIGHT COLUMN: What's Included in SocialNest Pro Card -->
-        <div class="billing-card" style="padding: 1.25rem 1.5rem;">
-            <div style="border-bottom: 1px solid #f1f5f9; padding-bottom: 0.85rem; margin-bottom: 1rem;">
-                <h4 style="font-size: 0.95rem; font-weight: 700; color: #0f172a; margin: 0 0 0.2rem 0;">
-                    What's included in SocialNest Pro
-                </h4>
-                <p style="font-size: 0.8125rem; color: #64748b; margin: 0; line-height: 1.35;">
-                    All-in-one storefront conversion suite &bull; Active for 30 days
-                </p>
+        <aside class="sv-panel">
+            <div class="sv-side-head">
+                <h3>Included with {{ $plan->name }}</h3>
+                <p>Everything you need to connect your storefront with your customers' social platforms.</p>
             </div>
 
-            <!-- Features 2-Column Grid List Inside Card -->
-            <div class="features-grid-list">
-                <div style="display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.8125rem; color: #334155;">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"/></svg>
-                    <span>Multi-platform floating social dock</span>
-                </div>
-                <div style="display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.8125rem; color: #334155;">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"/></svg>
-                    <span>Product share button with custom color picker</span>
-                </div>
-                <div style="display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.8125rem; color: #334155;">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"/></svg>
-                    <span>Real-time conversion tracking &amp; click analytics</span>
-                </div>
-                <div style="display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.8125rem; color: #334155;">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"/></svg>
-                    <span>Custom positioning &amp; responsive layout controls</span>
-                </div>
-                <div style="display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.8125rem; color: #334155;">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"/></svg>
-                    <span>Full access for exactly 30 days</span>
-                </div>
-                <div style="display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.8125rem; color: #334155;">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" style="flex-shrink: 0; margin-top: 2px;"><polyline points="20 6 9 17 4 12"/></svg>
-                    <span>Zero automatic renewal surprises</span>
-                </div>
+            <div class="sv-feature-list">
+                <div class="sv-feature"><span class="sv-feature-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m5 12 4 4L19 6"/></svg></span><span>Multi-platform floating social dock</span></div>
+                <div class="sv-feature"><span class="sv-feature-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m5 12 4 4L19 6"/></svg></span><span>Product share button with custom color picker</span></div>
+                <div class="sv-feature"><span class="sv-feature-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m5 12 4 4L19 6"/></svg></span><span>Real-time conversion tracking and click analytics</span></div>
+                <div class="sv-feature"><span class="sv-feature-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m5 12 4 4L19 6"/></svg></span><span>Custom positioning and responsive layout controls</span></div>
+                <div class="sv-feature"><span class="sv-feature-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m5 12 4 4L19 6"/></svg></span><span>Full access for 30 days</span></div>
+                <div class="sv-feature"><span class="sv-feature-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m5 12 4 4L19 6"/></svg></span><span>No automatic renewal; renew manually</span></div>
             </div>
 
-            <!-- Subtle Plan Entitlement Note Inside Card -->
-            <div style="margin-top: 1.15rem; padding-top: 0.85rem; border-top: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; font-size: 0.75rem; color: #64748b;">
-                <span>Duration: <strong>30 Days</strong></span>
-                <span>Type: <strong>Dummy Billing</strong></span>
-                <span>Renewal: <strong>Manual</strong></span>
+            <div class="sv-plan-terms">
+                <div class="sv-term"><span>Duration</span><strong>30 days</strong></div>
+                <div class="sv-term"><span>Billing</span><strong>{{ $plan->formattedPrice() }}</strong></div>
+                <div class="sv-term"><span>Renewal</span><strong>Manual</strong></div>
             </div>
-        </div>
-
+        </aside>
     </div>
 
-    <!-- Subtle, Minimal System & Billing Note (Full Width) -->
-    <div style="padding: 1.25rem 0.25rem 0.5rem 0.25rem; font-size: 0.6875rem; color: #94a3b8; line-height: 1.4; text-align: center;">
-        Shopify Billing API Status: SocialNest operates under a dummy 30-day billing cycle. Active subscriptions use the Pro Plan ($5.00 / 30 days). No Free Plan is currently offered.
+    <div class="sv-billing-footnote">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+        <span>
+            Billing information shown here reflects the current Socialvire plan configuration.
+            The plan runs for 30 days and requires manual renewal. No automatic renewal is initiated from this page.
+        </span>
     </div>
-
 </div>
 
-<!-- Cancellation Confirmation Modal -->
-<div id="cancelModal" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(2px); z-index: 9999; align-items: center; justify-content: center; padding: 1rem;">
-    <div style="background: #ffffff; border-radius: 8px; width: 100%; max-width: 420px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1); overflow: hidden; border: 1px solid #e2e8f0;">
-        <div style="padding: 1.25rem 1.25rem 0.75rem 1.25rem;">
-            <h3 style="font-size: 1rem; font-weight: 700; color: #0f172a; margin: 0 0 0.5rem 0;">Cancel Subscription Immediately?</h3>
-            <p style="font-size: 0.8125rem; color: #475569; line-height: 1.45; margin: 0;">
-                Are you sure you want to cancel your subscription? Cancelling will end your subscription and update your store status. You can subscribe again at any time.
+<div id="cancelModal" class="sv-modal-backdrop" aria-hidden="true">
+    <div class="sv-modal" role="dialog" aria-modal="true" aria-labelledby="cancelModalTitle">
+        <div class="sv-modal-content">
+            <div class="sv-modal-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 2.2 18a2 2 0 0 0 1.7 3h16.2a2 2 0 0 0 1.7-3l-8.1-14.1a2 2 0 0 0-3.4 0z"/></svg>
+            </div>
+            <h3 id="cancelModalTitle">Cancel your subscription?</h3>
+            <p>
+                Are you sure you want to cancel your subscription? Cancelling will end your subscription
+                and update your store access according to the current cancellation process.
+                You can subscribe again at any time.
             </p>
         </div>
 
-        <div style="padding: 0.75rem 1.25rem; background: #f8fafc; border-top: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem;">
-            <button type="button" onclick="closeCancelModal()" style="background: #ffffff; border: 1px solid #e2e8f0; color: #475569; font-size: 0.8125rem; font-weight: 500; padding: 0.4rem 0.75rem; border-radius: 6px; cursor: pointer;">
-                Keep Subscription
-            </button>
-            <form method="POST" action="{{ route('shopify.plans.cancel') }}" style="margin: 0;">
+        <div class="sv-modal-actions">
+            <button type="button" onclick="closeCancelModal()" class="sv-btn sv-btn-muted">Keep subscription</button>
+
+            <form method="POST" action="{{ route('shopify.plans.cancel') }}" style="margin:0;">
                 @csrf
                 <input type="hidden" name="shop" value="{{ $shop }}">
                 <input type="hidden" name="host" value="{{ $host }}">
-                <button type="submit" style="background: #dc2626; border: 1px solid #dc2626; color: #ffffff; font-size: 0.8125rem; font-weight: 600; padding: 0.4rem 0.875rem; border-radius: 6px; cursor: pointer;">
-                    Cancel &amp; Block Access Instantly
-                </button>
+                <button type="submit" class="sv-btn sv-btn-danger">Confirm cancellation</button>
             </form>
         </div>
     </div>
@@ -313,31 +667,39 @@
 
 <script>
     function openCancelModal() {
-        var modal = document.getElementById('cancelModal');
-        if (modal) {
-            modal.style.display = 'flex';
-        }
+        const modal = document.getElementById('cancelModal');
+        if (!modal) return;
+
+        modal.classList.add('is-open');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
     }
 
     function closeCancelModal() {
-        var modal = document.getElementById('cancelModal');
-        if (modal) {
-            modal.style.display = 'none';
-        }
+        const modal = document.getElementById('cancelModal');
+        if (!modal) return;
+
+        modal.classList.remove('is-open');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
     }
 
-    window.addEventListener('click', function(e) {
-        var modal = document.getElementById('cancelModal');
-        if (e.target === modal) {
-            closeCancelModal();
-        }
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') closeCancelModal();
+    });
+
+    document.getElementById('cancelModal')?.addEventListener('click', function (event) {
+        if (event.target === this) closeCancelModal();
     });
 
     @if(!$hasActiveSubscription)
-    document.addEventListener('DOMContentLoaded', function() {
-        var protectedLinks = document.querySelectorAll('.sidebar-nav a:not([href*="plans"]):not([href*="logout"])');
-        protectedLinks.forEach(function(link) {
-            link.addEventListener('click', function(e) {
+    document.addEventListener('DOMContentLoaded', function () {
+        const protectedLinks = document.querySelectorAll(
+            '.sidebar-nav a:not([href*="plans"]):not([href*="logout"])'
+        );
+
+        protectedLinks.forEach(function (link) {
+            link.addEventListener('click', function () {
                 if (window.showToast) {
                     window.showToast('Paid plan is required to use features on this app', 'warning', 3000);
                 }

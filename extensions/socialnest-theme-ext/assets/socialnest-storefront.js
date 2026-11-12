@@ -195,7 +195,7 @@
           .then((t) => {
             if (o === this._reqId) {
               this.settings = t?.settings || {};
-              let r = 0 != t?.enabled && 0 != t?.success;
+              let r = t?.success === true && t?.enabled === true;
               (n &&
                 ((n.style.display = r ? "" : "none"),
                 r ? w(t.links || [], this.settings) : (n.innerHTML = "")),

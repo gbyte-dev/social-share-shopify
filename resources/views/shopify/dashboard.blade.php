@@ -5,19 +5,41 @@
 @section('header_subtitle', 'Store overview, social engagement, and storefront feature controls')
 
 @section('header_actions')
-   <button
-    type="button"
-    id="wishlist-setup-btn"
-    data-url="{{ route('shopify.wishlist.setup') }}"
-    class="btn btn-secondary btn-sm"
-    style="padding: 0.4rem 0.75rem; font-size: 0.8125rem; color: #e11d48; border-color: #fecdd3; background: #fff1f2;"
->
-    <span>1-Click Wishlist Setup</span>
-</button>
-    <a href="{{ route('shopify.social-links.create') }}" class="btn btn-primary btn-sm" style="padding: 0.4rem 0.75rem; font-size: 0.8125rem;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        <span>Add Social Link</span>
-    </a>
+    <div class="sn-dashboard-header-actions">
+        <div class="sn-dashboard-header-row">
+            <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                data-embed-enable
+                data-url="{{ route('shopify.social-links.activate-embed', array_filter([
+                    'shop' => $shop,
+                    'host' => request('host') ?? session('shopify_host'),
+                ])) }}"
+                hidden>
+                Enable Storefront Widget
+            </button>
+
+            <span data-embed-status-badge class="sn-embed-status" aria-live="polite">
+                Checking storefront status...
+            </span>
+
+            <button
+                type="button"
+                id="wishlist-setup-btn"
+                data-url="{{ route('shopify.wishlist.setup') }}"
+                class="btn btn-secondary btn-sm"
+                style="padding: 0.4rem 0.75rem; font-size: 0.8125rem; color: #e11d48; border-color: #fecdd3; background: #fff1f2;">
+                <span>1-Click Wishlist Setup</span>
+            </button>
+        </div>
+
+        <div class="sn-dashboard-header-row sn-dashboard-header-row-secondary">
+            <a href="{{ route('shopify.social-links.create') }}" class="btn btn-primary btn-sm" style="padding: 0.4rem 0.75rem; font-size: 0.8125rem;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <span>Add Social Link</span>
+            </a>
+        </div>
+    </div>
 @endsection
 
 @section('content')
@@ -32,6 +54,94 @@
             display: flex;
             flex-direction: column;
             gap: 1rem;
+        }
+
+        /* Dashboard header actions: explicit rows keep both rows on the same left edge. */
+        .sn-dashboard-header-actions {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+            width: max-content;
+            max-width: 100%;
+            margin-left: auto;
+        }
+
+        .sn-dashboard-header-row {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            flex-wrap: nowrap;
+            gap: 8px;
+            min-height: 32px;
+        }
+
+        .sn-dashboard-header-row .btn,
+        .sn-dashboard-header-row .sn-embed-status {
+            flex: 0 0 auto;
+        }
+
+        @media (max-width: 900px) {
+            .sn-dashboard-header-actions {
+                width: 100%;
+                margin-left: 0;
+            }
+
+            .sn-dashboard-header-row {
+                flex-wrap: wrap;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .sn-dashboard-header-row {
+                width: 100%;
+            }
+        }
+
+        [hidden] {
+            display: none !important;
+        }
+
+        .sn-embed-status {
+            display: inline-flex;
+            align-items: center;
+            padding: .3rem .65rem;
+            border-radius: 999px;
+            border: 1px solid #d1d5db;
+            background: #f9fafb;
+            color: #4b5563;
+            font-size: .75rem;
+            font-weight: 700;
+        }
+        .sn-embed-status.is-active {
+            color: #065f46;
+            background: #ecfdf5;
+            border-color: #a7f3d0;
+        }
+        .sn-embed-status.is-inactive {
+            color: #92400e;
+            background: #fffbeb;
+            border-color: #fde68a;
+        }
+        .sn-embed-warning {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 1rem 1.125rem;
+            border: 1px solid #fde68a;
+            border-left: 4px solid #f59e0b;
+            border-radius: 8px;
+            background: #fffbeb;
+            color: #78350f;
+        }
+        .sn-embed-warning p {
+            margin: .2rem 0 0;
+            font-size: .8rem;
+            color: #92400e;
+        }
+        @media (max-width: 640px) {
+            .sn-embed-warning { align-items: flex-start; flex-direction: column; }
         }
 
         .sn-card {
@@ -89,7 +199,7 @@
 
         .sn-metric-sub {
             font-size: 0.75rem;
-            color: #6d7175;
+            color:  #000000;
             white-space: nowrap;
         }
 
@@ -151,7 +261,7 @@
         .sn-badge-off {
             font-size: 0.6875rem;
             font-weight: 600;
-            color: #6d7175;
+            color:  #000000;
             background: #f1f2f4;
             padding: 0.15rem 0.5rem;
             border-radius: 4px;
@@ -159,7 +269,7 @@
 
         .sn-feature-desc {
             font-size: 0.75rem;
-            color: #6d7175;
+            color:  #000000;
             line-height: 1.4;
             margin: 0 0 0.75rem 0;
             flex: 1;
@@ -260,7 +370,7 @@
 
         .sn-chart-sub {
             font-size: 0.75rem;
-            color: #6d7175;
+            color:  #000000;
             margin: 0.1rem 0 0 0;
         }
 
@@ -288,7 +398,7 @@
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            color: #6d7175;
+            color:  #000000;
             border-bottom: 1px solid #e1e3e5;
         }
 
@@ -327,6 +437,20 @@
     </style>
 
     <div class="sn-dash-wrap">
+        <div id="sn-embed-warning" class="sn-embed-warning" hidden>
+            <div>
+                <strong>Your storefront widget is not enabled.</strong>
+                <p>Social icons may not appear on your online store. Enable the SocialNest app embed and save your published theme.</p>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm" data-embed-enable
+                data-url="{{ route('shopify.social-links.activate-embed', array_filter([
+                    'shop' => $shop,
+                    'host' => request('host') ?? session('shopify_host'),
+                ])) }}">
+                Enable Storefront Widget
+            </button>
+        </div>
+
         <!-- 1. Store Overview Metric Cards (Single-Line Content) -->
         <div class="sn-metric-grid">
             <!-- Metric 1: Configured Social Links -->
@@ -387,11 +511,7 @@
                 <div>
                     <div class="sn-feature-head">
                         <h3 class="sn-feature-title">Floating Social Dock</h3>
-                        @if($settings->is_enabled)
-                            <span class="sn-badge-on">Enabled</span>
-                        @else
-                            <span class="sn-badge-off">Disabled</span>
-                        @endif
+                        <span class="sn-badge-off" data-embed-status-label>Checking Shopify status...</span>
                     </div>
                     <p class="sn-feature-desc">
                         Floating dock displayed on storefront. Position: <strong>{{ ucfirst(str_replace('_', ' ', $settings->position)) }}</strong> ({{ ucfirst($settings->icon_size) }} icons).
@@ -465,12 +585,12 @@
                     <!-- Custom Date Inputs -->
                     <div id="sn-custom-date-box" style="display: none; align-items: center; gap: 0.35rem; margin-left: 0.25rem;">
                         <input type="date" id="sn-start-date" value="{{ $analyticsData['filter']['start_date'] }}" style="padding: 0.2rem 0.4rem; font-size: 0.75rem; border: 1px solid #e1e3e5; border-radius: 4px;">
-                        <span style="font-size: 0.75rem; color: #6d7175;">to</span>
+                        <span style="font-size: 0.75rem; color:  #000000;">to</span>
                         <input type="date" id="sn-end-date" value="{{ $analyticsData['filter']['end_date'] }}" style="padding: 0.2rem 0.4rem; font-size: 0.75rem; border: 1px solid #e1e3e5; border-radius: 4px;">
                         <button type="button" id="sn-apply-custom-date" class="btn btn-secondary btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">Apply</button>
                     </div>
 
-                    <div style="font-size: 0.6875rem; color: #6d7175; margin-left: 0.25rem;" id="sn-range-label">
+                    <div style="font-size: 0.6875rem; color:  #000000; margin-left: 0.25rem;" id="sn-range-label">
                         <span id="sn-range-dates">{{ $analyticsData['filter']['start_date'] }} &ndash; {{ $analyticsData['filter']['end_date'] }}</span>
                     </div>
                 </div>
@@ -494,7 +614,7 @@
                             <canvas id="sn-weekly-chart"></canvas>
                             <div id="sn-weekly-empty-state" style="{{ $analyticsData['weekly_chart']['has_data'] ? 'display: none;' : 'display: flex;' }} position: absolute; inset: 0; align-items: center; justify-content: center; flex-direction: column; background: rgba(255,255,255,0.92); text-align: center;">
                                 <div style="font-size: 0.8125rem; font-weight: 600; color: #202223;">No clicks recorded this week</div>
-                                <div style="font-size: 0.75rem; color: #6d7175; margin-top: 0.2rem;">Daily counts update automatically as visitors interact with your links.</div>
+                                <div style="font-size: 0.75rem; color:  #000000; margin-top: 0.2rem;">Daily counts update automatically as visitors interact with your links.</div>
                             </div>
                         </div>
                     </div>
@@ -506,7 +626,7 @@
                                 <h4 class="sn-chart-title">Clicks by Platform</h4>
                                 <p class="sn-chart-sub">
                                     Top: <strong id="sn-top-platform-name">{{ $analyticsData['summary']['top_platform_name'] ?? 'None yet' }}</strong>
-                                    <span id="sn-top-platform-clicks" style="color: #6d7175;">
+                                    <span id="sn-top-platform-clicks" style="color:  #000000;">
                                         @if($analyticsData['summary']['top_platform'])
                                             ({{ number_format($analyticsData['summary']['top_platform_clicks']) }} clicks)
                                         @endif
@@ -525,7 +645,7 @@
                             <canvas id="sn-platform-chart"></canvas>
                             <div id="sn-platform-empty-state" style="{{ $analyticsData['platform_chart']['has_data'] ? 'display: none;' : 'display: flex;' }} position: absolute; inset: 0; align-items: center; justify-content: center; flex-direction: column; background: rgba(255,255,255,0.92); text-align: center;">
                                 <div style="font-size: 0.8125rem; font-weight: 600; color: #202223;">No platform clicks recorded</div>
-                                <div style="font-size: 0.75rem; color: #6d7175; margin-top: 0.2rem;">Data appears here once shoppers click your icons.</div>
+                                <div style="font-size: 0.75rem; color:  #000000; margin-top: 0.2rem;">Data appears here once shoppers click your icons.</div>
                             </div>
                         </div>
                     </div>
@@ -538,9 +658,9 @@
             <div class="sn-table-head">
                 <div>
                     <h3 style="font-size: 0.875rem; font-weight: 700; color: #202223; margin: 0;">Link Performance</h3>
-                    <p style="font-size: 0.75rem; color: #6d7175; margin: 0.15rem 0 0 0;">Click volume per configured social link</p>
+                    <p style="font-size: 0.75rem; color: #000000; margin: 0.15rem 0 0 0;">Click volume per configured social link</p>
                 </div>
-                <span style="font-size: 0.75rem; color: #6d7175;" id="sn-table-count">{{ count($analyticsData['social_links']['links']) }} links tracked</span>
+                <span style="font-size: 0.75rem; color:  #000000;" id="sn-table-count">{{ count($analyticsData['social_links']['links']) }} links tracked</span>
             </div>
 
             <div style="overflow-x: auto;">
@@ -568,7 +688,7 @@
                                                 {{ $item['label'] }}
                                             </div>
                                             @if(!empty($item['url']))
-                                                <div style="font-size: 0.6875rem; color: #6d7175; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                                <div style="font-size: 0.6875rem; color:  #000000; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                                     {{ $item['url'] }}
                                                 </div>
                                             @endif
@@ -590,16 +710,16 @@
                                 <td style="text-align: right; font-weight: 700;">
                                     {{ number_format($item['total_clicks']) }}
                                 </td>
-                                <td style="text-align: right; color: {{ $item['week_clicks'] > 0 ? '#4f46e5' : '#6d7175' }}; font-weight: {{ $item['week_clicks'] > 0 ? '700' : '500' }};">
+                                <td style="text-align: right; color: {{ $item['week_clicks'] > 0 ? '#4f46e5' : ' #000000' }}; font-weight: {{ $item['week_clicks'] > 0 ? '700' : '500' }};">
                                     {{ number_format($item['week_clicks']) }}
                                 </td>
-                                <td style="text-align: right; font-size: 0.75rem; color: #6d7175;">
+                                <td style="text-align: right; font-size: 0.75rem; color:  #000000;">
                                     {{ $item['last_clicked_formatted'] }}
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" style="padding: 1.5rem; text-align: center; color: #6d7175; font-size: 0.8125rem;">
+                                <td colspan="6" style="padding: 1.5rem; text-align: center; color:  #000000; font-size: 0.8125rem;">
                                     No social links configured yet. Click "Add Social Link" above to start.
                                 </td>
                             </tr>
@@ -711,7 +831,7 @@
                                         stepSize: 1,
                                         precision: 0,
                                         font: { size: 10 },
-                                        color: '#6d7175'
+                                        color: ' #000000'
                                     },
                                     grid: {
                                         color: '#f1f2f4'
@@ -846,7 +966,7 @@
 
                 if (tbody) {
                     if (links.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="6" style="padding: 1.5rem; text-align: center; color: #6d7175; font-size: 0.8125rem;">No social links configured yet. Click "Add Social Link" above to start.</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="6" style="padding: 1.5rem; text-align: center; color:  #000000; font-size: 0.8125rem;">No social links configured yet. Click "Add Social Link" above to start.</td></tr>';
                     } else {
                         tbody.innerHTML = links.map(function(item) {
                             const badge = item.is_deleted
@@ -855,7 +975,7 @@
                                     ? '<span class="sn-badge-on">Active</span>'
                                     : '<span class="sn-badge-off">Inactive</span>');
 
-                            const urlHtml = item.url ? '<div style="font-size: 0.6875rem; color: #6d7175; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + escapeHtml(item.url) + '</div>' : '';
+                            const urlHtml = item.url ? '<div style="font-size: 0.6875rem; color:  #000000; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">' + escapeHtml(item.url) + '</div>' : '';
                             const isNever = item.last_clicked_formatted === 'Never';
                             const iconContent = item.icon_html || item.icon_svg || ('<span style="font-weight: 700; font-size: 0.6875rem;">' + escapeHtml((item.platform || '').slice(0, 2).toUpperCase()) + '</span>');
 
@@ -874,8 +994,8 @@
                                 '<td><span style="text-transform: capitalize; font-size: 0.75rem; font-weight: 500;">' + escapeHtml(item.platform_name) + '</span></td>' +
                                 '<td>' + badge + '</td>' +
                                 '<td style="text-align: right; font-weight: 700;">' + Number(item.total_clicks || 0).toLocaleString() + '</td>' +
-                                '<td style="text-align: right; color: ' + (item.week_clicks > 0 ? '#4f46e5' : '#6d7175') + '; font-weight: ' + (item.week_clicks > 0 ? '700' : '500') + ';">' + Number(item.week_clicks || 0).toLocaleString() + '</td>' +
-                                '<td style="text-align: right; font-size: 0.75rem; color: #6d7175;">' + escapeHtml(item.last_clicked_formatted) + '</td>' +
+                                '<td style="text-align: right; color: ' + (item.week_clicks > 0 ? '#4f46e5' : ' #000000') + '; font-weight: ' + (item.week_clicks > 0 ? '700' : '500') + ';">' + Number(item.week_clicks || 0).toLocaleString() + '</td>' +
+                                '<td style="text-align: right; font-size: 0.75rem; color:  #000000;">' + escapeHtml(item.last_clicked_formatted) + '</td>' +
                             '</tr>';
                         }).join('');
                     }

@@ -26,6 +26,7 @@ class SocialLinkController extends Controller
     {
         /** @var ShopifyStore $store */
         $store = $this->resolveStore($request);
+        $settings = $store->getStorefrontSettings();
 
         $links = $store->socialLinks()->orderBy('sort_order', 'asc')->get();
         $configuredBuiltInPlatforms = $links->where('platform', '!=', 'other')->pluck('platform')->toArray();
@@ -42,6 +43,8 @@ class SocialLinkController extends Controller
 
         return view('shopify.social-links.index', [
             'store' => $store,
+            'settings' => $settings,
+            'activeLinks' => $links->where('is_active', true)->values(),
             'shop' => $store->shop,
             'host' => session('shopify_host') ?? $request->query('host'),
             'links' => $links,
@@ -396,7 +399,7 @@ class SocialLinkController extends Controller
             'url' => $urlValidation['normalized_url'],
             'label' => ! empty($validated['label']) ? $validated['label'] : ($link->label ?: $validated['custom_platform_name']),
             'alt_text' => ! empty($validated['alt_text']) ? $validated['alt_text'] : ($link->alt_text ?: $validated['custom_platform_name']),
-            'is_active' => $request->has('is_active') ? $request->boolean('is_active') : $link->is_active,
+            'is_active' => $request->boolean('is_active'),
             'sort_order' => $sortOrder,
         ], $logoUpdates));
 
@@ -484,5 +487,37 @@ class SocialLinkController extends Controller
             }
         }
         return $store;
+    }
+
+    public function activateStorefrontEmbed(Request $request): JsonResponse
+    {
+        $store = $this->resolveStore($request);
+
+        try {
+            $shopifyService = app(\App\Services\ShopifyService::class);
+
+            $activationUrl = $shopifyService->getSocialNestEmbedActivationUrl(
+                $store->shop
+            );
+
+            $store->getStorefrontSettings()->update([
+                'is_enabled' => true,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'redirect_url' => $activationUrl,
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('SocialNest embed activation failed', [
+                'shop' => $store->shop,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to open Shopify Theme Editor.',
+            ], 500);
+        }
     }
 }

@@ -26,6 +26,12 @@ Route::get('/', [ShopifyAuthController::class, 'appEntry'])
     ->middleware('shopify.csp')
     ->name('home');
 
+Route::view('/terms-and-conditions', 'legal.terms-and-conditions')
+    ->name('terms.conditions');
+
+Route::view('/privacy-policy', 'legal.privacy-policy')
+    ->name('privacy.policy');
+
 // Shopify Installation & OAuth Flow
 Route::match(['get', 'post'], '/shopify/install', [ShopifyAuthController::class, 'install'])
     ->middleware('shopify.csp')
@@ -40,8 +46,8 @@ Route::get('/callback', [ShopifyAuthController::class, 'callback'])
     ->middleware('shopify.csp')
     ->name('shopify.callback.alias');
 
-Route::post('/shopify/logout', [ShopifyAuthController::class, 'logout'])
-    ->name('shopify.logout');
+// Route::post('/shopify/logout', [ShopifyAuthController::class, 'logout'])
+//     ->name('shopify.logout');
 
 // Authenticated Embedded Dashboard & Merchant Management
 Route::middleware(['shopify.csp', 'shopify.auth', 'shopify.subscription'])->group(function (): void {
@@ -55,6 +61,12 @@ Route::middleware(['shopify.csp', 'shopify.auth', 'shopify.subscription'])->grou
     // Social Links Management CRUD
     Route::get('/shopify/social-links', [SocialLinkController::class, 'index'])
         ->name('shopify.social-links.index');
+
+    // Activate Storefront Theme App Embed
+    Route::get('/shopify/social-links/activate-embed', [
+        SocialLinkController::class,
+        'activateStorefrontEmbed',
+    ])->name('shopify.social-links.activate-embed');
 
     Route::get('/shopify/social-links/create', [SocialLinkController::class, 'create'])
         ->name('shopify.social-links.create');

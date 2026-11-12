@@ -1,16 +1,10 @@
-<!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="scroll-smooth">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="SocialNest helps your Shopify store connect products with the social platforms your customers already use. Add customizable floating social icons and convenient product-sharing options.">
-    <title>SocialNest - Social Sharing & Floating Media Icons for Shopify</title>
+@extends('layouts.public')
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+@section('title', 'Socialvire - Social Sharing & Floating Media Icons for Shopify')
 
-    <style>
+@push('styles')
+<style>
+
         :root {
             --primary: #4f46e5;
             --primary-hover: #4338ca;
@@ -246,7 +240,7 @@
             align-items: center;
             gap: 0.6rem;
             font-size: 0.875rem;
-            color: var(--text-subtle);
+             
         }
 
         .hero-note svg {
@@ -287,7 +281,7 @@
 
         .mockup-url {
             font-size: 0.75rem;
-            color: var(--text-subtle);
+             
             background: #ffffff;
             border: 1px solid var(--border-subtle);
             padding: 0.2rem 0.75rem;
@@ -441,7 +435,7 @@
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.08em;
-            color: var(--text-subtle);
+             
             margin-bottom: 1.5rem;
         }
 
@@ -589,7 +583,7 @@
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            color: var(--text-subtle);
+             
             margin-bottom: 0.75rem;
         }
 
@@ -641,7 +635,7 @@
 
         .preview-note {
             font-size: 0.75rem;
-            color: var(--text-subtle);
+             
             background: #ffffff;
             padding: 0.75rem 1rem;
             border-radius: 8px;
@@ -905,7 +899,7 @@
 
         .faq-trigger svg {
             transition: transform 0.2s ease;
-            color: var(--text-subtle);
+             
             flex-shrink: 0;
         }
 
@@ -967,7 +961,7 @@
         .footer-brand-desc {
             margin-top: 0.75rem;
             max-width: 340px;
-            color: var(--text-subtle);
+             
             line-height: 1.5;
         }
 
@@ -1006,7 +1000,7 @@
             flex-wrap: wrap;
             gap: 1rem;
             font-size: 0.8125rem;
-            color: var(--text-subtle);
+             
         }
 
         /* Responsive */
@@ -1043,52 +1037,12 @@
                 gap: 2rem;
             }
         }
-    </style>
-</head>
-<body>
 
-    <!-- Navbar -->
-    <header class="navbar">
-        <div class="container nav-content">
-            <a href="{{ route('home') }}" class="brand-logo" aria-label="SocialNest Home">
-                <div class="brand-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-                </div>
-                <span>SocialNest</span>
-            </a>
+</style>
+@endpush
 
-            <nav>
-                <ul class="nav-links">
-                    <li><a href="#features" class="nav-link">Features</a></li>
-                    <li><a href="#how-it-works" class="nav-link">How It Works</a></li>
-                    <li><a href="#preview" class="nav-link">Preview</a></li>
-                    <li><a href="#pricing" class="nav-link">Pricing</a></li>
-                    <li><a href="#faq" class="nav-link">FAQ</a></li>
-                </ul>
-            </nav>
+@section('content')
 
-            <div class="nav-actions">
-                <a href="#how-it-works" class="btn btn-primary">
-                    <span>Get Started</span>
-                </a>
-
-                <button class="mobile-menu-btn" id="mobileMenuToggle" aria-label="Open navigation menu">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-                </button>
-            </div>
-        </div>
-
-        <div class="mobile-menu" id="mobileMenuDrawer">
-            <a href="#features" class="nav-link" onclick="hideMobileDrawer()">Features</a>
-            <a href="#how-it-works" class="nav-link" onclick="hideMobileDrawer()">How It Works</a>
-            <a href="#preview" class="nav-link" onclick="hideMobileDrawer()">Preview</a>
-            <a href="#pricing" class="nav-link" onclick="hideMobileDrawer()">Pricing</a>
-            <a href="#faq" class="nav-link" onclick="hideMobileDrawer()">FAQ</a>
-            <a href="#how-it-works" class="btn btn-primary" style="margin-top: 0.5rem;" onclick="hideMobileDrawer()">Get Started</a>
-        </div>
-    </header>
-
-    <main>
         <!-- Hero Section -->
         <section class="hero-section">
             <div class="container hero-grid">
@@ -1103,7 +1057,7 @@
                     </h1>
 
                     <p class="hero-description">
-                        SocialNest helps your Shopify store connect products with the social platforms your customers already use. Add customizable floating social icons and convenient product-sharing options.
+                        Socialvire helps your Shopify store connect products with the social platforms your customers already use. Add customizable floating social icons and convenient product-sharing options.
                     </p>
 
                     <div class="hero-actions">
@@ -1395,8 +1349,8 @@
                 <div class="steps-grid">
                     <div class="step-card">
                         <div class="step-badge">1</div>
-                        <h3>1. Install SocialNest on Shopify</h3>
-                        <p>Connect SocialNest directly to your Shopify store with secure, official OAuth. No developer assistance required.</p>
+                        <h3>1. Install Socialvire on Shopify</h3>
+                        <p>Connect Socialvire directly to your Shopify store with secure, official OAuth. No developer assistance required.</p>
                     </div>
 
                     <div class="step-card">
@@ -1408,7 +1362,7 @@
                     <div class="step-card">
                         <div class="step-badge">3</div>
                         <h3>3. Enable Theme Extension</h3>
-                        <p>Turn on the SocialNest App Embed extension in your Shopify theme editor and save. Your icons appear immediately.</p>
+                        <p>Turn on the Socialvire App Embed extension in your Shopify theme editor and save. Your icons appear immediately.</p>
                     </div>
                 </div>
             </div>
@@ -1506,17 +1460,17 @@
                 <div class="section-header">
                     <p class="section-pill">Questions & Answers</p>
                     <h2 class="section-title">Frequently Asked Questions</h2>
-                    <p class="section-desc">Answers to common questions about SocialNest setup and functionality.</p>
+                    <p class="section-desc">Answers to common questions about Socialvire setup and functionality.</p>
                 </div>
 
                 <div class="faq-stack">
                     <div class="faq-box active">
                         <button class="faq-trigger" type="button" aria-expanded="true">
-                            <span>What is SocialNest?</span>
+                            <span>What is Socialvire?</span>
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                         </button>
                         <div class="faq-content">
-                            SocialNest is a Shopify app that allows merchants to display customizable floating social media icons on their storefront and lets shoppers easily share product links and details with their friends and followers.
+                            Socialvire is a Shopify app that allows merchants to display customizable floating social media icons on their storefront and lets shoppers easily share product links and details with their friends and followers.
                         </div>
                     </div>
 
@@ -1526,7 +1480,7 @@
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                         </button>
                         <div class="faq-content">
-                            SocialNest supports Instagram, Facebook, YouTube, Pinterest, TikTok, X (formerly Twitter), and WhatsApp. You can choose which platforms to show or hide in your settings.
+                            Socialvire supports Instagram, Facebook, YouTube, Pinterest, TikTok, X (formerly Twitter), and WhatsApp. You can choose which platforms to show or hide in your settings.
                         </div>
                     </div>
 
@@ -1546,7 +1500,7 @@
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                         </button>
                         <div class="faq-content">
-                            No manual code editing is required. SocialNest uses Shopify's Online Store 2.0 Theme App Extensions, so you simply activate the App Embed in your theme editor.
+                            No manual code editing is required. Socialvire uses Shopify's Online Store 2.0 Theme App Extensions, so you simply activate the App Embed in your theme editor.
                         </div>
                     </div>
 
@@ -1556,7 +1510,7 @@
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                         </button>
                         <div class="faq-content">
-                            After installation, navigate to your Shopify Admin &rarr; Online Store &rarr; Themes &rarr; Customize. In the left panel, click the App Embeds tab, enable SocialNest, and click Save.
+                            After installation, navigate to your Shopify Admin &rarr; Online Store &rarr; Themes &rarr; Customize. In the left panel, click the App Embeds tab, enable Socialvire, and click Save.
                         </div>
                     </div>
 
@@ -1566,7 +1520,7 @@
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                         </button>
                         <div class="faq-content">
-                            Yes. SocialNest offers a Free plan with core social sharing features, WhatsApp product sharing, and standard placement. A Pro plan is available for enhanced customization.
+                            Yes. Socialvire offers a Free plan with core social sharing features, WhatsApp product sharing, and standard placement. A Pro plan is available for enhanced customization.
                         </div>
                     </div>
                 </div>
@@ -1579,54 +1533,17 @@
                 <h2 class="cta-title">Make Your Shopify Products Easier to Share.</h2>
                 <p class="cta-description">Give your customers a simple way to share the products they love.</p>
                 <a href="#how-it-works" class="btn btn-primary" style="padding: 0.875rem 2rem; font-size: 1rem;">
-                    <span>Get Started with SocialNest</span>
+                    <span>Get Started with Socialvire</span>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
                 </a>
             </div>
         </section>
-    </main>
 
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="container">
-            <div class="footer-grid">
-                <div>
-                    <a href="{{ route('home') }}" class="brand-logo" aria-label="SocialNest Home">
-                        <div class="brand-icon">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-                        </div>
-                        <span>SocialNest</span>
-                    </a>
-                    <p class="footer-brand-desc">Customizable floating social media icons and convenient product-sharing options built for Shopify stores.</p>
-                </div>
+@endsection
 
-                <div>
-                    <h4 class="footer-title">Navigation</h4>
-                    <ul class="footer-links-list">
-                        <li><a href="#features">Features</a></li>
-                        <li><a href="#how-it-works">How It Works</a></li>
-                        <li><a href="#preview">Preview</a></li>
-                        <li><a href="#pricing">Pricing</a></li>
-                        <li><a href="#faq">FAQ</a></li>
-                    </ul>
-                </div>
+@push('scripts')
+<script>
 
-                <div>
-                    <h4 class="footer-title">Get Started</h4>
-                    <ul class="footer-links-list">
-                        <li><a href="#how-it-works">How It Works</a></li>
-                    </ul>
-                </div>
-            </div>
-
-            <div class="footer-legal-bar">
-                <p>&copy; {{ date('Y') }} SocialNest. All rights reserved.</p>
-                <p>SocialNest is an independent application for Shopify stores and is not affiliated with Shopify Inc.</p>
-            </div>
-        </div>
-    </footer>
-
-    <script>
         // Mobile Navigation Drawer Toggle
         const mobileToggleBtn = document.getElementById('mobileMenuToggle');
         const mobileDrawer = document.getElementById('mobileMenuDrawer');
@@ -1712,6 +1629,6 @@
                 });
             }
         });
-    </script>
-</body>
-</html>
+
+</script>
+@endpush

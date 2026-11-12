@@ -1,6 +1,6 @@
-client_id = "497103da7be619c3db8c674b5ae04fb6"
+client_id = "752cf8b0c2bfaf76e31eab78d35362c8"
 name = "Socialvire"
-handle = "socialvirewebvire"
+handle = "socialvire-webvire"
 application_url = "https://socialvire.webvire.com"
 embedded = true
  
@@ -16,7 +16,7 @@ redirect_urls = [
 ]
  
 [webhooks]
-api_version = "2026-10"
+api_version = "2025-10"
  
 [app_proxy]
 url = "https://socialvire.webvire.com/shopify/proxy"
