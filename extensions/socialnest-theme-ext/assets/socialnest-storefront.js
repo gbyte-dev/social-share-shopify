@@ -1,3 +1,4 @@
+
 "use strict";
 !(function () {
   let t = document,
@@ -9,10 +10,6 @@
     n = location,
     r = (t) => !(!e.Shopify?.designMode && "true" !== t?.dataset.designMode),
     i = (e, a = t) => a?.querySelector(e),
-    l = (e, a, s = t) => {
-      let o = i(e, s);
-      return (o && (a ? o.getAttribute(a) : o.textContent)) || "";
-    },
     c = (e = "div") => t.createElement(e),
     p = (t, e, s = e?.textContent || "Copy") => (
       a.clipboard?.writeText(t),
@@ -35,108 +32,15 @@
           }).catch(() => {});
       } catch {}
     },
-    u = (t, e, a = b) =>
+    u = (t, e, a = "product_share") =>
       h({
         platform: t,
         link_type: a,
         product_id: e?.id,
         product_title: e?.title,
       }),
-    m = (t) => "Check out " + t.title + (t.price ? " (" + t.price + ")" : ""),
-    _ = ".shopify-payment-button,[data-shopify=payment-button]",
-    f = ".sn-product-row-2",
-    $ = ".sn-product-share-btn",
-    b = "product_share",
     g = "addEventListener",
     y = () => 768 >= e.innerWidth || /Mobi|Android/i.test(a.userAgent),
-    k = () =>
-      "product" ==
-        (e.__sn_page_type ||
-          A.rootEl?.dataset.pageType ||
-          o?.meta?.page?.pageType) || /\/products\//.test(n.pathname),
-    v = () => {
-      let t = o?.meta?.product || {},
-        e = (t) => l(`meta[property*=${t}]`, "content"),
-        a = e("title") || l(".product__title,h1") || t.title || "",
-        s = e("image") || l(".product__media img", "src"),
-        r = e("price"),
-        i = r ? "$" + r : l(".price-item--regular,.product__price"),
-        c = l("form [name=id]", "value") || t.variants?.[0]?.id || "",
-        p =
-          n.href +
-          (c && !n.search.includes("variant=")
-            ? (n.search ? "&" : "?") + "variant=" + c
-            : "");
-      return {
-        id: (t.id || "") + "",
-        title: a.trim(),
-        url: p,
-        img: s,
-        price: i?.trim() || "",
-      };
-    },
-    x = (e) => {
-      let o = i(".sn-share-modal");
-      o ||
-        ((o = c()),
-        (o.className = "sn-share-modal"),
-        o.setAttribute("role", "dialog"),
-        t.body.append(o));
-      let n = m(e),
-        r = s(e.url),
-        l = s(n),
-        d = s(e.img),
-        h = r + "&text=" + l,
-        _ = "sn-modal-",
-        f = "." + _,
-        $ = (
-          "whatsapp,facebook,pinterest,telegram,x,instagram" +
-          (a.share ? ",native" : "")
-        )
-          .split(",")
-          .map(
-            (t) =>
-              `<button class="${_}option" data-k=${t}><i class="${_}icon sn-ico-${t}"></i><span>${"native" == t ? "More" : t}</span></button>`,
-          )
-          .join(""),
-        b = '<div class="' + _;
-      ((o.innerHTML = `${b}backdrop"></div>${b}card">${b}header"><b>Share</b><button class="${_}close">×</button></div>${e.img ? `${b}product"><img src="${e.img}"><div><b>${e.title}</b><small>${e.price}</small></div></div>` : ""}${b}grid">${$}</div>${b}copy-box"><input value="${e.url}" readonly><button>Copy</button></div>${b}feedback"></div></div>`),
-        (o.style.display = "flex"));
-      let y,
-        k = () => (
-          (o.style.display = "none"),
-          t.removeEventListener("keydown", y)
-        );
-      t[g]("keydown", (y = (t) => "Escape" == t.key && k()));
-      let v = i(f + "feedback", o);
-      o.onclick = (t) => {
-        if (t.target.matches(f + "backdrop," + f + "close")) return k();
-        let s = t.target.closest("[data-k]");
-        if (s) {
-          let t = s.dataset.k;
-          if ((u(t, e), /instagram|native/.test(t) && a.share))
-            return a
-              .share({ title: e.title, text: n, url: e.url })
-              .catch(() => {});
-          if ("instagram" == t) return p(e.url, v, "Copied!");
-          let o =
-            "whatsapp" == t
-              ? `wa.me/?text=${l} ${r}`
-              : "facebook" == t
-                ? "facebook.com/sharer.php?u=" + r
-                : "x" == t
-                  ? "x.com/intent/tweet?url=" + h
-                  : "telegram" == t
-                    ? "t.me/share/url?url=" + h
-                    : "pinterest" == t
-                      ? `pinterest.com/pin/create/button/?url=${r}${d ? "&media=" + d : ""}&description=${l}`
-                      : "";
-          o && open("https://" + o, "_blank", "noopener");
-        }
-        let c = t.target.closest(f + "copy-box button");
-        c && (i("input", o)?.select(), u("copy_link", e), p(e.url, c));
-      };
-    },
     S = (e) => {
       let a = "socialnest-floating-cta";
       if (
@@ -240,100 +144,16 @@
         })
         .join("");
     },
-    T = (s) => {
-      let o,
-        n = () => {
-          let t = i(f),
-            e = i(_, t);
-          (e && t.before(e), t?.remove(), i($)?.remove());
-        },
-        {
-          product_share_button_text: r = "Share Product",
-          product_share_button_style: l = "outline",
-          product_share_button_background_color: p = "rgba(17, 24, 39, 1)",
-          product_share_enabled: d,
-        } = s || {},
-        h = () => (
-          clearTimeout(o),
-          e._snShareObs && (e._snShareObs.disconnect(), (e._snShareObs = 0))
-        );
-      if (!k() || !d) return (h(), n());
-      function b() {
-        if (!A.settings?.product_share_enabled || !k()) return (h(), n());
-        let t = i("[name=add],.product-form__submit"),
-          e =
-            t?.closest("form") ||
-            i("product-info form,form[action*='/cart/add']");
-        if (!e || e.closest(".card,.card-wrapper")) return;
-        let s = i(f),
-          o = i($),
-          d = i(_, e) || i(_),
-          b = "sn-share-text-";
-        if (o) {
-          let t = i("." + b + "full", o);
-          t && (t.textContent = r);
-        } else {
-          ((o = c("button")),
-            (o.type = "button"),
-            (o.innerHTML = `<i class="sn-product-share-icon"></i><span class="${b}full">${r}</span><span class="${b}short">Share</span>`),
-            (o.onclick = (t) => {
-              (t.preventDefault(), t.stopPropagation());
-              let e = v();
-              y() && a.share
-                ? a
-                    .share({ title: e.title, text: m(e), url: e.url })
-                    .then(() => u("native", e))
-                    .catch((t) => "AbortError" !== t?.name && x(e))
-                : x(e);
-            }),
-            (o.className = `${$.slice(1)} sn-btn-${l}`));
-          let n,
-            h = 17,
-            _ = 24,
-            g = 39,
-            k = 1,
-            S = "--sn-share-";
-          if (
-            ("#" == p[0]
-              ? ((h = ((n = parseInt(p.slice(1), 16)) >> 16) & 255),
-                (_ = (n >> 8) & 255),
-                (g = 255 & n))
-              : (n = p.match(/[\d.]+/g)) &&
-                ((h = +n[0]), (_ = +n[1]), (g = +n[2]), (k = +n[3] || 1)),
-            (o.style.cssText = `${S}bg:${p};${S}border:${p};${S}color:${p};${S}text:${140 > k * (0.299 * h + 0.587 * _ + 0.114 * g) + 255 * (1 - k) ? "#fff" : "#111"};${S}hover-bg:${"solid" === l ? "transparent" : `rgba(${h},${_},${g},.08)`}`),
-            d || t)
-          ) {
-            (s ||
-              (((s = c()).className = f.slice(1)),
-              d ? d.before(s) : t.after(s)),
-              d && !s.contains(d) && s.prepend(d),
-              s.contains(o) || s.append(o));
-            let e = d && i(".shopify-payment-terms", d);
-            e && s.after(e);
-          } else e && (e.contains(o) || e.append(o));
-        }
-      }
-      (b(),
-        e._snShareObs ||
-          ((e._snShareObs = new MutationObserver(() => {
-            (clearTimeout(o),
-              (o = setTimeout(() => {
-                b();
-                e.SocialNestWishlist?.init();
-              }, 60)));
-          })),
-          e._snShareObs.observe(t.body, { childList: 1, subtree: 1 })));
-    },
-    M = (t) => (T(t), S(t)),
+    M = (t) => (productFeatures?.initProductShare(t), S(t)),
     A = (e.SocialNestStorefront = {
       rootEl: null,
       _reqId: 0,
-      isProductPage: k,
-      getProductInfo: v,
-      openShareModal: x,
+      isProductPage: () => productFeatures?.isProductPage() || false,
+      getProductInfo: () => productFeatures?.getProductInfo() || null,
+      openShareModal: (...args) => productFeatures?.openShareModal(...args),
       initFloatingCta: S,
       renderDock: w,
-      initProductShare: T,
+      initProductShare: (...args) => productFeatures?.initProductShare(...args),
       renderExt: M,
       init() {
         let t = i("#socialnest-floating-dock-root"),
@@ -392,21 +212,19 @@
         p(n.href, i("span", t));
       },
     });
-  (t[g](
-    "click",
-    (t) => {
-      let e = t.target.closest(".socialnest-inline-share .sn-share-btn");
-      if (e) {
-        r() && !e.matches(".sn-share-copy") && t.preventDefault();
-        let a = (e.className.match(/sn-share-([\w-]+)/)?.[1] || "").replace(
-          "copy",
-          "copy_link",
-        );
-        a && u(a, k() ? v() : null, "inline_share");
-      }
-    },
-    1,
-  ),
+  let productFeatures = null;
+  import(new URL("socialnest-storefront-product.js", document.currentScript?.src || location.href).href)
+    .then(({ createProductFeatures }) => {
+      productFeatures = createProductFeatures({
+        rootEl: () => A.rootEl,
+        settings: () => A.settings,
+        track: h,
+        isDesignMode: () => r(A.rootEl),
+      });
+      if (A.settings) productFeatures.initProductShare(A.settings);
+    })
+    .catch((error) => console.error("[SocialNest] Product share module failed to load:", error));
+  (
     "loading" == t.readyState
       ? t[g]("DOMContentLoaded", () => A.init())
       : A.init(),
