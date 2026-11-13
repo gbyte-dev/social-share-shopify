@@ -15,8 +15,6 @@
                 <h4 class="footer-title">Navigation</h4>
                 <ul class="footer-links-list">
                     <li><a href="{{ route('home') }}#features">Features</a></li>
-                    <li><a href="{{ route('home') }}#how-it-works">How It Works</a></li>
-                    <li><a href="{{ route('home') }}#preview">Preview</a></li>
                     <li><a href="{{ route('home') }}#pricing">Pricing</a></li>
                     <li><a href="{{ route('home') }}#faq">FAQ</a></li>
                 </ul>
@@ -34,7 +32,6 @@
 
         <div class="footer-legal-bar">
             <p>&copy; {{ date('Y') }} Socialvire. All rights reserved.</p>
-            <p>Socialvire is an independent application for Shopify stores and is not affiliated with Shopify Inc.</p>
         </div>
     </div>
 </footer>

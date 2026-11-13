@@ -7,6 +7,25 @@
 @section('header_actions')
     <div class="sn-dashboard-header-actions">
         <div class="sn-dashboard-header-row">
+            
+            <button
+                type="button"
+                id="wishlist-setup-btn"
+                data-url="{{ route('shopify.wishlist.setup') }}"
+                class="btn btn-secondary btn-sm sn-wishlist-setup-btn">
+                <span>Click to  Setup Wishlist</span>
+            </button>
+
+            <a href="{{ route('shopify.social-links.create') }}" class="btn btn-primary btn-sm">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                <span>Add Social Link</span>
+            </a>
+        </div>
+
+        <div class="sn-dashboard-header-row sn-dashboard-header-row-secondary">
             <button
                 type="button"
                 class="btn btn-secondary btn-sm"
@@ -22,22 +41,6 @@
             <span data-embed-status-badge class="sn-embed-status" aria-live="polite">
                 Checking storefront status...
             </span>
-
-            <button
-                type="button"
-                id="wishlist-setup-btn"
-                data-url="{{ route('shopify.wishlist.setup') }}"
-                class="btn btn-secondary btn-sm"
-                style="padding: 0.4rem 0.75rem; font-size: 0.8125rem; color: #e11d48; border-color: #fecdd3; background: #fff1f2;">
-                <span>1-Click Wishlist Setup</span>
-            </button>
-        </div>
-
-        <div class="sn-dashboard-header-row sn-dashboard-header-row-secondary">
-            <a href="{{ route('shopify.social-links.create') }}" class="btn btn-primary btn-sm" style="padding: 0.4rem 0.75rem; font-size: 0.8125rem;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                <span>Add Social Link</span>
-            </a>
         </div>
     </div>
 @endsection
@@ -56,8 +59,74 @@
             gap: 1rem;
         }
 
-        /* Dashboard header actions: explicit rows keep both rows on the same left edge. */
         .sn-dashboard-header-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    width: 100%;
+    max-width: 100%;
+    margin-left: auto;
+}
+
+.sn-dashboard-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+    min-height: 32px;
+}
+
+.sn-dashboard-header-row .btn,
+.sn-dashboard-header-row .sn-embed-status {
+    flex: 0 0 auto;
+}
+
+.sn-dashboard-header-row-secondary .btn {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8125rem;
+}
+
+.sn-wishlist-setup-btn {
+    color: #ffffff !important;
+    background: #168A32 !important;
+    border: 1px solid #168A32 !important;
+}
+
+.sn-wishlist-setup-btn:hover {
+    background: #117027 !important;
+    border-color: #117027 !important;
+}
+
+.sn-wishlist-setup-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+    .sn-dashboard-header-actions {
+        align-items: flex-start;
+    }
+
+    .sn-dashboard-header-row {
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 640px) {
+    .sn-dashboard-header-row {
+        gap: 6px;
+    }
+
+    .sn-dashboard-header-row .btn {
+        white-space: normal;
+    }
+}
+
+        /* Dashboard header actions: explicit rows keep both rows on the same left edge. */
+        /* .sn-dashboard-header-actions {
             display: flex;
             flex-direction: column;
             align-items: flex-start;
@@ -65,28 +134,23 @@
             width: max-content;
             max-width: 100%;
             margin-left: auto;
-        }
+        } */
 
-        .sn-dashboard-header-row {
+        /* .sn-dashboard-header-row {
             display: flex;
             align-items: center;
             justify-content: flex-start;
             flex-wrap: nowrap;
             gap: 8px;
             min-height: 32px;
-        }
+        } */
 
-        .sn-dashboard-header-row .btn,
+        /* .sn-dashboard-header-row .btn,
         .sn-dashboard-header-row .sn-embed-status {
             flex: 0 0 auto;
         }
 
         @media (max-width: 900px) {
-            .sn-dashboard-header-actions {
-                width: 100%;
-                margin-left: 0;
-            }
-
             .sn-dashboard-header-row {
                 flex-wrap: wrap;
             }
@@ -96,7 +160,7 @@
             .sn-dashboard-header-row {
                 width: 100%;
             }
-        }
+        } */
 
         [hidden] {
             display: none !important;
@@ -547,7 +611,7 @@
                 <div>
                     <div class="sn-feature-head">
                         <h3 class="sn-feature-title">Connected Platforms</h3>
-                        <span class="sn-badge-on">{{ $totalPlatforms }} Supported</span>
+                        <span class="sn-badge-on">{{ $totalLinks }} Connected</span>
                     </div>
                     <p class="sn-feature-desc">
                         Connect Instagram, WhatsApp, Facebook, TikTok, YouTube, X, Pinterest, LinkedIn, Threads, and more.

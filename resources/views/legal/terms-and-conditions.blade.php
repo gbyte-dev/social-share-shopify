@@ -3,12 +3,12 @@
 @section('title', 'Terms & Conditions | Socialvire')
 @push('styles')
 <style>
-.sn-legal-page{max-width:1180px;margin:34px auto 56px;color:#172033}
-.sn-legal-hero{position:relative;overflow:hidden;border-radius:24px;padding:42px 46px;margin-bottom:28px;background:radial-gradient(circle at 85% 15%,rgba(129,140,248,.38),transparent 28%),linear-gradient(125deg,#111827 0%,#25245b 58%,#4338ca 100%);color:#fff;box-shadow:0 18px 45px rgba(31,41,90,.18)}
+.sn-legal-page{max-width:1180px;margin:0 auto;color:#172033}
+/* .sn-legal-hero{position:relative;overflow:hidden;border-radius:24px;padding:42px 46px;margin-bottom:28px;background:radial-gradient(circle at 85% 15%,rgba(129,140,248,.38),transparent 28%),linear-gradient(125deg,#111827 0%,#25245b 58%,#4338ca 100%);color:#fff;box-shadow:0 18px 45px rgba(31,41,90,.18)}
 .sn-legal-hero:after{content:"";position:absolute;width:260px;height:260px;border:1px solid rgba(255,255,255,.13);border-radius:50%;right:-70px;bottom:-160px;box-shadow:0 0 0 28px rgba(255,255,255,.035),0 0 0 58px rgba(255,255,255,.025)}
 .sn-legal-eyebrow{display:inline-flex;padding:7px 12px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.09);border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.13em;color:#e0e7ff}
 .sn-legal-hero h1{font-size:clamp(30px,4vw,44px);line-height:1.12;letter-spacing:-.045em;font-weight:800;color:#fff;margin:20px 0 12px}
-.sn-legal-hero p{max-width:760px;color:#dbe3ff;font-size:14px;line-height:1.8;margin:0}
+.sn-legal-hero p{max-width:760px;color:#dbe3ff;font-size:14px;line-height:1.8;margin:0} */
 .sn-legal-meta{display:inline-flex;margin-top:22px;padding:9px 13px;border-radius:10px;background:rgba(255,255,255,.1);color:#fff;font-size:12px;font-weight:700}
 .sn-legal-layout{display:grid;grid-template-columns:255px minmax(0,1fr);gap:24px;align-items:start}
 .sn-legal-sidebar{position:sticky;top:92px;background:#fff;border:1px solid #e6eaf2;border-radius:18px;padding:18px;box-shadow:0 5px 20px rgba(15,23,42,.035)}
@@ -29,6 +29,76 @@
 .sn-legal-card li::marker{color:#818cf8}.sn-legal-card a{color:#4f46e5;font-weight:700;text-decoration:none}.sn-legal-card a:hover{text-decoration:underline}
 .sn-legal-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:18px 4px 4px;color:#000000;font-size:11px}
 .sn-legal-footer a{color:#4f46e5;text-decoration:none;font-weight:700}
+
+
+/* Simple Legal Page Header */
+.sn-legal-hero {
+    position: relative;
+    width: 100%;
+    padding: 8px 0 22px;
+    margin: 0 0 26px;
+    background: transparent;
+    color: #111827;
+    border: none;
+    border-bottom: 1px solid #e5e7eb;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: visible;
+}
+
+.sn-legal-hero::after {
+    display: none;
+    content: none;
+}
+
+.sn-legal-hero h1 {
+    margin: 0;
+    color: #111827;
+    font-size: clamp(25px, 3vw, 34px);
+    line-height: 1.25;
+    font-weight: 800;
+    letter-spacing: -0.8px;
+}
+
+.sn-legal-eyebrow {
+    display: none;
+}
+
+.sn-legal-hero p {
+    margin: 8px 0 0;
+    max-width: 760px;
+    color: #64748b;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.sn-legal-meta {
+    display: inline-flex;
+    margin-top: 12px;
+    padding: 0;
+    background: transparent;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .sn-legal-hero {
+        padding: 5px 0 17px;
+        margin-bottom: 20px;
+    }
+
+    .sn-legal-hero h1 {
+        font-size: 25px;
+        line-height: 1.3;
+    }
+
+    .sn-legal-hero p {
+        font-size: 13px;
+    }
+}
+
 @media(max-width:900px){.sn-legal-layout{grid-template-columns:1fr}.sn-legal-sidebar{position:static}.sn-legal-nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));max-height:220px}}
 @media(max-width:600px){.sn-legal-hero{padding:28px 23px;border-radius:18px}.sn-legal-card{grid-template-columns:34px minmax(0,1fr);gap:11px;padding:18px 15px}.sn-legal-card-index{width:32px;height:32px;border-radius:9px}.sn-legal-nav{grid-template-columns:1fr 1fr}.sn-legal-nav-link{font-size:10px}.sn-legal-footer{align-items:flex-start;flex-direction:column}}
 </style>
@@ -37,10 +107,7 @@
 @section('content')
 <div class="sn-legal-page">
     <header class="sn-legal-hero">
-        <span class="sn-legal-eyebrow">SOCIALVIRE / LEGAL CENTER</span>
         <h1>Terms & Conditions</h1>
-        <p><p> Welcome to Socialvire. These Terms & Conditions ("Terms") govern your access to and use of the Socialvire Shopify application. By installing or using Socialvire, you agree to these Terms. If you do not agree, please discontinue using the application. </p></p>
-        <div class="sn-legal-meta">Effective date &middot; {{ now()->format('F d, Y') }}</div>
     </header>
     <div class="sn-legal-layout">
         <aside class="sn-legal-sidebar">

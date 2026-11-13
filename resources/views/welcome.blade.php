@@ -922,7 +922,9 @@
 
         /* Final CTA Section */
         .cta-section {
-            padding: 6rem 0;
+            width: calc(100% + 48px);
+            margin-left: -24px;
+            padding: 6rem 24px;
             background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
             color: #ffffff;
             text-align: center;
@@ -1020,6 +1022,12 @@
         }
 
         @media (max-width: 768px) {
+            .cta-section {
+                width: calc(100% + 28px);
+                margin-left: -14px;
+                padding: 3.5rem 14px;
+            }
+
             .nav-links {
                 display: none;
             }
