@@ -10,6 +10,10 @@ use App\Http\Controllers\StorefrontSettingsController;
 use App\Http\Controllers\SupportController;
 use App\Http\Controllers\WishlistSetupController;
 use App\Http\Controllers\WishlistStorefrontController;
+use App\Http\Controllers\Admin\AdminController;
+use App\Http\Middleware\AuthenticateAdmin;
+use App\Http\Controllers\Admin\MerchantController;
+use App\Http\Controllers\Admin\SiteSettingController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -190,4 +194,47 @@ Route::middleware(['shopify.proxy', 'throttle:120,1'])->group(function (): void 
         Route::post('/merge', [WishlistStorefrontController::class, 'merge'])->name('merge');
         Route::post('/migrate-local', [WishlistStorefrontController::class, 'migrateLocal'])->name('migrate-local');
     });
+});
+
+
+// admin routes 
+
+/*
+|--------------------------------------------------------------------------
+| Admin Panel Routes
+|--------------------------------------------------------------------------
+*/
+
+Route::prefix('admin')->name('admin.')->group(function () {
+
+    // Guest Routes
+    Route::get('/login', [AdminController::class, 'showLogin'])
+        ->name('login');
+
+    Route::post('/login', [AdminController::class, 'login'])
+        ->middleware('throttle:5,1')
+        ->name('login.submit');
+
+    // Protected Admin Routes
+    Route::middleware(AuthenticateAdmin::class)->group(function () {
+
+        Route::get('/dashboard', [AdminController::class, 'dashboard'])
+            ->name('dashboard');
+
+        Route::post('/logout', [AdminController::class, 'logout'])
+            ->name('logout');
+    });
+
+    Route::get('/merchants', [MerchantController::class, 'index'])
+        ->name('merchants.index');
+
+    Route::get('/merchants/{merchant}', [MerchantController::class, 'show'])
+        ->name('merchants.show');
+
+    // Website Branding Settings
+    Route::get('/settings/branding', [SiteSettingController::class, 'index'])
+        ->name('settings.branding');
+
+    Route::put('/settings/branding', [SiteSettingController::class, 'updateBranding'])
+        ->name('settings.branding.update');
 });
