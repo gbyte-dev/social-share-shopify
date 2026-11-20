@@ -189,21 +189,21 @@ Route::post('/shopify/webhooks', [ShopifyWebhookController::class, 'handle'])
     ->name('shopify.webhooks');
 
 // Shopify App Proxy Preflight CORS OPTIONS
-Route::options('/shopify/proxy/{any?}', fn () => response('', 204, [
+Route::options('/shopify/proxy/{any?}', fn() => response('', 204, [
     'Access-Control-Allow-Origin' => '*',
     'Access-Control-Allow-Methods' => 'GET, POST, DELETE, OPTIONS',
     'Access-Control-Allow-Headers' => 'Content-Type, X-Guest-UUID, Authorization, Accept, X-Shopify-Shop-Domain',
     'Access-Control-Allow-Private-Network' => 'true',
 ]))->where('any', '.*');
 
-Route::options('/api/storefront/wishlist/{any?}', fn () => response('', 204, [
+Route::options('/api/storefront/wishlist/{any?}', fn() => response('', 204, [
     'Access-Control-Allow-Origin' => '*',
     'Access-Control-Allow-Methods' => 'GET, POST, DELETE, OPTIONS',
     'Access-Control-Allow-Headers' => 'Content-Type, X-Guest-UUID, Authorization, Accept, X-Shopify-Shop-Domain',
     'Access-Control-Allow-Private-Network' => 'true',
 ]))->where('any', '.*');
 
-Route::options('/apps/{subpath}/{any?}', fn () => response('', 204, [
+Route::options('/apps/{subpath}/{any?}', fn() => response('', 204, [
     'Access-Control-Allow-Origin' => '*',
     'Access-Control-Allow-Methods' => 'GET, POST, DELETE, OPTIONS',
     'Access-Control-Allow-Headers' => 'Content-Type, X-Guest-UUID, Authorization, Accept, X-Shopify-Shop-Domain',

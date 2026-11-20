@@ -42,11 +42,11 @@ class SiteSetting extends Model
 
         // Check if the file physically exists in public_path
         $fullPath = public_path($cleanPath);
-        if (! file_exists($fullPath) || ! is_file($fullPath)) {
+        if (!file_exists($fullPath) || !is_file($fullPath)) {
             // Also check storage/ symlink target if path starts with storage/
             if (str_starts_with($cleanPath, 'storage/')) {
                 $storageRelative = substr($cleanPath, 8);
-                $storageFull = storage_path('app/public/'.$storageRelative);
+                $storageFull = storage_path('app/public/' . $storageRelative);
                 if (file_exists($storageFull) && is_file($storageFull)) {
                     return asset($cleanPath);
                 }

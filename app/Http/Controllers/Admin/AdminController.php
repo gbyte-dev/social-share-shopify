@@ -27,7 +27,7 @@ class AdminController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        if (! Auth::guard('admin')->attempt(
+        if (!Auth::guard('admin')->attempt(
             $credentials,
             $request->boolean('remember')
         )) {

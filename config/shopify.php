@@ -23,7 +23,7 @@ return [
      * |
      */
     'app_url' => env('SHOPIFY_APP_URL', env('APP_URL', 'https://socialvire.webvire.com')),
-    'redirect_uri' => env('SHOPIFY_REDIRECT_URI', env('APP_URL') ? rtrim(env('APP_URL'), '/') . '/shopify/callback' : 'https://socialnest.developerbrijesh.in/shopify/callback'),
+    'redirect_uri' => env('SHOPIFY_REDIRECT_URI', env('APP_URL') ? rtrim(env('APP_URL'), '/') . '/shopify/callback' : 'https://socialvire.webvire.com/shopify/callback'),
 
     /*
      * |--------------------------------------------------------------------------

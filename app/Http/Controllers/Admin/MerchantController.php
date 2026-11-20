@@ -27,7 +27,8 @@ class MerchantController extends Controller
 
             if (filled($searchVal)) {
                 $query->where(function ($q) use ($searchVal) {
-                    $q->where('shop', 'like', "%{$searchVal}%")
+                    $q
+                        ->where('shop', 'like', "%{$searchVal}%")
                         ->orWhere('id', 'like', "%{$searchVal}%");
                 });
             }
@@ -35,7 +36,8 @@ class MerchantController extends Controller
             // Filter by installation status
             $status = $request->input('status');
             if ($status === 'active') {
-                $query->where('is_active', true)
+                $query
+                    ->where('is_active', true)
                     ->whereNull('uninstalled_at');
             } elseif ($status === 'uninstalled') {
                 $query->whereNotNull('uninstalled_at');
@@ -62,10 +64,10 @@ class MerchantController extends Controller
             $data = $merchants->map(function (ShopifyStore $merchant) {
                 $subscription = $merchant->activeSubscription;
                 $isUninstalled = $merchant->uninstalled_at !== null;
-                $isActive = $merchant->is_active && ! $isUninstalled;
+                $isActive = $merchant->is_active && !$isUninstalled;
 
-                $storeHtml = '<div class="store-name">'.e($merchant->shop).'</div>'
-                    .'<div class="store-domain">Merchant ID: #'.e($merchant->id).'</div>';
+                $storeHtml = '<div class="store-name">' . e($merchant->shop) . '</div>'
+                    . '<div class="store-domain">Merchant ID: #' . e($merchant->id) . '</div>';
 
                 $planHtml = e($subscription?->plan?->name ?? 'No active plan');
 
@@ -85,7 +87,7 @@ class MerchantController extends Controller
 
                 $installedOnHtml = e($merchant->installed_at?->format('d M Y') ?? 'N/A');
 
-                $actionHtml = '<a href="'.route('admin.merchants.show', $merchant).'" class="view-btn">View Details</a>';
+                $actionHtml = '<a href="' . route('admin.merchants.show', $merchant) . '" class="view-btn">View Details</a>';
 
                 return [
                     'store' => $storeHtml,

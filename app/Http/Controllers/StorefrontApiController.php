@@ -95,9 +95,9 @@ class StorefrontApiController extends Controller
     {
         $url = config('shopify.app_url') ?: config('app.url');
 
-        if (is_string($url) && ! empty($url)) {
+        if (is_string($url) && !empty($url)) {
             $host = parse_url($url, PHP_URL_HOST) ?? '';
-            if (! str_ends_with(strtolower($host), '.test') && ! str_contains(strtolower($host), 'localhost') && ! str_contains(strtolower($host), '127.0.0.1')) {
+            if (!str_ends_with(strtolower($host), '.test') && !str_contains(strtolower($host), 'localhost') && !str_contains(strtolower($host), '127.0.0.1')) {
                 return rtrim($url, '/');
             }
 
@@ -106,7 +106,7 @@ class StorefrontApiController extends Controller
             }
         }
 
-        return rtrim((string) (config('shopify.app_url') ?: config('app.url') ?: 'https://socialnest.developerbrijesh.in'), '/');
+        return rtrim((string) (config('shopify.app_url') ?: config('app.url') ?: 'https://socialvire.webvire.com'), '/');
     }
 
     /**
@@ -130,7 +130,7 @@ class StorefrontApiController extends Controller
 
         $canonicalShop = $this->shopifyService->normalizeShopDomain($rawShop);
 
-        if (! $canonicalShop) {
+        if (!$canonicalShop) {
             return response()->json([
                 'error' => 'Invalid shop domain format',
             ], 400, $this->corsHeaders());
@@ -145,14 +145,14 @@ class StorefrontApiController extends Controller
         $publicAppUrl = $this->resolvePublicAppUrl();
         $configuredSubpath = (string) config('shopify.app_proxy_subpath', 'socialvire');
         $configuredPrefix = (string) config('shopify.app_proxy_prefix', 'apps');
-        $defaultProxyPath = '/'.trim($configuredPrefix, '/').'/'.trim($configuredSubpath, '/');
+        $defaultProxyPath = '/' . trim($configuredPrefix, '/') . '/' . trim($configuredSubpath, '/');
 
         $proxyPath = (string) (
             $request->query('path_prefix')
                 ?: ($request->is('apps/socialvire*') ? '/apps/socialvire' : ($request->is('apps/socialnest*') ? '/apps/socialnest' : $defaultProxyPath))
         );
 
-        if (! $store || ! $store->isInstalled()) {
+        if (!$store || !$store->isInstalled()) {
             // If in preview mode (e.g. Shopify Theme Editor), return mock configuration
             if ($request->boolean('preview')) {
                 return response()->json([
@@ -182,7 +182,7 @@ class StorefrontApiController extends Controller
                         'floating_cta_enabled' => false,
                         'floating_cta_app_name' => 'SocialNest',
                         'floating_cta_button_text' => 'Get Started',
-                        'floating_cta_destination_url' => 'https://'.$canonicalShop,
+                        'floating_cta_destination_url' => 'https://' . $canonicalShop,
                         'floating_cta_icon_url' => null,
                         'floating_cta_show_icon' => true,
                         'floating_cta_background_color' => 'rgba(17, 24, 39, 1)',
@@ -245,7 +245,7 @@ class StorefrontApiController extends Controller
             ];
         }
 
-        if (! $isEnabled) {
+        if (!$isEnabled) {
             return response()->json([
                 'success' => true,
                 'shop' => $store->shop,
@@ -259,9 +259,10 @@ class StorefrontApiController extends Controller
             ]));
         }
 
-        $links = $this->entitlementService
+        $links = $this
+            ->entitlementService
             ->getStorefrontSocialLinks($store)
-            ->map(fn ($link) => [
+            ->map(fn($link) => [
                 'id' => $link->id,
                 'platform' => $link->platform,
                 'platform_type' => $link->platform_type ?? ($link->isCustom() ? 'custom' : 'builtin'),
@@ -307,7 +308,7 @@ class StorefrontApiController extends Controller
         $data = $request->all();
         if (empty($data['shop']) || empty($data['platform'])) {
             $raw = $request->getContent();
-            if (! empty($raw)) {
+            if (!empty($raw)) {
                 $decoded = json_decode($raw, true);
                 if (is_array($decoded)) {
                     $data = array_merge($decoded, $data);
@@ -327,7 +328,7 @@ class StorefrontApiController extends Controller
 
         $canonicalShop = $this->shopifyService->normalizeShopDomain($validated['shop']);
 
-        if (! $canonicalShop) {
+        if (!$canonicalShop) {
             return response()->json(['error' => 'Invalid shop'], 400, $this->corsHeaders());
         }
 
@@ -335,24 +336,24 @@ class StorefrontApiController extends Controller
             ->where('is_active', true)
             ->first();
 
-        if (! $store) {
+        if (!$store) {
             return response()->json(['error' => 'Store not found or inactive'], 404, $this->corsHeaders());
         }
 
-        if (! $this->subscriptionService->isActive($store)) {
+        if (!$this->subscriptionService->isActive($store)) {
             return response()->json(['error' => 'Active subscription required to track events'], 403, $this->corsHeaders());
         }
 
         $platform = strtolower(trim($validated['platform']));
-        $productId = ! empty($validated['product_id']) ? (string) $validated['product_id'] : null;
-        $productTitle = ! empty($validated['product_title']) ? (string) $validated['product_title'] : null;
+        $productId = !empty($validated['product_id']) ? (string) $validated['product_id'] : null;
+        $productTitle = !empty($validated['product_title']) ? (string) $validated['product_title'] : null;
 
         // Resolve link_type: use passed link_type, or infer from context
         $linkType = $validated['link_type'] ?? null;
         if ($linkType === 'floating_cta' || $linkType === 'cta' || $platform === 'floating_cta' || $platform === 'cta') {
             $linkType = SocialLinkClick::TYPE_FLOATING_CTA;
             $platform = 'floating_cta';
-        } elseif (! $linkType) {
+        } elseif (!$linkType) {
             if ($productId !== null || $productTitle !== null || in_array($platform, ['copy_link', 'native'])) {
                 $linkType = SocialLinkClick::TYPE_PRODUCT_SHARE;
             } else {
@@ -368,14 +369,14 @@ class StorefrontApiController extends Controller
         if ($isFloatingCta) {
             // Floating CTA click does not belong to an individual social link
             $link = null;
-        } elseif (! empty($validated['link_id'])) {
+        } elseif (!empty($validated['link_id'])) {
             $link = $store
                 ->socialLinks()
                 ->where('id', $validated['link_id'])
                 ->where('is_active', true)
                 ->first();
 
-            if (! $link) {
+            if (!$link) {
                 return response()->json(['error' => 'Social link not found for this store'], 404, $this->corsHeaders());
             }
 
@@ -403,8 +404,8 @@ class StorefrontApiController extends Controller
                 ->where('is_active', true)
                 ->first();
 
-            if (! $link && ! $isProductShare && ! $isFloatingCta) {
-                if (! SocialPlatformService::exists($platform) && ! SocialPlatformService::isCustom($platform)) {
+            if (!$link && !$isProductShare && !$isFloatingCta) {
+                if (!SocialPlatformService::exists($platform) && !SocialPlatformService::isCustom($platform)) {
                     return response()->json(['error' => 'Invalid platform'], 400, $this->corsHeaders());
                 }
 
@@ -431,8 +432,8 @@ class StorefrontApiController extends Controller
             ->where('platform', $platform)
             ->where('link_type', $linkType)
             ->where('ip_hash', $ipHash)
-            ->when($link, fn ($q) => $q->where('social_link_id', $link->id))
-            ->when($productId, fn ($q) => $q->where('product_id', $productId))
+            ->when($link, fn($q) => $q->where('social_link_id', $link->id))
+            ->when($productId, fn($q) => $q->where('product_id', $productId))
             ->where(function ($q) {
                 $q
                     ->where('clicked_at', '>=', now()->subSeconds(3))
@@ -442,7 +443,7 @@ class StorefrontApiController extends Controller
             })
             ->exists();
 
-        if (! $recentClick) {
+        if (!$recentClick) {
             $store->clicks()->create([
                 'social_link_id' => $link?->id,
                 'platform' => $platform,

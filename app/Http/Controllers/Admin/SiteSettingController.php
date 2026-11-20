@@ -24,14 +24,12 @@ class SiteSettingController extends Controller
     {
         $validated = $request->validate([
             'brand_name' => ['required', 'string', 'max:100'],
-
             'brand_logo' => [
                 'nullable',
                 'image',
                 'mimes:png,jpg,jpeg,webp',
                 'max:2048',
             ],
-
             'brand_favicon' => [
                 'nullable',
                 'file',
@@ -43,13 +41,13 @@ class SiteSettingController extends Controller
         try {
             $directory = public_path('uploads/branding');
 
-            if (! is_dir($directory)) {
-                if (! mkdir($directory, 0755, true) && ! is_dir($directory)) {
+            if (!is_dir($directory)) {
+                if (!mkdir($directory, 0755, true) && !is_dir($directory)) {
                     throw new \RuntimeException('Unable to create branding directory.');
                 }
             }
 
-            if (! is_writable($directory)) {
+            if (!is_writable($directory)) {
                 throw new \RuntimeException('Branding directory is not writable.');
             }
 
@@ -63,7 +61,7 @@ class SiteSettingController extends Controller
             if ($request->hasFile('brand_logo')) {
                 $file = $request->file('brand_logo');
 
-                $filename = uniqid('brand_', true).'.'.$file->extension();
+                $filename = uniqid('brand_', true) . '.' . $file->extension();
 
                 $file->move($directory, $filename);
 
@@ -71,7 +69,7 @@ class SiteSettingController extends Controller
 
                 SiteSetting::updateOrCreate(
                     ['key' => 'brand_logo'],
-                    ['value' => 'uploads/branding/'.$filename]
+                    ['value' => 'uploads/branding/' . $filename]
                 );
 
                 // Delete old logo after successful upload
@@ -88,7 +86,7 @@ class SiteSettingController extends Controller
             if ($request->hasFile('brand_favicon')) {
                 $file = $request->file('brand_favicon');
 
-                $filename = uniqid('favicon_', true).'.'.$file->extension();
+                $filename = uniqid('favicon_', true) . '.' . $file->extension();
 
                 $file->move($directory, $filename);
 
@@ -96,7 +94,7 @@ class SiteSettingController extends Controller
 
                 SiteSetting::updateOrCreate(
                     ['key' => 'brand_favicon'],
-                    ['value' => 'uploads/branding/'.$filename]
+                    ['value' => 'uploads/branding/' . $filename]
                 );
 
                 // Delete old favicon after successful upload
@@ -113,7 +111,6 @@ class SiteSettingController extends Controller
                 'success',
                 'Branding settings updated successfully.'
             );
-
         } catch (\Throwable $e) {
             Log::error('Admin branding update failed', [
                 'error' => $e->getMessage(),
