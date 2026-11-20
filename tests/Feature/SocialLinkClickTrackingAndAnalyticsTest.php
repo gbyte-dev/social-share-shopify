@@ -7,12 +7,18 @@ use App\Models\SocialLink;
 use App\Models\SocialLinkClick;
 use App\Services\AnalyticsService;
 use Carbon\Carbon;
+use Firebase\JWT\JWT;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
 use Tests\TestCase;
 
 class SocialLinkClickTrackingAndAnalyticsTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected string $testApiKey = 'test_shopify_api_key_123';
+
+    protected string $testApiSecret = 'test_shopify_api_secret_32bytes_minimum_length_key_abc123';
 
     protected ShopifyStore $storeA;
 
@@ -27,6 +33,9 @@ class SocialLinkClickTrackingAndAnalyticsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        Config::set('shopify.api_key', $this->testApiKey);
+        Config::set('shopify.api_secret', $this->testApiSecret);
 
         // Create Store A
         $this->storeA = ShopifyStore::create([
@@ -448,12 +457,33 @@ class SocialLinkClickTrackingAndAnalyticsTest extends TestCase
         $this->assertDatabaseCount('social_link_clicks', 1);
     }
 
+    protected function generateSessionToken(ShopifyStore $store): string
+    {
+        $payload = [
+            'iss' => "https://{$store->shop}/admin",
+            'dest' => "https://{$store->shop}",
+            'aud' => $this->testApiKey,
+            'sub' => '12345678',
+            'exp' => time() + 3600,
+            'nbf' => time() - 10,
+            'iat' => time() - 10,
+            'jti' => 'test-jwt-id-'.uniqid(),
+            'sid' => 'test-session-id-'.uniqid(),
+        ];
+
+        return JWT::encode($payload, $this->testApiSecret, 'HS256');
+    }
+
     /**
      * 11. Test authenticated dashboard JSON endpoint returns full payload.
      */
     public function test_authenticated_analytics_ajax_endpoint_returns_json(): void
     {
-        $response = $this->withSession([
+        $token = $this->generateSessionToken($this->storeA);
+
+        $response = $this->withHeaders([
+            'Authorization' => "Bearer {$token}",
+        ])->withSession([
             'shopify_shop' => $this->storeA->shop,
             'shopify_store_id' => $this->storeA->id,
         ])->getJson(route('shopify.analytics', ['date_range' => 'last_7_days']));
@@ -530,7 +560,11 @@ class SocialLinkClickTrackingAndAnalyticsTest extends TestCase
             'user_agent_hash' => hash('sha256', 'TestAgent'),
         ]);
 
-        $response = $this->withSession([
+        $token = $this->generateSessionToken($this->storeA);
+
+        $response = $this->withHeaders([
+            'Authorization' => "Bearer {$token}",
+        ])->withSession([
             'shopify_shop' => $this->storeA->shop,
             'shopify_store_id' => $this->storeA->id,
         ])->getJson(route('shopify.analytics', ['date_range' => 'today']));

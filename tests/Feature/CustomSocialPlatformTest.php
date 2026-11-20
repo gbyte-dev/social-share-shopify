@@ -6,6 +6,7 @@ use App\Models\ShopifyStore;
 use App\Models\SocialLink;
 use App\Services\LogoDiscoveryService;
 use App\Services\LogoProcessingService;
+use Firebase\JWT\JWT;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
@@ -20,11 +21,17 @@ class CustomSocialPlatformTest extends TestCase
 
     protected ShopifyStore $storeB;
 
+    protected string $testApiSecret = 'test_shopify_api_secret_456_minimum_32_bytes_length';
+
     protected function setUp(): void
     {
         parent::setUp();
 
         Storage::fake('public');
+        config([
+            'shopify.api_key' => 'test_shopify_api_key_123',
+            'shopify.api_secret' => $this->testApiSecret,
+        ]);
 
         $this->storeA = ShopifyStore::create([
             'shop' => 'store-alpha.myshopify.com',
@@ -41,12 +48,33 @@ class CustomSocialPlatformTest extends TestCase
         ]);
     }
 
+    protected function generateSessionToken(ShopifyStore $store): string
+    {
+        $now = time();
+        $payload = [
+            'iss' => "https://{$store->shop}/admin",
+            'dest' => "https://{$store->shop}",
+            'aud' => 'test_shopify_api_key_123',
+            'sub' => '12345678',
+            'exp' => $now + 3600,
+            'nbf' => $now - 10,
+            'iat' => $now,
+            'jti' => 'jwt_nonce_'.uniqid(),
+        ];
+
+        return JWT::encode($payload, $this->testApiSecret, 'HS256');
+    }
+
     protected function authStore(ShopifyStore $store): self
     {
+        $token = $this->generateSessionToken($store);
+
         return $this->withSession([
             'shopify_shop' => $store->shop,
             'shopify_store_id' => $store->id,
             'shopify_host' => base64_encode("admin.shopify.com/store/{$store->shop}"),
+        ])->withHeaders([
+            'Authorization' => "Bearer {$token}",
         ]);
     }
 

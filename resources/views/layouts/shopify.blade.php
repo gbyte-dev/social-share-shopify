@@ -98,6 +98,217 @@
     <!-- CORRECT Shopify App Bridge CDN -->
     <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
 
+    <!-- SweetAlert2 Professional Notification Library -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- Centralized Professional Notification Engine (SweetAlert2) -->
+    <script>
+        (function() {
+            window.AppNotice = {
+                fire: function(options) {
+                    if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
+                        const defaults = {
+                            customClass: {
+                                popup: 'sn-swal-popup',
+                                title: 'sn-swal-title',
+                                htmlContainer: 'sn-swal-content',
+                                confirmButton: 'sn-swal-confirm-btn',
+                                cancelButton: 'sn-swal-cancel-btn'
+                            },
+                            buttonsStyling: false,
+                            confirmButtonText: 'OK',
+                            focusConfirm: true
+                        };
+                        return Swal.fire(Object.assign({}, defaults, options));
+                    }
+                    
+                    const text = (options && (options.text || options.title)) || '';
+                    console.warn('[AppNotice Fallback]', text);
+                    if (typeof window.showToast === 'function') {
+                        const toastType = (options && options.icon === 'error') ? 'error' : ((options && options.icon === 'warning') ? 'warning' : 'success');
+                        window.showToast(text, toastType, 4000);
+                    }
+                    return Promise.resolve({ isConfirmed: true, isDismissed: false });
+                },
+
+                success: function(message, title) {
+                    return this.fire({
+                        icon: 'success',
+                        title: title || 'Operation Completed',
+                        text: String(message || 'Operation completed successfully.')
+                    });
+                },
+
+                error: function(message, title) {
+                    return this.fire({
+                        icon: 'error',
+                        title: title || 'Something Went Wrong',
+                        text: String(message || 'An unexpected error occurred. Please try again.')
+                    });
+                },
+
+                warning: function(message, title) {
+                    return this.fire({
+                        icon: 'warning',
+                        title: title || 'Please Check Your Input',
+                        text: String(message || 'Please check your inputs and try again.')
+                    });
+                },
+
+                info: function(message, title) {
+                    return this.fire({
+                        icon: 'info',
+                        title: title || 'Information',
+                        text: String(message || '')
+                    });
+                },
+
+                toast: function(message, icon, title) {
+                    const ic = icon || 'success';
+                    if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
+                        return Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            showConfirmButton: false,
+                            timer: 3500,
+                            timerProgressBar: true,
+                            icon: ic,
+                            title: title || (ic === 'success' ? 'Success' : (ic === 'error' ? 'Error' : 'Notice')),
+                            text: String(message || '')
+                        });
+                    }
+                    if (typeof window.showToast === 'function') {
+                        window.showToast(message, ic, 3500);
+                    }
+                    return Promise.resolve();
+                },
+
+                confirm: function(message, options) {
+                    const opts = options || {};
+                    return this.fire({
+                        icon: opts.icon || 'warning',
+                        title: opts.title || 'Are you sure?',
+                        text: String(message || ''),
+                        showCancelButton: true,
+                        confirmButtonText: opts.confirmButtonText || 'Confirm',
+                        cancelButtonText: opts.cancelButtonText || 'Cancel',
+                        reverseButtons: true
+                    });
+                },
+
+                alert: function(message, title) {
+                    const msg = String(message || '');
+                    const lower = msg.toLowerCase();
+                    let icon = 'info';
+                    let inferredTitle = title;
+
+                    if (lower.includes('error') || lower.includes('fail') || lower.includes('failed') || lower.includes('unable') || lower.includes('could not')) {
+                        icon = 'error';
+                        if (!inferredTitle) inferredTitle = 'Something Went Wrong';
+                    } else if (lower.includes('please') || lower.includes('enter') || lower.includes('require') || lower.includes('missing') || lower.includes('check')) {
+                        icon = 'warning';
+                        if (!inferredTitle) inferredTitle = 'Please Check Your Input';
+                    } else if (lower.includes('success') || lower.includes('saved') || lower.includes('completed')) {
+                        icon = 'success';
+                        if (!inferredTitle) inferredTitle = 'Operation Completed';
+                    } else {
+                        if (!inferredTitle) inferredTitle = 'Notice';
+                    }
+
+                    return this.fire({
+                        icon: icon,
+                        title: inferredTitle,
+                        text: msg
+                    });
+                }
+            };
+
+            window.showNotice = window.AppNotice;
+
+            // Global safety net: divert any native alert() to AppNotice.alert()
+            window.alert = function(msg) {
+                return window.AppNotice.alert(msg);
+            };
+        })();
+    </script>
+
+    <!-- Centralized Shopify App Bridge Authenticated Fetch -->
+    <script>
+        (function() {
+            /**
+             * Retrieves a fresh session ID token from Shopify App Bridge.
+             * Returns a Promise resolving to the JWT string or null.
+             */
+            async function getShopifyIdToken() {
+                try {
+                    if (window.shopify && typeof window.shopify.idToken === 'function') {
+                        const token = await window.shopify.idToken();
+                        if (token) return token;
+                    }
+                } catch (err) {
+                    console.warn('[SocialNest] Failed to retrieve session token from App Bridge:', err);
+                }
+                return null;
+            }
+
+            /**
+             * Centralized authenticated fetch helper for Shopify embedded requests.
+             *
+             * - Automatically requests an ID token from window.shopify.idToken()
+             * - Injects Authorization: Bearer <id-token> header
+             * - Preserves existing request headers (Content-Type, X-CSRF-TOKEN, Accept, etc.)
+             * - Does not store tokens in localStorage or sessionStorage
+             * - Intercepts HTTP 401 with X-Shopify-Retry-Invalid-Session-Request: 1,
+             *   obtains a fresh session token, and retries the request once.
+             *
+             * @param {string} url
+             * @param {RequestInit} [options={}]
+             * @param {boolean} [isRetry=false]
+             * @returns {Promise<Response>}
+             */
+            async function shopifyAuthenticatedFetch(url, options = {}, isRetry = false) {
+                const token = await getShopifyIdToken();
+
+                const opts = { ...options };
+                const headers = new Headers(opts.headers || {});
+
+                if (token) {
+                    headers.set('Authorization', 'Bearer ' + token);
+                }
+
+                if (!headers.has('X-CSRF-TOKEN')) {
+                    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                    if (csrfMeta && csrfMeta.content) {
+                        headers.set('X-CSRF-TOKEN', csrfMeta.content);
+                    }
+                }
+
+                if (!headers.has('X-Requested-With')) {
+                    headers.set('X-Requested-With', 'XMLHttpRequest');
+                }
+
+                opts.headers = headers;
+
+                const response = await fetch(url, opts);
+
+                // Handle session expiry retry mechanism
+                if (response.status === 401 && !isRetry) {
+                    const retryHeader = response.headers.get('X-Shopify-Retry-Invalid-Session-Request');
+                    if (retryHeader === '1' || retryHeader === 'true') {
+                        console.info('[SocialNest] Session token expired or invalid; retrying with fresh token...');
+                        return shopifyAuthenticatedFetch(url, options, true);
+                    }
+                }
+
+                return response;
+            }
+
+            // Expose globally for all embedded views and scripts
+            window.shopifyAuthenticatedFetch = shopifyAuthenticatedFetch;
+            window.getShopifyIdToken = getShopifyIdToken;
+        })();
+    </script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -508,6 +719,54 @@
         .toast-message { font-size: 0.8125rem; font-weight: 600; color: #0f172a; line-height: 1.4; }
         .toast-close-btn { background: transparent; border: none; cursor: pointer; padding: 4px; border-radius: 4px; color: #64748b; }
         @keyframes toastSlideIn { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        /* SweetAlert2 Polaris Theme Customizations */
+        div.swal2-container {
+            z-index: 9999999 !important;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+        }
+        .swal2-popup.sn-swal-popup {
+            border-radius: 14px !important;
+            padding: 1.5rem 1.75rem !important;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+            border: 1px solid #e2e8f0 !important;
+        }
+        .swal2-title.sn-swal-title {
+            font-size: 1.125rem !important;
+            font-weight: 700 !important;
+            color: #0f172a !important;
+            margin-bottom: 0.5rem !important;
+        }
+        .swal2-html-container.sn-swal-content {
+            font-size: 0.875rem !important;
+            color: #475569 !important;
+            line-height: 1.5 !important;
+        }
+        .swal2-confirm.sn-swal-confirm-btn {
+            background-color: #0284c7 !important;
+            color: #ffffff !important;
+            font-size: 0.875rem !important;
+            font-weight: 600 !important;
+            padding: 0.55rem 1.25rem !important;
+            border-radius: 8px !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+            cursor: pointer !important;
+        }
+        .swal2-confirm.sn-swal-confirm-btn:hover {
+            background-color: #0369a1 !important;
+        }
+        .swal2-cancel.sn-swal-cancel-btn {
+            background-color: #f1f5f9 !important;
+            color: #475569 !important;
+            font-size: 0.875rem !important;
+            font-weight: 600 !important;
+            padding: 0.55rem 1.25rem !important;
+            border-radius: 8px !important;
+            border: 1px solid #cbd5e1 !important;
+            cursor: pointer !important;
+        }
+        .swal2-cancel.sn-swal-cancel-btn:hover {
+            background-color: #e2e8f0 !important;
+        }
     </style>
     @stack('styles')
 </head>
@@ -533,6 +792,7 @@
         <!-- Main Content Column (Now completely full width) -->
         <div class="main-content">
             <!-- Top Navbar -->
+            @unless(View::hasSection('hide_top_navbar'))
             <header class="top-navbar">
                 <div class="page-header-info">
                     <h2>@yield('header_title', 'Merchant Portal')</h2>
@@ -545,17 +805,35 @@
                         <span>Live</span>
                     </div>
 
-                    @yield('header_actions')
+                    <div id="headerActionsSlot" class="header-actions-slot">
+                        @yield('header_actions')
+                    </div>
 
                     <!-- Preserved Backend Logic: Logout Route & CSRF Form -->
                 </div>
             </header>
+            @endunless
 
             <!-- Page Body -->
             <main class="content-canvas">
                 <!-- Global Floating Toast Container -->
                 <div id="toastContainer" class="toast-container" aria-live="polite">
-                    @if(session('success'))
+                    @if(session('purchase_success'))
+                        <div class="toast-item toast-success toast-auto-dismiss" role="alert" data-timeout="5000" style="border-left: 4px solid #10b981; background: #ffffff;">
+                            <div class="toast-content" style="align-items: flex-start;">
+                                <div class="toast-icon" style="margin-top: 2px;">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 2px;">
+                                    <div style="font-size: 0.875rem; font-weight: 700; color: #065f46;">Purchase Successful!</div>
+                                    <div class="toast-message" style="font-size: 0.8125rem; font-weight: 500; color: #374151;">{{ session('purchase_success') }}</div>
+                                </div>
+                            </div>
+                            <button type="button" class="toast-close-btn" onclick="dismissToast(this.closest('.toast-item'))" aria-label="Close notification" title="Close">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
+                        </div>
+                    @elseif(session('success'))
                         <div class="toast-item toast-success toast-auto-dismiss" role="alert" data-timeout="3000">
                             <div class="toast-content">
                                 <div class="toast-icon">
@@ -664,28 +942,212 @@
             }
         });
 
+        /**
+         * Core client-side authenticated navigation engine for embedded pages.
+         * Fetches destination HTML with Authorization: Bearer <ShopifyIdToken>
+         * and swaps content canvas without native document reloads or cookie dependence.
+         */
+        let isNavigating = false;
+
+        async function shopifyNavigateTo(url, pushState = true) {
+            if (isNavigating) return;
+
+            // Preserve host and shop parameters if available
+            const host = window.sessionStorage ? window.sessionStorage.getItem('shopify_host') : null;
+            const shop = window.sessionStorage ? window.sessionStorage.getItem('shopify_shop') : null;
+            let targetUrl;
+            try {
+                targetUrl = new URL(url, window.location.origin);
+                if (host && !targetUrl.searchParams.has('host')) targetUrl.searchParams.set('host', host);
+                if (shop && !targetUrl.searchParams.has('shop')) targetUrl.searchParams.set('shop', shop);
+            } catch (e) {
+                targetUrl = new URL(url, window.location.href);
+            }
+
+            const destinationHref = targetUrl.toString();
+
+            isNavigating = true;
+
+            // Subtle loading indicator
+            const canvas = document.querySelector('.content-canvas');
+            if (canvas) {
+                canvas.style.transition = 'opacity 0.15s ease';
+                canvas.style.opacity = '0.4';
+                canvas.style.pointerEvents = 'none';
+            }
+
+            try {
+                const response = await shopifyAuthenticatedFetch(destinationHref, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'text/html, application/xhtml+xml',
+                        'X-Shopify-Navigation': '1'
+                    }
+                });
+
+                if (response.status === 403) {
+                    let upgradeUrl = null;
+                    let message = 'This feature requires a SocialNest Pro subscription.';
+                    try {
+                        const json = await response.json();
+                        if (json && json.message) message = json.message;
+                        if (json && json.upgrade_url) upgradeUrl = json.upgrade_url;
+                    } catch (e) {}
+
+                    if (typeof window.showToast === 'function') {
+                        window.showToast(message, 'warning', 4000);
+                    }
+
+                    if (upgradeUrl) {
+                        return shopifyNavigateTo(upgradeUrl, true);
+                    }
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error('Navigation failed with status: ' + response.status);
+                }
+
+                const htmlText = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(htmlText, 'text/html');
+
+                const newCanvas = doc.querySelector('.content-canvas');
+                if (!newCanvas) {
+                    throw new Error('Invalid response: missing content canvas');
+                }
+
+                // Notify current page to tear down components (e.g. Chart.js instances) right before DOM swap
+                document.dispatchEvent(new CustomEvent('shopify:before-swap', {
+                    detail: { nextUrl: destinationHref }
+                }));
+
+                // 1. Update document title
+                const newTitle = doc.querySelector('title');
+                if (newTitle) {
+                    document.title = newTitle.textContent;
+                }
+
+                // 2. Update page header info
+                const currentHeaderInfo = document.querySelector('.page-header-info');
+                const newHeaderInfo = doc.querySelector('.page-header-info');
+                if (currentHeaderInfo && newHeaderInfo) {
+                    currentHeaderInfo.innerHTML = newHeaderInfo.innerHTML;
+                }
+
+                // 3. Update header actions slot
+                const currentActions = document.getElementById('headerActionsSlot');
+                const newActions = doc.getElementById('headerActionsSlot');
+                if (currentActions && newActions) {
+                    currentActions.innerHTML = newActions.innerHTML;
+                } else if (currentActions) {
+                    currentActions.innerHTML = '';
+                }
+
+                // 4. Update main content canvas
+                const currentCanvas = document.querySelector('.content-canvas');
+                if (currentCanvas && newCanvas) {
+                    currentCanvas.innerHTML = newCanvas.innerHTML;
+                }
+
+                // 5. Update browser history & sync with Shopify Admin URL
+                if (pushState) {
+                    window.history.pushState({ shopifyNav: true, url: destinationHref }, '', destinationHref);
+                }
+
+                // 6. Execute scripts contained within the newly swapped content sequentially
+                if (currentCanvas) {
+                    const scripts = Array.from(currentCanvas.querySelectorAll('script'));
+                    for (const oldScript of scripts) {
+                        await new Promise(function(resolve) {
+                            const newScript = document.createElement('script');
+                            Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                            newScript.textContent = oldScript.textContent;
+                            if (newScript.src) {
+                                if (newScript.src.includes('chart') && typeof window.Chart !== 'undefined') {
+                                    resolve();
+                                    return;
+                                }
+                                newScript.onload = function() { resolve(); };
+                                newScript.onerror = function() { resolve(); };
+                                oldScript.parentNode.replaceChild(newScript, oldScript);
+                            } else {
+                                oldScript.parentNode.replaceChild(newScript, oldScript);
+                                resolve();
+                            }
+                        });
+                    }
+                }
+
+                // 7. Dispatch lifecycle events
+                document.dispatchEvent(new CustomEvent('shopify:after-swap', {
+                    detail: { url: destinationHref }
+                }));
+
+                // Auto-dismiss toasts on new view
+                document.querySelectorAll('.toast-auto-dismiss').forEach(function(toast) {
+                    initAutoDismissToast(toast, 3000);
+                });
+
+                // Re-check embed status if status elements exist
+                if (typeof window.checkEmbedStatus === 'function') {
+                    window.checkEmbedStatus();
+                }
+
+                // Scroll to top
+                window.scrollTo(0, 0);
+
+            } catch (err) {
+                console.error('[SocialNest] Authenticated client navigation error:', err);
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Unable to load page. Please check your connection and try again.', 'error');
+                }
+            } finally {
+                isNavigating = false;
+                if (canvas) {
+                    canvas.style.opacity = '1';
+                    canvas.style.pointerEvents = '';
+                }
+            }
+        }
+
+        window.shopifyNavigateTo = shopifyNavigateTo;
+
         // Continuous delegated interception for all clicks and form submissions
         document.addEventListener('click', function(e) {
             const link = e.target.closest('a[href]');
             if (!link) return;
             const href = link.getAttribute('href');
-            if (!href || href.startsWith('#') || href.startsWith('javascript:') || link.target === '_blank') {
+            if (!href || href.startsWith('#') || href.startsWith('javascript:') || link.target === '_blank' || link.target === '_top' || link.hasAttribute('download') || link.hasAttribute('data-no-spa')) {
                 return;
             }
+
             const host = window.sessionStorage ? window.sessionStorage.getItem('shopify_host') : null;
             const shop = window.sessionStorage ? window.sessionStorage.getItem('shopify_shop') : null;
-            if (host || shop) {
-                try {
-                    const url = new URL(link.href, window.location.origin);
-                    if (url.origin === window.location.origin && url.pathname.startsWith('/shopify')) {
-                        let modified = false;
-                        if (host && !url.searchParams.has('host')) { url.searchParams.set('host', host); modified = true; }
-                        if (shop && !url.searchParams.has('shop')) { url.searchParams.set('shop', shop); modified = true; }
-                        if (modified) link.href = url.toString();
+
+            try {
+                const url = new URL(link.href, window.location.origin);
+                if (url.origin === window.location.origin && url.pathname.startsWith('/shopify')) {
+                    // Do not intercept binary file downloads or outside targets
+                    if (url.pathname.startsWith('/shopify/gdpr/export')) {
+                        return;
                     }
-                } catch (err) {}
-            }
+
+                    if (host && !url.searchParams.has('host')) url.searchParams.set('host', host);
+                    if (shop && !url.searchParams.has('shop')) url.searchParams.set('shop', shop);
+
+                    e.preventDefault();
+                    shopifyNavigateTo(url.toString(), true);
+                }
+            } catch (err) {}
         }, true);
+
+        // Synchronize back/forward browser and Shopify Admin navigation
+        window.addEventListener('popstate', function(e) {
+            if (window.location.pathname.startsWith('/shopify') && !window.location.pathname.startsWith('/shopify/gdpr/export')) {
+                shopifyNavigateTo(window.location.href, false);
+            }
+        });
 
         document.addEventListener('submit', function(e) {
             const form = e.target;
@@ -749,18 +1211,30 @@
     <script>
         (function () {
             const EMBED_HANDLE = 'floating-social-dock';
+            const TIMEOUT_MS = 5000;
+            const MAX_ATTEMPTS = 3;
+            const RETRY_DELAYS = [500, 1000, 2000];
+
+            let currentRequestId = 0;
+            let inFlightPromise = null;
+            let lastKnownResult = null;
 
             function setEmbedStatus(status, message) {
+                const isActive = status === 'active';
+                const isAvailable = status === 'available';
+                const isUnavailable = status === 'unavailable';
+                const isUnknown = !isActive && !isAvailable && !isUnavailable;
+
                 document.querySelectorAll('[data-embed-status-badge]').forEach((element) => {
                     element.classList.remove('is-active', 'is-inactive');
 
-                    if (status === 'active') {
+                    if (isActive) {
                         element.textContent = 'Storefront Widget Enabled';
                         element.classList.add('is-active');
-                    } else if (status === 'available') {
+                    } else if (isAvailable) {
                         element.textContent = 'Storefront Widget Not Enabled';
                         element.classList.add('is-inactive');
-                    } else if (status === 'unavailable') {
+                    } else if (isUnavailable) {
                         element.textContent = 'Storefront Widget Unavailable';
                         element.classList.add('is-inactive');
                     } else {
@@ -769,99 +1243,203 @@
                 });
 
                 document.querySelectorAll('[data-embed-status-label]').forEach((element) => {
-                    element.textContent = status === 'active'
+                    element.textContent = isActive
                         ? 'Enabled on published theme'
-                        : status === 'available'
+                        : isAvailable
                             ? 'Not enabled on published theme'
-                            : status === 'unavailable'
+                            : isUnavailable
                                 ? 'Unavailable on published theme'
-                                : 'Status could not be verified';
-                    element.className = status === 'active' ? 'sn-badge-on' : 'sn-badge-off';
+                                : (message || 'Status could not be verified');
+                    element.className = isActive ? 'sn-badge-on' : 'sn-badge-off';
                 });
 
                 document.querySelectorAll('[data-embed-enable]').forEach((button) => {
-                    button.hidden = status === 'active';
+                    // Show enable button ONLY when embed is confirmed available to be enabled.
+                    // Never show for active, unavailable, or unknown states.
+                    button.hidden = !isAvailable;
                 });
 
                 const warning = document.getElementById('sn-embed-warning');
                 if (warning) {
-                    warning.hidden = status === 'active';
+                    // Show warning banner ONLY when embed is confirmed available (not enabled on theme).
+                    // Never show for active, unavailable, or unknown states.
+                    warning.hidden = !isAvailable;
                 }
             }
 
-            async function checkEmbedStatus() {
-                if (!window.shopify?.app?.extensions) {
-                    setEmbedStatus('unknown', 'Shopify status check unavailable');
-                    console.warn('SocialNest: Shopify App Bridge extensions API is unavailable.');
-                    return;
-                }
-
-                try {
-                    const extensions = await window.shopify.app.extensions();
-                    const themeExtensions = extensions.filter(
-                        (extension) => extension.type === 'theme_app_extension'
-                    );
-
-                    const embed = themeExtensions
-                        .flatMap((extension) => extension.activations || [])
-                        .find((activation) => activation.handle === EMBED_HANDLE);
-
-                    if (!embed) {
-                        setEmbedStatus('unknown', 'SocialNest embed status not returned by Shopify');
-                        console.warn('SocialNest embed handle was not found in Shopify extension status.', {
-                            expectedHandle: EMBED_HANDLE,
-                            extensions
-                        });
+            async function executeStatusCheck(requestId) {
+                for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+                    // Stale check: abort if a newer request was initiated
+                    if (requestId !== currentRequestId) {
                         return;
                     }
 
-                    setEmbedStatus(embed.status);
+                    try {
+                        if (!window.shopify?.app?.extensions) {
+                            throw new Error('Shopify App Bridge extensions API is not available yet');
+                        }
 
-                    console.info('SocialNest published-theme embed status:', {
-                        handle: embed.handle,
-                        status: embed.status
-                    });
-                } catch (error) {
-                    setEmbedStatus('unknown', 'Could not verify storefront status');
-                    console.error('SocialNest embed status check failed:', error);
+                        let timerId = null;
+                        const timeoutPromise = new Promise((_, reject) => {
+                            timerId = setTimeout(() => {
+                                reject(new Error('Shopify App Bridge extensions request timed out'));
+                            }, TIMEOUT_MS);
+                        });
+
+                        let extensions;
+                        try {
+                            extensions = await Promise.race([
+                                window.shopify.app.extensions(),
+                                timeoutPromise
+                            ]);
+                        } finally {
+                            if (timerId !== null) {
+                                clearTimeout(timerId);
+                                timerId = null;
+                            }
+                        }
+
+                        // Stale check: abort if a newer request superseded this one while awaiting
+                        if (requestId !== currentRequestId) {
+                            return;
+                        }
+
+                        const themeExtensions = (Array.isArray(extensions) ? extensions : []).filter(
+                            (extension) => extension && extension.type === 'theme_app_extension'
+                        );
+
+                        const embed = themeExtensions
+                            .flatMap((extension) => (extension && Array.isArray(extension.activations) ? extension.activations : []))
+                            .find((activation) => activation && activation.handle === EMBED_HANDLE);
+
+                        if (!embed) {
+                            console.warn('[SocialNest] Embed handle was not found in Shopify extension status.', {
+                                expectedHandle: EMBED_HANDLE,
+                                extensions
+                            });
+                            lastKnownResult = {
+                                status: 'unknown',
+                                message: 'SocialNest embed status not returned by Shopify'
+                            };
+                            setEmbedStatus(lastKnownResult.status, lastKnownResult.message);
+                            return;
+                        }
+
+                        const resolvedStatus = embed.status || 'unknown';
+                        lastKnownResult = { status: resolvedStatus };
+                        setEmbedStatus(resolvedStatus);
+
+                        console.info('[SocialNest] Published-theme embed status resolved:', {
+                            handle: embed.handle,
+                            status: resolvedStatus
+                        });
+                        return;
+
+                    } catch (error) {
+                        console.warn(`[SocialNest] Storefront status check attempt ${attempt}/${MAX_ATTEMPTS} failed:`, error.message);
+
+                        if (requestId !== currentRequestId) {
+                            return;
+                        }
+
+                        if (attempt < MAX_ATTEMPTS) {
+                            const delay = RETRY_DELAYS[attempt - 1] || 1000;
+                            await new Promise((resolve) => setTimeout(resolve, delay));
+                        }
+                    }
+                }
+
+                // All retries exhausted
+                if (requestId === currentRequestId) {
+                    lastKnownResult = {
+                        status: 'unknown',
+                        message: 'Could not verify storefront status'
+                    };
+                    setEmbedStatus(lastKnownResult.status, lastKnownResult.message);
+                    console.error('[SocialNest] All storefront status check retries exhausted.');
                 }
             }
 
-            document.addEventListener('DOMContentLoaded', function () {
-                checkEmbedStatus();
+            function checkEmbedStatus(options) {
+                const force = options && options.force === true;
+                if (force) {
+                    lastKnownResult = null;
+                }
 
-                document.querySelectorAll('[data-embed-enable]').forEach((button) => {
-                    button.addEventListener('click', async function () {
-                        const originalText = button.textContent.trim();
-                        button.disabled = true;
-                        button.textContent = 'Opening Theme Editor...';
+                // 1. Immediately apply any verified cached status to newly rendered elements in the DOM
+                if (lastKnownResult) {
+                    setEmbedStatus(lastKnownResult.status, lastKnownResult.message);
+                }
 
-                        try {
-                            const response = await fetch(button.dataset.url, {
-                                method: 'GET',
-                                credentials: 'same-origin',
-                                headers: {
-                                    Accept: 'application/json',
-                                    'X-Requested-With': 'XMLHttpRequest'
-                                }
-                            });
+                // 2. If a request is already running, return the active promise to avoid duplicate in-flight requests
+                if (inFlightPromise) {
+                    return inFlightPromise;
+                }
 
-                            const data = await response.json();
+                // 3. Initiate bounded check with deduplication and stale request protection
+                const requestId = ++currentRequestId;
+                inFlightPromise = executeStatusCheck(requestId).finally(() => {
+                    if (requestId === currentRequestId) {
+                        inFlightPromise = null;
+                    }
+                });
 
-                            if (!response.ok || !data.success || !data.redirect_url) {
-                                throw new Error(data.message || 'Unable to open Theme Editor.');
-                            }
+                return inFlightPromise;
+            }
 
-                            window.open(data.redirect_url, '_top');
-                        } catch (error) {
-                            console.error('SocialNest embed activation failed:', error);
-                            alert(error.message || 'Unable to open Shopify Theme Editor.');
-                            button.disabled = false;
-                            button.textContent = originalText;
+            // Expose globally for SPA navigation engine and external triggers
+            window.checkEmbedStatus = checkEmbedStatus;
+            window.setEmbedStatus = setEmbedStatus;
+
+            // Delegated event listener for [data-embed-enable] buttons (works across SPA navigations)
+            document.addEventListener('click', async function (e) {
+                const button = e.target.closest('[data-embed-enable]');
+                if (!button || button.disabled) {
+                    return;
+                }
+
+                const originalText = button.textContent.trim();
+                button.disabled = true;
+                button.textContent = 'Opening Theme Editor...';
+
+                try {
+                    const activationUrl = button.dataset.url;
+                    if (!activationUrl) {
+                        throw new Error('Activation URL is missing.');
+                    }
+
+                    const response = await shopifyAuthenticatedFetch(activationUrl, {
+                        method: 'GET',
+                        credentials: 'same-origin',
+                        headers: {
+                            Accept: 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
                         }
                     });
-                });
+
+                    const data = await response.json();
+
+                    if (!response.ok || !data.success || !data.redirect_url) {
+                        throw new Error(data.message || 'Unable to open Theme Editor.');
+                    }
+
+                    window.open(data.redirect_url, '_top');
+                } catch (error) {
+                    console.error('[SocialNest] Embed activation failed:', error);
+                    AppNotice.error(error.message || 'Unable to open Shopify Theme Editor.', 'Unable to Open Theme Editor');
+                    button.disabled = false;
+                    button.textContent = originalText;
+                }
             });
+
+            // Initial execution: handle both loading and interactive/complete DOM states
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function () {
+                    checkEmbedStatus();
+                });
+            } else {
+                checkEmbedStatus();
+            }
         })();
     </script>
     @stack('scripts')

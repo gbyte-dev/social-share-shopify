@@ -266,8 +266,8 @@
                 <li><strong>Email:</strong> {{ config('app.privacy_email', 'support@yourdomain.com') }}</li>
                 <li>
                     <strong>Website:</strong>
-                    <a href="https://socialvire.webvire.com">
-                        https://socialvire.webvire.com
+                    <a href="{{ config('app.url') }}">
+                        {{ config('app.url') }}
                     </a>
                 </li>
             </ul></div></section>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ShopifyStore;
 use App\Models\SocialLinkClick;
 use App\Models\StorefrontSetting;
+use App\Services\EntitlementService;
 use App\Services\ShopifyService;
 use App\Services\SocialPlatformService;
 use App\Services\SubscriptionService;
@@ -15,7 +16,8 @@ class StorefrontApiController extends Controller
 {
     public function __construct(
         protected ShopifyService $shopifyService,
-        protected SubscriptionService $subscriptionService
+        protected SubscriptionService $subscriptionService,
+        protected EntitlementService $entitlementService
     ) {}
 
     /**
@@ -86,6 +88,28 @@ class StorefrontApiController extends Controller
     }
 
     /**
+     * Resolve the active public application URL for storefront direct fallback.
+     * Never returns local development domains (.test, localhost).
+     */
+    public function resolvePublicAppUrl(): string
+    {
+        $url = config('shopify.app_url') ?: config('app.url');
+
+        if (is_string($url) && ! empty($url)) {
+            $host = parse_url($url, PHP_URL_HOST) ?? '';
+            if (! str_ends_with(strtolower($host), '.test') && ! str_contains(strtolower($host), 'localhost') && ! str_contains(strtolower($host), '127.0.0.1')) {
+                return rtrim($url, '/');
+            }
+
+            if (app()->environment('local') || app()->runningUnitTests()) {
+                return rtrim($url, '/');
+            }
+        }
+
+        return rtrim((string) (config('shopify.app_url') ?: config('app.url') ?: 'https://socialnest.developerbrijesh.in'), '/');
+    }
+
+    /**
      * Provide public storefront widget configuration.
      * Only returns active social links and visual settings for the verified store.
      * Never exposes private merchant tokens, secret credentials, or internal identifiers.
@@ -96,7 +120,7 @@ class StorefrontApiController extends Controller
             return response()->json([], 204, $this->corsHeaders());
         }
 
-        $rawShop = $request->query('shop') ?? $request->header('X-Shopify-Shop-Domain');
+        $rawShop = $request->attributes->get('shopify_shop') ?? $request->query('shop') ?? $request->header('X-Shopify-Shop-Domain');
 
         if (empty($rawShop)) {
             return response()->json([
@@ -113,10 +137,20 @@ class StorefrontApiController extends Controller
         }
 
         /** @var ShopifyStore|null $store */
-        $store = ShopifyStore::where('shop', $canonicalShop)
+        $store = $request->attributes->get('shopify_store') ?: ShopifyStore::where('shop', $canonicalShop)
             ->where('is_active', true)
             ->whereNotNull('access_token')
             ->first();
+
+        $publicAppUrl = $this->resolvePublicAppUrl();
+        $configuredSubpath = (string) config('shopify.app_proxy_subpath', 'socialvire');
+        $configuredPrefix = (string) config('shopify.app_proxy_prefix', 'apps');
+        $defaultProxyPath = '/'.trim($configuredPrefix, '/').'/'.trim($configuredSubpath, '/');
+
+        $proxyPath = (string) (
+            $request->query('path_prefix')
+                ?: ($request->is('apps/socialvire*') ? '/apps/socialvire' : ($request->is('apps/socialnest*') ? '/apps/socialnest' : $defaultProxyPath))
+        );
 
         if (! $store || ! $store->isInstalled()) {
             // If in preview mode (e.g. Shopify Theme Editor), return mock configuration
@@ -126,6 +160,8 @@ class StorefrontApiController extends Controller
                     'shop' => $canonicalShop,
                     'enabled' => true,
                     'is_preview' => true,
+                    'public_app_url' => $publicAppUrl,
+                    'app_proxy_path' => $proxyPath,
                     'settings' => [
                         'position' => 'bottom_right',
                         'custom_horizontal_align' => 'right',
@@ -167,35 +203,55 @@ class StorefrontApiController extends Controller
             ], 404, $this->corsHeaders());
         }
 
-        // For shops without an active subscription, return a safe disabled configuration
-        if (! $this->subscriptionService->isActive($store)) {
-            return response()->json([
-                'success' => true,
-                'shop' => $store->shop,
-                'enabled' => false,
-                'subscription_active' => false,
-                'settings' => [
-                    'position' => 'bottom_right',
-                    'icon_size' => 'medium',
-                    'icon_shape' => 'circle',
-                    'product_share_enabled' => false,
-                    'floating_cta_enabled' => false,
-                    'cta_enabled' => false,
-                ],
-                'links' => [],
-            ], 200, array_merge($this->corsHeaders(), [
-                'Cache-Control' => 'no-cache, no-store, must-revalidate',
-            ]));
+        $isPro = $this->entitlementService->isPro($store);
+        $settings = $store->getStorefrontSettings();
+
+        if ($isPro) {
+            $formattedSettings = $this->formatStorefrontSettings($settings);
+            $isEnabled = (bool) $settings->is_enabled;
+        } else {
+            // Free tier: Basic dock enabled, no Pro styling, CTA & product share disabled
+            $isEnabled = true;
+            $formattedSettings = [
+                'position' => 'bottom_right',
+                'custom_horizontal_align' => 'right',
+                'custom_vertical_align' => 'bottom',
+                'custom_offset_x_desktop' => 24,
+                'custom_offset_y_desktop' => 24,
+                'custom_offset_x_mobile' => 16,
+                'custom_offset_y_mobile' => 16,
+                'icon_size' => 'medium',
+                'icon_shape' => 'circle',
+                'hover_animation' => 'lift',
+                'show_tooltips' => true,
+                'whatsapp_message' => 'Check out this store!',
+                'product_share_enabled' => false,
+                'product_share_button_text' => 'Share Product',
+                'product_share_button_style' => 'outline',
+                'product_share_button_background_color' => 'rgba(17, 24, 39, 1)',
+                'floating_cta_enabled' => false,
+                'floating_cta_app_name' => null,
+                'floating_cta_button_text' => 'Get Started',
+                'floating_cta_destination_url' => null,
+                'floating_cta_icon_url' => null,
+                'floating_cta_show_icon' => false,
+                'floating_cta_background_color' => 'rgba(17, 24, 39, 1)',
+                'floating_cta_text_color' => 'rgba(255, 255, 255, 1)',
+                'floating_cta_button_size' => 'medium',
+                'floating_cta_desktop_enabled' => false,
+                'floating_cta_mobile_enabled' => false,
+                'cta_enabled' => false,
+                'is_pro' => false,
+            ];
         }
 
-        $settings = $store->getStorefrontSettings();
-        $formattedSettings = $this->formatStorefrontSettings($settings);
-
-        if (! $settings->is_enabled) {
+        if (! $isEnabled) {
             return response()->json([
                 'success' => true,
                 'shop' => $store->shop,
                 'enabled' => false,
+                'public_app_url' => $publicAppUrl,
+                'app_proxy_path' => $proxyPath,
                 'settings' => $formattedSettings,
                 'links' => [],
             ], 200, array_merge($this->corsHeaders(), [
@@ -203,10 +259,8 @@ class StorefrontApiController extends Controller
             ]));
         }
 
-        $links = $store->socialLinks()
-            ->where('is_active', true)
-            ->orderBy('sort_order', 'asc')
-            ->get()
+        $links = $this->entitlementService
+            ->getStorefrontSocialLinks($store)
             ->map(fn ($link) => [
                 'id' => $link->id,
                 'platform' => $link->platform,
@@ -229,6 +283,9 @@ class StorefrontApiController extends Controller
             'success' => true,
             'shop' => $store->shop,
             'enabled' => true,
+            'is_pro' => $isPro,
+            'public_app_url' => $publicAppUrl,
+            'app_proxy_path' => $proxyPath,
             'settings' => $formattedSettings,
             'links' => $links,
         ], 200, array_merge($this->corsHeaders(), [
@@ -312,7 +369,8 @@ class StorefrontApiController extends Controller
             // Floating CTA click does not belong to an individual social link
             $link = null;
         } elseif (! empty($validated['link_id'])) {
-            $link = $store->socialLinks()
+            $link = $store
+                ->socialLinks()
                 ->where('id', $validated['link_id'])
                 ->where('is_active', true)
                 ->first();
@@ -335,9 +393,11 @@ class StorefrontApiController extends Controller
                 $platform = strtolower(trim($link->platform));
             }
         } else {
-            $link = $store->socialLinks()
+            $link = $store
+                ->socialLinks()
                 ->where(function ($q) use ($platform) {
-                    $q->where('platform', $platform)
+                    $q
+                        ->where('platform', $platform)
                         ->orWhere('custom_platform_name', $platform);
                 })
                 ->where('is_active', true)
@@ -366,14 +426,16 @@ class StorefrontApiController extends Controller
         $uaHash = hash('sha256', (string) $request->userAgent());
 
         // Duplicate click prevention within 3 seconds for the exact same IP + platform + link_type + link/product
-        $recentClick = $store->clicks()
+        $recentClick = $store
+            ->clicks()
             ->where('platform', $platform)
             ->where('link_type', $linkType)
             ->where('ip_hash', $ipHash)
             ->when($link, fn ($q) => $q->where('social_link_id', $link->id))
             ->when($productId, fn ($q) => $q->where('product_id', $productId))
             ->where(function ($q) {
-                $q->where('clicked_at', '>=', now()->subSeconds(3))
+                $q
+                    ->where('clicked_at', '>=', now()->subSeconds(3))
                     ->orWhere(function ($q2) {
                         $q2->whereNull('clicked_at')->where('created_at', '>=', now()->subSeconds(3));
                     });

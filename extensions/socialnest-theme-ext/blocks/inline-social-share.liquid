@@ -4,7 +4,7 @@
 {% endcomment %}
 
 {{ 'socialnest-storefront.css' | asset_url | stylesheet_tag }}
-<script src="{{ 'socialnest-storefront.js' | asset_url }}" defer="defer"></script>
+<script type="module" src="{{ 'socialnest-storefront.js' | asset_url }}"></script>
 <script>window.__sn_page_type = {{ request.page_type | json }};</script>
 
 <div class="socialnest-inline-share"
@@ -80,7 +80,6 @@
   "name": "SocialNest Share Buttons",
   "target": "section",
   "stylesheet": "socialnest-storefront.css",
-  "javascript": "socialnest-storefront.js",
   "settings": [
     {
       "type": "text",

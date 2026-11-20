@@ -599,6 +599,7 @@
     </div>
 
     <script>
+        (function () {
         const platformPlaceholders = {
             @foreach($allPlatforms as $k => $p)
                 '{{ $k }}': '{{ $p['placeholder'] }}',
@@ -679,7 +680,7 @@
                         errorEl.textContent = 'Please enter an App Name or Website URL first.';
                         errorEl.style.display = 'inline';
                     } else {
-                        alert('Please enter an App Name, Destination URL, or Official Website URL to search for updated logos.');
+                        AppNotice.warning('Please enter an App Name, Destination URL, or Official Website URL to search for updated logos.', 'Required Information Missing');
                     }
                 }
                 return;
@@ -695,7 +696,7 @@
             if (urlParams.get('host')) queryParams.set('host', urlParams.get('host'));
             const endpoint = '{{ route("shopify.social-links.discover-logos") }}' + (queryParams.toString() ? '?' + queryParams.toString() : '');
 
-            fetch(endpoint, {
+            shopifyAuthenticatedFetch(endpoint, {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: {
@@ -746,7 +747,7 @@
                             errorEl.textContent = data.message || 'No logos found automatically. You can upload a new logo file directly below.';
                             errorEl.style.display = 'inline';
                         } else {
-                            alert(data.message || 'No logos found automatically. You can upload a new logo file directly below.');
+                            AppNotice.info(data.message || 'No logos found automatically. You can upload a new logo file directly below.', 'No Logos Discovered');
                         }
                     }
                 }
@@ -812,5 +813,27 @@
             document.querySelectorAll('.candidate-card').forEach(c => c.classList.remove('active'));
             updateLivePreview();
         }
+
+        window.updatePlaceholder = updatePlaceholder;
+        window.updateLivePreview = updateLivePreview;
+        window.debouncedLogoDiscovery = debouncedLogoDiscovery;
+        window.triggerLogoDiscovery = triggerLogoDiscovery;
+        window.selectCandidateLogo = selectCandidateLogo;
+        window.handleManualFileUpload = handleManualFileUpload;
+        window.clearSelectedLogo = clearSelectedLogo;
+
+        document.addEventListener('shopify:before-swap', function teardownEditLink() {
+            if (typeof discoveryTimer !== 'undefined') {
+                clearTimeout(discoveryTimer);
+            }
+            document.removeEventListener('shopify:before-swap', teardownEditLink);
+        });
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', updateLivePreview);
+        } else {
+            updateLivePreview();
+        }
+        })();
     </script>
 @endsection

@@ -6,22 +6,14 @@ use App\Models\Plan;
 use App\Models\ShopifyStore;
 use App\Models\ShopSubscription;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use RuntimeException;
 
 class SubscriptionService
 {
     /**
-     * Check if a shop currently has an active, valid SocialNest Pro subscription.
-     *
-     * A subscription is active only when:
-     * - A valid subscription exists for the shop.
-     * - Status is 'active'.
-     * - Plan is active and paid (SocialNest Pro).
-     * - current_period_start is not in the future (<= now()).
-     * - current_period_end is strictly greater than current time (> now()).
-     *
-     * Also updates any expired subscription status to 'expired' and invalidates Free plan subscriptions.
+     * Check if a shop currently has an active, valid subscription (Free or Pro).
      */
     public function isActive(ShopifyStore|int $shop): bool
     {
@@ -31,35 +23,45 @@ class SubscriptionService
             return false;
         }
 
+        $this->expireOverdueSubscriptions($shopId);
+
         $now = now();
 
-        // Expire active subscriptions that have reached or passed current_period_end
-        ShopSubscription::where('shop_id', $shopId)
-            ->where('status', ShopSubscription::STATUS_ACTIVE)
-            ->where('current_period_end', '<=', $now)
-            ->update(['status' => ShopSubscription::STATUS_EXPIRED]);
-
-        // Expire any subscriptions associated with Free or inactive plans
-        ShopSubscription::where('shop_id', $shopId)
-            ->where('status', ShopSubscription::STATUS_ACTIVE)
-            ->whereHas('plan', function ($query): void {
-                $query->where('is_active', false)->orWhere('price', '<=', 0);
-            })
-            ->update(['status' => ShopSubscription::STATUS_EXPIRED]);
-
-        // Query for currently active paid subscription
         return ShopSubscription::where('shop_id', $shopId)
             ->where('status', ShopSubscription::STATUS_ACTIVE)
-            ->where('current_period_start', '<=', $now)
-            ->where('current_period_end', '>', $now)
+            ->where(function ($query) use ($now): void {
+                $query->whereNull('current_period_end')
+                    ->orWhere('current_period_end', '>', $now);
+            })
             ->whereHas('plan', function ($query): void {
-                $query->where('is_active', true)->where('price', '>', 0);
+                $query->where('is_active', true);
             })
             ->exists();
     }
 
     /**
+     * Check if a shop currently has an active Pro (Premium) subscription.
+     */
+    public function isPro(ShopifyStore|int $shop): bool
+    {
+        $activeSubscription = $this->getActiveSubscription($shop);
+
+        return $activeSubscription !== null && $activeSubscription->plan?->isPro() === true;
+    }
+
+    /**
+     * Check if a shop currently has an active Free subscription.
+     */
+    public function isFree(ShopifyStore|int $shop): bool
+    {
+        $activeSubscription = $this->getActiveSubscription($shop);
+
+        return $activeSubscription !== null && $activeSubscription->plan?->isFree() === true;
+    }
+
+    /**
      * Get the currently active subscription for a shop.
+     * Prioritizes active Pro subscription over Free subscription if both exist.
      */
     public function getActiveSubscription(ShopifyStore|int $shop): ?ShopSubscription
     {
@@ -69,23 +71,12 @@ class SubscriptionService
             return null;
         }
 
+        $this->expireOverdueSubscriptions($shopId);
+
         $now = now();
 
-        // Expire subscriptions that passed current_period_end
-        ShopSubscription::where('shop_id', $shopId)
-            ->where('status', ShopSubscription::STATUS_ACTIVE)
-            ->where('current_period_end', '<=', $now)
-            ->update(['status' => ShopSubscription::STATUS_EXPIRED]);
-
-        // Expire any subscriptions associated with Free or inactive plans
-        ShopSubscription::where('shop_id', $shopId)
-            ->where('status', ShopSubscription::STATUS_ACTIVE)
-            ->whereHas('plan', function ($query): void {
-                $query->where('is_active', false)->orWhere('price', '<=', 0);
-            })
-            ->update(['status' => ShopSubscription::STATUS_EXPIRED]);
-
-        return ShopSubscription::with('plan')
+        // 1. Check for active Pro subscription first
+        $activePro = ShopSubscription::with('plan')
             ->where('shop_id', $shopId)
             ->where('status', ShopSubscription::STATUS_ACTIVE)
             ->where('current_period_start', '<=', $now)
@@ -95,6 +86,32 @@ class SubscriptionService
             })
             ->latest('id')
             ->first();
+
+        if ($activePro) {
+            return $activePro;
+        }
+
+        // 2. Check for permanent or active Free subscription
+        $activeFree = ShopSubscription::with('plan')
+            ->where('shop_id', $shopId)
+            ->where('status', ShopSubscription::STATUS_ACTIVE)
+            ->where(function ($query) use ($now): void {
+                $query->whereNull('current_period_end')
+                    ->orWhere('current_period_end', '>', $now);
+            })
+            ->whereHas('plan', function ($query): void {
+                $query->where('is_active', true)->where(function ($q): void {
+                    $q->where('slug', 'free')->orWhere('price', '<=', 0);
+                });
+            })
+            ->latest('id')
+            ->first();
+
+        if ($activeFree) {
+            return $activeFree;
+        }
+
+        return null;
     }
 
     /**
@@ -108,13 +125,7 @@ class SubscriptionService
             return null;
         }
 
-        $now = now();
-
-        // Expire any subscriptions that passed current_period_end
-        ShopSubscription::where('shop_id', $shopId)
-            ->where('status', ShopSubscription::STATUS_ACTIVE)
-            ->where('current_period_end', '<=', $now)
-            ->update(['status' => ShopSubscription::STATUS_EXPIRED]);
+        $this->expireOverdueSubscriptions($shopId);
 
         return ShopSubscription::with('plan')
             ->where('shop_id', $shopId)
@@ -123,31 +134,77 @@ class SubscriptionService
     }
 
     /**
-     * Activate or manually renew a dummy 30-day subscription for a shop.
-     *
-     * Subscription rules:
-     * 1. Only active, paid plans (SocialNest Pro) can be activated.
-     * 2. On activation, set status to 'active'.
-     * 3. Set activated_at to current timestamp.
-     * 4. Set current_period_start to activation timestamp (now).
-     * 5. Set current_period_end to exactly 30 days after current_period_start.
-     * 6. No automatic renewal.
-     * 7. Preserves historical records (does not delete previous subscriptions).
-     * 8. Ensures only one active subscription exists per shop.
-     * 9. Uses database transaction.
+     * Idempotently assign permanent Free subscription to a store.
      */
-    public function activateSubscription(ShopifyStore $store, Plan $plan): ShopSubscription
+    public function assignFreeSubscription(ShopifyStore|int $shop): ShopSubscription
     {
+        $store = $shop instanceof ShopifyStore ? $shop : ShopifyStore::findOrFail($shop);
+
+        return DB::transaction(function () use ($store): ShopSubscription {
+            $freePlan = Plan::where('slug', 'free')->where('is_active', true)->first()
+                ?? Plan::where('price', '<=', 0)->where('is_active', true)->first()
+                ?? Plan::where('slug', 'free')->first()
+                ?? Plan::where('price', '<=', 0)->firstOrFail();
+
+            // Check if store already has a valid active subscription
+            $existingActive = ShopSubscription::with('plan')
+                ->where('shop_id', $store->id)
+                ->where('status', ShopSubscription::STATUS_ACTIVE)
+                ->where(function ($q): void {
+                    $q->whereNull('current_period_end')
+                        ->orWhere('current_period_end', '>', now());
+                })
+                ->whereHas('plan', fn ($q) => $q->where('is_active', true))
+                ->latest('id')
+                ->first();
+
+            if ($existingActive) {
+                return $existingActive;
+            }
+
+            // Create permanent Free subscription
+            $subscription = ShopSubscription::create([
+                'shop_id' => $store->id,
+                'plan_id' => $freePlan->id,
+                'status' => ShopSubscription::STATUS_ACTIVE,
+                'cancel_at_period_end' => false,
+                'cancelled_at' => null,
+                'activated_at' => now(),
+                'current_period_start' => now(),
+                'current_period_end' => null,
+                'metadata' => ['source' => 'auto_free_assignment'],
+            ]);
+
+            $store->update(['plan_name' => $freePlan->name]);
+
+            Log::info('Assigned permanent Free subscription to store', [
+                'shop' => $store->shop,
+                'subscription_id' => $subscription->id,
+            ]);
+
+            return $subscription->load('plan');
+        });
+    }
+
+    /**
+     * Activate or renew a Pro subscription for a shop.
+     */
+    public function activateSubscription(
+        ShopifyStore $store,
+        Plan $plan,
+        ?string $chargeId = null,
+        array $metadata = []
+    ): ShopSubscription {
         if (! $plan->is_active || $plan->isFree()) {
             throw new InvalidArgumentException('Only the active SocialNest Pro plan can be subscribed to.');
         }
 
-        return DB::transaction(function () use ($store, $plan): ShopSubscription {
+        return DB::transaction(function () use ($store, $plan, $chargeId, $metadata): ShopSubscription {
             $now = now();
             $start = $now;
             $end = $now->copy()->addDays(30);
 
-            // Mark all existing active subscriptions for this store as expired
+            // Expire all existing active subscriptions for this store
             ShopSubscription::where('shop_id', $store->id)
                 ->where('status', ShopSubscription::STATUS_ACTIVE)
                 ->update(['status' => ShopSubscription::STATUS_EXPIRED]);
@@ -156,25 +213,31 @@ class SubscriptionService
             $subscription = ShopSubscription::create([
                 'shop_id' => $store->id,
                 'plan_id' => $plan->id,
+                'shopify_charge_id' => $chargeId,
                 'status' => ShopSubscription::STATUS_ACTIVE,
                 'cancel_at_period_end' => false,
                 'cancelled_at' => null,
                 'activated_at' => $now,
                 'current_period_start' => $start,
                 'current_period_end' => $end,
+                'metadata' => ! empty($metadata) ? $metadata : null,
             ]);
 
             // Synchronize store's plan_name
             $store->update(['plan_name' => $plan->name]);
+
+            Log::info('Activated Pro subscription for store', [
+                'shop' => $store->shop,
+                'subscription_id' => $subscription->id,
+                'shopify_charge_id' => $chargeId,
+            ]);
 
             return $subscription->load('plan');
         });
     }
 
     /**
-     * Cancel an active subscription immediately.
-     *
-     * All feature and storefront access is blocked instantly.
+     * Cancel an active subscription immediately and cleanly revert to permanent Free.
      */
     public function cancelSubscription(ShopifyStore $store): ShopSubscription
     {
@@ -191,8 +254,43 @@ class SubscriptionService
                 'cancel_at_period_end' => false,
             ]);
 
+            // Unlink store from active plan name without creating a ghost free subscription
+            $store->update(['plan_name' => null]);
+
+            Log::info('Cancelled active subscription and cleared active plan assignment', [
+                'shop' => $store->shop,
+                'cancelled_subscription_id' => $activeSubscription->id,
+            ]);
+
             return $activeSubscription->fresh('plan');
         });
+    }
+
+    /**
+     * Helper to expire overdue subscriptions that have an end date.
+     */
+    protected function expireOverdueSubscriptions(int $shopId): void
+    {
+        $now = now();
+
+        // Expire paid subscriptions that have reached or passed current_period_end
+        $expiredCount = ShopSubscription::where('shop_id', $shopId)
+            ->where('status', ShopSubscription::STATUS_ACTIVE)
+            ->whereNotNull('current_period_end')
+            ->where('current_period_end', '<=', $now)
+            ->update(['status' => ShopSubscription::STATUS_EXPIRED]);
+
+        // Expire subscriptions whose plans have been deactivated
+        ShopSubscription::where('shop_id', $shopId)
+            ->where('status', ShopSubscription::STATUS_ACTIVE)
+            ->whereHas('plan', function ($query): void {
+                $query->where('is_active', false);
+            })
+            ->update(['status' => ShopSubscription::STATUS_EXPIRED]);
+
+        if ($expiredCount > 0) {
+            Log::info("Expired {$expiredCount} overdue subscription(s) for shop ID {$shopId}");
+        }
     }
 
     /**

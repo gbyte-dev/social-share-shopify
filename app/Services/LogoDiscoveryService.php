@@ -11,7 +11,12 @@ class LogoDiscoveryService
     /**
      * Timeout in seconds for remote HTTP requests.
      */
-    protected const REQUEST_TIMEOUT = 5;
+    protected const REQUEST_TIMEOUT = 3;
+
+    /**
+     * Connection timeout in seconds for remote HTTP requests.
+     */
+    protected const CONNECT_TIMEOUT = 2;
 
     /**
      * Maximum response body bytes to read (5 MB).
@@ -195,11 +200,19 @@ class LogoDiscoveryService
         $preselected = $uniqueCandidates[0] ?? null;
 
         if (empty($uniqueCandidates)) {
+            $fallbackCandidate = [
+                'url' => 'data:image/svg+xml;base64,'.base64_encode(SocialPlatformService::iconSvg('other', 36)),
+                'source_name' => 'Default Platform Icon',
+                'source_domain' => $domain ?: 'default',
+                'is_verified' => true,
+                'priority' => 10,
+            ];
+
             return [
-                'success' => false,
-                'candidates' => [],
-                'preselected' => null,
-                'message' => 'No logos could be automatically discovered for this platform. Please upload a logo manually.',
+                'success' => true,
+                'candidates' => [$fallbackCandidate],
+                'preselected' => $fallbackCandidate,
+                'message' => 'No custom logo was found online. A default icon has been selected.',
             ];
         }
 
@@ -221,7 +234,8 @@ class LogoDiscoveryService
         $found = [];
 
         try {
-            $response = Http::timeout(self::REQUEST_TIMEOUT)
+            $response = Http::connectTimeout(self::CONNECT_TIMEOUT)
+                ->timeout(self::REQUEST_TIMEOUT)
                 ->withHeaders([
                     'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) SocialNest-LogoDiscovery/1.0',
                     'Accept' => 'text/html,application/xhtml+xml',
@@ -444,7 +458,8 @@ class LogoDiscoveryService
         }
 
         try {
-            $response = Http::timeout(3)
+            $response = Http::connectTimeout(self::CONNECT_TIMEOUT)
+                ->timeout(self::REQUEST_TIMEOUT)
                 ->withHeaders(['User-Agent' => 'SocialNest-LogoValidator/1.0'])
                 ->get($url);
 
@@ -594,7 +609,8 @@ class LogoDiscoveryService
         }
 
         try {
-            $response = Http::timeout(self::REQUEST_TIMEOUT)
+            $response = Http::connectTimeout(self::CONNECT_TIMEOUT)
+                ->timeout(self::REQUEST_TIMEOUT)
                 ->withHeaders(['User-Agent' => 'SocialNest-LogoDownloader/1.0'])
                 ->get($url);
 

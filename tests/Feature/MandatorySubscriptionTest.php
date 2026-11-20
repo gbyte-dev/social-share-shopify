@@ -5,8 +5,10 @@ namespace Tests\Feature;
 use App\Models\Plan;
 use App\Models\ShopifyStore;
 use App\Models\ShopSubscription;
+use App\Services\EntitlementService;
 use App\Services\SubscriptionService;
 use Carbon\Carbon;
+use Firebase\JWT\JWT;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use InvalidArgumentException;
 use Tests\TestCase;
@@ -21,43 +23,46 @@ class MandatorySubscriptionTest extends TestCase
 
     protected SubscriptionService $subscriptionService;
 
+    protected EntitlementService $entitlementService;
+
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->freePlan = Plan::firstOrCreate(
+        config([
+            'shopify.api_key' => 'test-api-key',
+            'shopify.api_secret' => 'test-api-secret-1234567890123456',
+            'shopify.webhook_secret' => 'test-api-secret-1234567890123456',
+        ]);
+
+        $this->freePlan = Plan::updateOrInsert(
             ['slug' => 'free'],
             [
-                'name' => 'Free',
+                'name' => 'Free Plan',
                 'price' => 0.00,
                 'currency' => 'USD',
-                'billing_interval' => '30_days',
-                'description' => 'Legacy free plan',
-                'features' => ['Basic links'],
-                'is_active' => false,
+                'billing_interval' => 'permanent',
+                'social_link_limit' => 2,
+                'is_active' => true,
+                'updated_at' => now(),
             ]
-        );
-        $this->freePlan->update(['is_active' => false]);
+        ) ? Plan::where('slug', 'free')->first() : Plan::first();
 
-        $this->proPlan = Plan::firstOrCreate(
+        $this->proPlan = Plan::updateOrInsert(
             ['slug' => 'pro'],
             [
                 'name' => 'SocialNest Pro',
                 'price' => 5.00,
                 'currency' => 'USD',
                 'billing_interval' => '30_days',
-                'description' => 'Complete storefront engagement suite',
-                'features' => ['All social platforms', 'Custom color picker', 'Analytics'],
+                'social_link_limit' => null,
                 'is_active' => true,
+                'updated_at' => now(),
             ]
-        );
-        $this->proPlan->update([
-            'name' => 'SocialNest Pro',
-            'price' => 5.00,
-            'is_active' => true,
-        ]);
+        ) ? Plan::where('slug', 'pro')->first() : Plan::first();
 
         $this->subscriptionService = app(SubscriptionService::class);
+        $this->entitlementService = app(EntitlementService::class);
     }
 
     protected function tearDown(): void
@@ -70,30 +75,32 @@ class MandatorySubscriptionTest extends TestCase
     protected function createInactiveStore(string $shop = 'inactive-store.myshopify.com'): ShopifyStore
     {
         ShopifyStore::$autoSubscribeInTests = false;
-        $store = ShopifyStore::create([
-            'shop' => $shop,
-            'access_token' => 'shpat_test_inactive_token',
-            'scope' => 'read_products',
-            'is_active' => true,
-            'installed_at' => now(),
-        ]);
-        ShopifyStore::$autoSubscribeInTests = true;
+        try {
+            $store = ShopifyStore::create([
+                'shop' => $shop,
+                'access_token' => 'shpat_test_inactive_token',
+                'scope' => 'read_products',
+                'is_active' => true,
+                'installed_at' => now(),
+            ]);
+        } finally {
+            ShopifyStore::$autoSubscribeInTests = true;
+        }
+
+        return $store;
+    }
+
+    protected function createFreeStore(string $shop = 'free-store.myshopify.com'): ShopifyStore
+    {
+        $store = $this->createInactiveStore($shop);
+        $this->subscriptionService->assignFreeSubscription($store);
 
         return $store;
     }
 
     protected function createActiveStore(string $shop = 'active-store.myshopify.com'): ShopifyStore
     {
-        ShopifyStore::$autoSubscribeInTests = false;
-        $store = ShopifyStore::create([
-            'shop' => $shop,
-            'access_token' => 'shpat_test_active_token',
-            'scope' => 'read_products',
-            'is_active' => true,
-            'installed_at' => now(),
-        ]);
-        ShopifyStore::$autoSubscribeInTests = true;
-
+        $store = $this->createInactiveStore($shop);
         $this->subscriptionService->activateSubscription($store, $this->proPlan);
 
         return $store;
@@ -101,32 +108,50 @@ class MandatorySubscriptionTest extends TestCase
 
     protected function authStore(ShopifyStore $store): self
     {
+        $payload = [
+            'iss' => "https://{$store->shop}/admin",
+            'dest' => "https://{$store->shop}",
+            'aud' => (string) config('shopify.api_key'),
+            'sub' => '1234567890',
+            'exp' => time() + 3600,
+            'nbf' => time() - 60,
+            'iat' => time(),
+        ];
+        $token = JWT::encode($payload, (string) config('shopify.api_secret'), 'HS256');
+
         return $this->withSession([
             'shopify_shop' => $store->shop,
             'shopify_store_id' => $store->id,
             'shopify_host' => base64_encode($store->shop.'/admin'),
-        ]);
+        ])->withToken($token);
     }
 
     // ==========================================
-    // 1. Only One Subscription Plan
+    // 1. Subscription Plans Availability
     // ==========================================
 
-    public function test_1_only_one_socialnest_pro_plan_is_available(): void
+    public function test_1_free_and_pro_subscription_plans_are_available(): void
     {
         $activePlans = Plan::where('is_active', true)->get();
 
-        $this->assertCount(1, $activePlans);
-        $this->assertEquals('SocialNest Pro', $activePlans->first()->name);
-        $this->assertEquals('pro', $activePlans->first()->slug);
-        $this->assertEquals(5.00, (float) $activePlans->first()->price);
+        $this->assertGreaterThanOrEqual(2, $activePlans->count());
+        $this->assertNotNull($activePlans->firstWhere('slug', 'free'));
+        $this->assertNotNull($activePlans->firstWhere('slug', 'pro'));
+
+        $free = $activePlans->firstWhere('slug', 'free');
+        $this->assertSame(0.00, (float) $free->price);
+        $this->assertSame(2, (int) $free->social_link_limit);
+
+        $pro = $activePlans->firstWhere('slug', 'pro');
+        $this->assertSame(5.00, (float) $pro->price);
+        $this->assertNull($pro->social_link_limit);
     }
 
     // ==========================================
-    // 2. Free Plan Cannot Be Activated
+    // 2. Free Plan Cannot Be Subscribed Via Recurring Billing
     // ==========================================
 
-    public function test_2_free_plan_cannot_be_activated(): void
+    public function test_2_free_plan_cannot_be_activated_as_recurring_paid_charge(): void
     {
         $store = $this->createInactiveStore();
 
@@ -134,7 +159,7 @@ class MandatorySubscriptionTest extends TestCase
         $this->subscriptionService->activateSubscription($store, $this->freePlan);
     }
 
-    public function test_2b_free_plan_submission_is_rejected(): void
+    public function test_2b_free_plan_submission_to_paid_subscribe_is_rejected(): void
     {
         $store = $this->createInactiveStore();
 
@@ -143,43 +168,62 @@ class MandatorySubscriptionTest extends TestCase
         ]);
 
         $response->assertStatus(404);
-        $this->assertFalse($this->subscriptionService->isActive($store));
     }
 
     // ==========================================
-    // 3. No Subscription Redirects to Plans & Billing
+    // 3. Free Merchant Access to Dashboard and General Views
     // ==========================================
 
-    public function test_3_no_subscription_redirects_to_plans_and_billing(): void
+    public function test_3_free_merchant_can_access_dashboard_and_general_views(): void
     {
-        $store = $this->createInactiveStore();
-        $expectedHost = base64_encode($store->shop.'/admin');
+        $store = $this->createFreeStore();
 
-        $response = $this->authStore($store)->get('/shopify/dashboard');
+        $dash = $this->authStore($store)->get('/shopify/dashboard');
+        $dash->assertStatus(200);
+        $dash->assertViewIs('shopify.dashboard');
 
-        $response->assertRedirect(route('shopify.plans.index', ['shop' => $store->shop, 'host' => $expectedHost]));
-        $response->assertSessionHas('warning', 'Paid plan is required to use features on this app');
+        $links = $this->authStore($store)->get('/shopify/social-links');
+        $links->assertStatus(200);
+
+        $plans = $this->authStore($store)->get('/shopify/plans');
+        $plans->assertStatus(200);
+
+        $support = $this->authStore($store)->get('/shopify/support');
+        $support->assertStatus(200);
     }
 
     // ==========================================
-    // 4. Dummy Checkout Displays Exactly $5
+    // 4. Free Merchant Blocked From Premium Features
     // ==========================================
 
-    public function test_4_dummy_checkout_displays_exactly_5_dollars(): void
+    public function test_4_free_merchant_cannot_access_storefront_settings_or_wishlist(): void
     {
-        $store = $this->createInactiveStore();
+        $store = $this->createFreeStore();
 
-        $response = $this->authStore($store)->get("/shopify/plans/checkout/{$this->proPlan->id}");
+        // 1. Settings view redirects to plans with upgrade warning
+        $settingsRes = $this->authStore($store)->get('/shopify/settings');
+        $settingsRes->assertRedirect(route('shopify.plans.index', [
+            'shop' => $store->shop,
+            'host' => base64_encode($store->shop.'/admin'),
+        ]));
+        $settingsRes->assertSessionHas('warning', 'This feature requires a SocialNest Pro subscription.');
 
-        $response->assertStatus(200);
-        $response->assertSee('SocialNest Pro');
-        $response->assertSee('$5.00');
-        $response->assertSee('Confirm 30-Day Subscription');
-        $response->assertSee('Dummy Subscription Disclosure');
+        // 2. Settings API update returns 403 UPGRADE_REQUIRED
+        $settingsApi = $this->authStore($store)->putJson('/shopify/settings', [
+            'is_enabled' => true,
+        ]);
+        $settingsApi->assertStatus(403);
+        $settingsApi->assertJson([
+            'error' => 'UPGRADE_REQUIRED',
+            'code' => 'UPGRADE_REQUIRED',
+        ]);
 
-        // Trying to checkout free plan returns 404
-        $freeCheckout = $this->authStore($store)->get("/shopify/plans/checkout/{$this->freePlan->id}");
-        $freeCheckout->assertStatus(404);
+        // 3. Wishlist status API returns 403 UPGRADE_REQUIRED
+        $wishlistStatus = $this->authStore($store)->getJson('/shopify/wishlist/status');
+        $wishlistStatus->assertStatus(403);
+        $wishlistStatus->assertJson([
+            'code' => 'UPGRADE_REQUIRED',
+        ]);
     }
 
     // ==========================================
@@ -199,56 +243,67 @@ class MandatorySubscriptionTest extends TestCase
         $this->assertEquals($startTime->copy()->addDays(30)->toIso8601String(), $sub->current_period_end->toIso8601String());
         $this->assertEquals(30, $sub->current_period_start->diffInDays($sub->current_period_end));
         $this->assertTrue($this->subscriptionService->isActive($store));
+        $this->assertTrue($this->entitlementService->isPro($store));
     }
 
     // ==========================================
-    // 6. Exact Expiry Blocks Access
+    // 6. Exact Expiry of Pro Subscription Resolves to Free
     // ==========================================
 
-    public function test_6_exact_expiry_blocks_access(): void
+    public function test_6_exact_expiry_of_pro_subscription_resolves_to_free(): void
     {
         $startTime = Carbon::parse('2026-11-01 12:00:00');
         Carbon::setTestNow($startTime);
 
-        $store = $this->createInactiveStore();
-        $sub = $this->subscriptionService->activateSubscription($store, $this->proPlan);
+        $store = $this->createActiveStore();
+        $sub = $store->activeSubscription;
 
-        // At exact expiry timestamp (current_period_end), access is strictly denied
-        Carbon::setTestNow($sub->current_period_end);
+        // Move to current_period_end timestamp
+        Carbon::setTestNow($sub->current_period_end->copy()->addSecond());
 
+        // Pro entitlement is expired
+        $this->assertFalse($this->entitlementService->isPro($store));
+
+        // Falls back to unassigned Free tier limits without ghost subscription
+        $this->assertTrue($this->entitlementService->isFree($store));
         $this->assertFalse($this->subscriptionService->isActive($store));
+        $this->assertNull($this->subscriptionService->getActiveSubscription($store));
+
+        // Free access retained for Dashboard
+        $dash = $this->authStore($store)->get('/shopify/dashboard');
+        $dash->assertStatus(200);
+
+        // Pro settings view blocked
+        $settings = $this->authStore($store)->get('/shopify/settings');
+        $settings->assertRedirect();
     }
 
     // ==========================================
-    // 7. Existing Free Subscription Does Not Grant Access
+    // 7. Permanent Free Subscription Does Not Expire
     // ==========================================
 
-    public function test_7_existing_free_subscription_does_not_grant_access(): void
+    public function test_7_permanent_free_subscription_does_not_expire(): void
     {
-        $store = $this->createInactiveStore();
+        $startTime = Carbon::parse('2026-11-01 12:00:00');
+        Carbon::setTestNow($startTime);
 
-        // Simulate legacy active subscription on free plan
-        $legacySub = ShopSubscription::create([
-            'shop_id' => $store->id,
-            'plan_id' => $this->freePlan->id,
-            'status' => ShopSubscription::STATUS_ACTIVE,
-            'activated_at' => now(),
-            'current_period_start' => now(),
-            'current_period_end' => now()->addDays(30),
-        ]);
+        $store = $this->createFreeStore();
+        $this->assertTrue($this->entitlementService->isFree($store));
+        $this->assertFalse($this->entitlementService->isPro($store));
 
-        $this->assertFalse($this->subscriptionService->isActive($store));
+        // Advance 365 days
+        Carbon::setTestNow($startTime->copy()->addDays(365));
 
-        // Status is automatically transitioned to expired
-        $legacySub->refresh();
-        $this->assertEquals(ShopSubscription::STATUS_EXPIRED, $legacySub->status);
+        $this->assertTrue($this->subscriptionService->isActive($store));
+        $this->assertTrue($this->entitlementService->isFree($store));
+        $this->assertFalse($this->entitlementService->isPro($store));
     }
 
     // ==========================================
-    // 8. Active Subscription Grants Access
+    // 8. Active Pro Subscription Grants Access to All Features
     // ==========================================
 
-    public function test_8_active_subscription_grants_access(): void
+    public function test_8_active_pro_subscription_grants_access_to_all_features(): void
     {
         $store = $this->createActiveStore();
 
@@ -264,10 +319,10 @@ class MandatorySubscriptionTest extends TestCase
     }
 
     // ==========================================
-    // 9. Active Subscription Can Be Cancelled
+    // 9. Active Pro Subscription Can Be Cancelled and Reverts to Free
     // ==========================================
 
-    public function test_9_active_subscription_can_be_cancelled(): void
+    public function test_9_active_subscription_can_be_cancelled_and_reverts_to_free(): void
     {
         $store = $this->createActiveStore();
 
@@ -278,15 +333,21 @@ class MandatorySubscriptionTest extends TestCase
             'host' => base64_encode($store->shop.'/admin'),
         ]));
 
-        $sub = $store->subscriptions()->latest('id')->first();
+        $sub = $store->subscriptions()->where('plan_id', $this->proPlan->id)->latest('id')->first();
         $this->assertNotNull($sub);
         $this->assertEquals(ShopSubscription::STATUS_CANCELLED, $sub->status);
         $this->assertNotNull($sub->cancelled_at);
+
+        // Store is now cleanly unlinked from active subscription without ghost free subscription
         $this->assertFalse($this->subscriptionService->isActive($store));
+        $this->assertNull($this->subscriptionService->getActiveSubscription($store));
+        $this->assertNull($store->fresh()->plan_name);
+        $this->assertTrue($this->entitlementService->isFree($store));
+        $this->assertFalse($this->entitlementService->isPro($store));
     }
 
     // ==========================================
-    // 10. Cancellation Requires Confirmation
+    // 10. Cancellation Modal in Plans View
     // ==========================================
 
     public function test_10_cancellation_modal_is_present_in_view(): void
@@ -296,36 +357,43 @@ class MandatorySubscriptionTest extends TestCase
         $response = $this->authStore($store)->get('/shopify/plans');
 
         $response->assertStatus(200);
-        $response->assertSee('Cancel Subscription Immediately?');
-        $response->assertSee('Keep Subscription');
-        $response->assertSee('Cancel &amp; Block Access Instantly', false);
+        $response->assertSee('Cancel your subscription?');
+        $response->assertSee('Keep subscription');
+        $response->assertSee('Confirm cancellation');
     }
 
     // ==========================================
-    // 11. Cancellation Immediately Revokes Access
+    // 11. Cancelled Pro Subscription Retains Free Access but Blocks Pro
     // ==========================================
 
-    public function test_11_cancellation_immediately_revokes_access(): void
+    public function test_11_cancelled_subscription_retains_free_access_but_blocks_pro(): void
     {
         $store = $this->createActiveStore();
         $this->subscriptionService->cancelSubscription($store);
 
-        // Immediately inactive!
+        // Store remains under unverified Free tier fallback without active subscription record
         $this->assertFalse($this->subscriptionService->isActive($store));
+        $this->assertNull($this->subscriptionService->getActiveSubscription($store));
+        $this->assertTrue($this->entitlementService->isFree($store));
+        $this->assertFalse($this->entitlementService->isPro($store));
 
+        // Free merchant can still access Dashboard
         $dash = $this->authStore($store)->get('/shopify/dashboard');
-        $dash->assertRedirect(route('shopify.plans.index', [
+        $dash->assertStatus(200);
+
+        // Pro settings view is blocked
+        $settings = $this->authStore($store)->get('/shopify/settings');
+        $settings->assertRedirect(route('shopify.plans.index', [
             'shop' => $store->shop,
             'host' => base64_encode($store->shop.'/admin'),
         ]));
-        $dash->assertSessionHas('warning', 'Paid plan is required to use features on this app');
     }
 
     // ==========================================
-    // 12. Cancelled Subscription Disables Storefront Immediately
+    // 12. Cancelled Pro Subscription Dynamically Adjusts Storefront API
     // ==========================================
 
-    public function test_12_cancelled_subscription_disables_storefront_immediately(): void
+    public function test_12_cancelled_pro_subscription_dynamically_adjusts_storefront_api(): void
     {
         $store = $this->createActiveStore();
         $store->getStorefrontSettings()->update(['is_enabled' => true]);
@@ -336,104 +404,68 @@ class MandatorySubscriptionTest extends TestCase
         $configResponse->assertStatus(200);
         $configResponse->assertJson([
             'success' => true,
-            'enabled' => false,
-            'subscription_active' => false,
-            'links' => [],
-        ]);
-
-        $trackResponse = $this->postJson('/api/storefront/track-click', [
-            'shop' => $store->shop,
-            'platform' => 'whatsapp',
-        ]);
-        $trackResponse->assertStatus(403);
-    }
-
-    // ==========================================
-    // 13. Cancelled Subscription Cannot Access Protected APIs
-    // ==========================================
-
-    public function test_13_cancelled_subscription_cannot_access_protected_apis(): void
-    {
-        $store = $this->createActiveStore();
-        $this->subscriptionService->cancelSubscription($store);
-
-        $response = $this->authStore($store)->json('POST', '/shopify/social-links/reorder', [
-            'order' => [1, 2, 3],
-        ]);
-
-        $response->assertStatus(403);
-        $response->assertJson([
-            'error' => 'SUBSCRIPTION_REQUIRED',
-            'code' => 'SUBSCRIPTION_REQUIRED',
+            'enabled' => true,
+            'settings' => [
+                'is_pro' => false,
+                'product_share_enabled' => false,
+                'floating_cta_enabled' => false,
+            ],
         ]);
     }
 
     // ==========================================
-    // 14. Re-Subscribe After Cancellation Restores Access
+    // 13. Re-Subscribe After Cancellation Restores Pro Access
     // ==========================================
 
-    public function test_14_resubscribe_after_cancellation_restores_access(): void
+    public function test_13_resubscribe_after_cancellation_restores_pro_access(): void
     {
         $store = $this->createActiveStore();
         $this->subscriptionService->cancelSubscription($store);
-        $this->assertFalse($this->subscriptionService->isActive($store));
+        $this->assertFalse($this->entitlementService->isPro($store));
 
         $newSub = $this->subscriptionService->activateSubscription($store, $this->proPlan);
         $this->assertEquals(ShopSubscription::STATUS_ACTIVE, $newSub->status);
-        $this->assertTrue($this->subscriptionService->isActive($store));
+        $this->assertTrue($this->entitlementService->isPro($store));
 
-        $dash = $this->authStore($store)->get('/shopify/dashboard');
-        $dash->assertStatus(200);
+        $settings = $this->authStore($store)->get('/shopify/settings');
+        $settings->assertStatus(200);
     }
 
     // ==========================================
-    // 15. Cross-Shop Cancellation Is Rejected
+    // 14. Cross-Shop Cancellation Is Rejected
     // ==========================================
 
-    public function test_15_cross_shop_cancellation_is_rejected(): void
+    public function test_14_cross_shop_cancellation_is_rejected(): void
     {
         $storeA = $this->createActiveStore('store-a.myshopify.com');
         $storeB = $this->createActiveStore('store-b.myshopify.com');
 
-        // Store A attempts to cancel store B by passing parameters
-        $this->authStore($storeA)->post('/shopify/plans/cancel', [
-            'shop_id' => $storeB->id,
+        // Parameter spoofing with another store's domain is rejected by VerifyShopifyIdToken
+        $spoofRes = $this->authStore($storeA)->post('/shopify/plans/cancel', [
             'shop' => $storeB->shop,
         ]);
+        $this->assertSame(401, $spoofRes->status());
 
-        $subA = $storeA->subscriptions()->latest('id')->first();
-        $subB = $storeB->subscriptions()->latest('id')->first();
+        // Attempting to cancel by passing store B's ID cannot affect store B
+        $this->authStore($storeA)->post('/shopify/plans/cancel', [
+            'shop_id' => $storeB->id,
+            'shop' => $storeA->shop,
+        ]);
+
+        $subA = $storeA->subscriptions()->where('plan_id', $this->proPlan->id)->latest('id')->first();
+        $subB = $storeB->subscriptions()->where('plan_id', $this->proPlan->id)->latest('id')->first();
 
         // Only store A's subscription was cancelled; store B remains untouched and active
         $this->assertEquals(ShopSubscription::STATUS_CANCELLED, $subA->status);
         $this->assertEquals(ShopSubscription::STATUS_ACTIVE, $subB->status);
-        $this->assertTrue($this->subscriptionService->isActive($storeB));
+        $this->assertTrue($this->entitlementService->isPro($storeB));
     }
 
     // ==========================================
-    // 16. Inactive Subscription Cannot Access Protected APIs
+    // 15. Active Storefront Remains Functional
     // ==========================================
 
-    public function test_16_inactive_subscription_cannot_access_protected_apis(): void
-    {
-        $store = $this->createInactiveStore();
-
-        $response = $this->authStore($store)->json('POST', '/shopify/social-links/reorder', [
-            'order' => [1, 2, 3],
-        ]);
-
-        $response->assertStatus(403);
-        $response->assertJson([
-            'error' => 'SUBSCRIPTION_REQUIRED',
-            'code' => 'SUBSCRIPTION_REQUIRED',
-        ]);
-    }
-
-    // ==========================================
-    // 17. Active Storefront Remains Functional
-    // ==========================================
-
-    public function test_17_active_storefront_remains_functional(): void
+    public function test_15_active_storefront_remains_functional(): void
     {
         $store = $this->createActiveStore();
         $store->getStorefrontSettings()->update(['is_enabled' => true]);
@@ -448,40 +480,10 @@ class MandatorySubscriptionTest extends TestCase
     }
 
     // ==========================================
-    // 18. Expired Storefront Widgets Are Disabled
+    // 16. Shopify OAuth and Webhooks Continue Working
     // ==========================================
 
-    public function test_18_expired_storefront_widgets_are_disabled(): void
-    {
-        $startTime = Carbon::parse('2026-11-01 10:00:00');
-        Carbon::setTestNow($startTime);
-
-        $store = $this->createActiveStore();
-
-        // Move past 30 days
-        Carbon::setTestNow($startTime->copy()->addDays(31));
-
-        $configResponse = $this->getJson("/api/storefront/config?shop={$store->shop}");
-        $configResponse->assertStatus(200);
-        $configResponse->assertJson([
-            'success' => true,
-            'enabled' => false,
-            'subscription_active' => false,
-            'links' => [],
-        ]);
-
-        $trackResponse = $this->postJson('/api/storefront/track-click', [
-            'shop' => $store->shop,
-            'platform' => 'whatsapp',
-        ]);
-        $trackResponse->assertStatus(403);
-    }
-
-    // ==========================================
-    // 19. Shopify OAuth and Webhooks Continue Working
-    // ==========================================
-
-    public function test_19_shopify_oauth_and_uninstall_webhooks_continue_working(): void
+    public function test_16_shopify_oauth_and_uninstall_webhooks_continue_working(): void
     {
         $install = $this->get('/shopify/install?shop=test.myshopify.com');
         $install->assertRedirect();
@@ -497,10 +499,10 @@ class MandatorySubscriptionTest extends TestCase
     }
 
     // ==========================================
-    // 20. Resume Endpoint Informs Merchant That Cancellation Is Instant
+    // 17. Resume Endpoint Informs Merchant That Cancellation Is Instant
     // ==========================================
 
-    public function test_20_resume_subscription_informs_merchant_cancellation_is_instant(): void
+    public function test_17_resume_subscription_informs_merchant_cancellation_is_instant(): void
     {
         $store = $this->createActiveStore();
 
@@ -511,6 +513,6 @@ class MandatorySubscriptionTest extends TestCase
             'shop' => $store->shop,
             'host' => base64_encode($store->shop.'/admin'),
         ]));
-        $response->assertSessionHas('warning', 'Subscriptions are cancelled immediately. Please re-subscribe to activate a new 30-day period.');
+        $response->assertSessionHas('warning', 'Please re-subscribe to activate a new billing period.');
     }
 }

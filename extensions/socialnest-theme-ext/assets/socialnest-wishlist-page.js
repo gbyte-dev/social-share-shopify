@@ -6,12 +6,13 @@
 import { getState, fetchWishlist, removeProduct } from './socialnest-wishlist-api.js';
 
 var doc = typeof document !== 'undefined' ? document : null;
+var win = typeof window !== 'undefined' ? window : null;
 
 /**
  * Hide theme's default page title to avoid duplicate "Wishlist" titles.
  */
 export function hideThemeTitles(wrapper) {
-  if (!doc || !wrapper) return;
+  if (!doc || !wrapper || !doc.body.contains(wrapper)) return;
   try {
     doc.querySelectorAll('.main-page-title, h1.page-title, .page-title, .section-header__title, .section-header h1, .page-header h1').forEach(function(el) {
       if (!el.classList.contains('sn-wishlist-title') && !wrapper.contains(el)) {
@@ -35,12 +36,26 @@ export function hideThemeTitles(wrapper) {
  * Render dedicated Wishlist page (/pages/wishlist).
  */
 export function renderWishlistPage(onUpdate) {
-  if (!doc) return;
-  var root = doc.querySelector('#socialnest-wishlist-grid-root');
-  if (!root) return;
+  try {
+    if (!doc) return;
+    var root = doc.querySelector('#socialnest-wishlist-grid-root');
+    if (!root) return;
 
-  var wrapper = root.closest('.socialnest-wishlist-page-wrapper');
-  hideThemeTitles(wrapper);
+    var wrapper = root.closest('.socialnest-wishlist-page-wrapper');
+    if (!wrapper || !doc.body.contains(wrapper)) return;
+
+    // Defense-in-depth: verify page path if available on storefront
+    if (typeof location !== 'undefined' && location.pathname && wrapper.dataset.targetHandle) {
+      var targetHandle = wrapper.dataset.targetHandle.trim().toLowerCase();
+      var path = location.pathname.toLowerCase();
+      var isDesignMode = (win && win.Shopify && win.Shopify.designMode) || false;
+      var onTargetPage = path.indexOf('/pages/' + targetHandle) !== -1 || path.indexOf(targetHandle) !== -1;
+      if (!onTargetPage && wrapper.dataset.renderOnAll !== 'true' && !isDesignMode) {
+        return;
+      }
+    }
+
+    hideThemeTitles(wrapper);
 
   var state = getState();
   var items = state.items || [];
@@ -152,4 +167,7 @@ export function renderWishlistPage(onUpdate) {
       }, 150);
     };
   });
+  } catch (err) {
+    console.error('[SN Wishlist] renderWishlistPage exception:', err);
+  }
 }

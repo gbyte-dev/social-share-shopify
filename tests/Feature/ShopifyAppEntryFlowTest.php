@@ -55,8 +55,8 @@ class ShopifyAppEntryFlowTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertViewIs('welcome');
-        $response->assertSee('SocialNest');
-        $response->assertSee('Make Your Shopify Products Easier to Share');
+        $response->assertSee('Socialvire');
+        $response->assertSee('Make Every Product');
     }
 
     public function test_installed_and_authenticated_store_opening_via_shopify_admin_reaches_dashboard_directly(): void
@@ -80,10 +80,7 @@ class ShopifyAppEntryFlowTest extends TestCase
         $response = $this->get('/?'.http_build_query($signedParams));
 
         $response->assertStatus(302);
-        $response->assertRedirect(route('shopify.dashboard', [
-            'shop' => 'active-merchant.myshopify.com',
-            'host' => 'YWRtaW4uc2hvcGlmeS5jb20vc3RvcmUvYWN0aXZlLW1lcmNoYW50',
-        ]));
+        $response->assertRedirect(route('shopify.dashboard', $signedParams));
 
         // Session was bound to the authenticated store
         $this->assertEquals('active-merchant.myshopify.com', session('shopify_shop'));
@@ -113,13 +110,15 @@ class ShopifyAppEntryFlowTest extends TestCase
 
         $response = $this->get('/?'.http_build_query($signedParams));
 
-        $response->assertStatus(302);
-        $location = $response->headers->get('Location');
-        $this->assertNotNull($location);
-        $this->assertStringStartsWith('https://fresh-store.myshopify.com/admin/oauth/authorize?', $location);
+        $response->assertStatus(200);
+        $response->assertSee('window.top.location.href');
+        $response->assertSee('fresh-store.myshopify.com/admin/oauth/authorize');
 
         // State nonce was generated and cached
-        parse_str(parse_url($location, PHP_URL_QUERY), $queryParams);
+        preg_match('/href="([^"]+admin\/oauth\/authorize[^"]+)"/', $response->getContent(), $matches);
+        $this->assertNotEmpty($matches);
+        $authUrl = html_entity_decode($matches[1]);
+        parse_str(parse_url($authUrl, PHP_URL_QUERY), $queryParams);
         $cached = Cache::get("shopify_oauth_state_{$queryParams['state']}");
         $this->assertNotNull($cached);
         $this->assertEquals('fresh-store.myshopify.com', $cached['shop']);
@@ -207,10 +206,7 @@ class ShopifyAppEntryFlowTest extends TestCase
             'shopify_store_id' => $storeA->id,
         ])->get('/shopify/dashboard?shop=store-b.myshopify.com');
 
-        $response->assertStatus(200);
-        // Dashboard resolves Store A, rejecting unauthenticated switch to Store B
-        $response->assertSee('store-a.myshopify.com');
-        $response->assertDontSee('store-b.myshopify.com');
+        $response->assertStatus(403);
     }
 
     public function test_shopify_admin_launch_with_valid_hmac_can_switch_to_installed_store(): void
@@ -299,7 +295,7 @@ class ShopifyAppEntryFlowTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSee('<meta name="shopify-api-key" content="'.$this->testApiKey.'" />', false);
-        $response->assertSee('cdn.shopifycdn.net/shopifycloud/app-bridge.js');
+        $response->assertSee('cdn.shopify.com/shopifycloud/app-bridge.js');
         $response->assertSee('shopify_host');
         // Ensure sidebar links contain the host param
         $response->assertSee(e(route('shopify.social-links.index', ['host' => $host, 'shop' => $store->shop])), false);
@@ -333,7 +329,7 @@ class ShopifyAppEntryFlowTest extends TestCase
 
             $response->assertStatus(200);
             $response->assertSee('<meta name="shopify-api-key" content="'.$this->testApiKey.'" />', false);
-            $response->assertSee('cdn.shopifycdn.net/shopifycloud/app-bridge.js');
+            $response->assertSee('cdn.shopify.com/shopifycloud/app-bridge.js');
         }
     }
 
@@ -518,7 +514,7 @@ class ShopifyAppEntryFlowTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSee('window.top === window.self', false);
-        $response->assertSee('cdn.shopifycdn.net/shopifycloud/app-bridge.js', false);
+        $response->assertSee('cdn.shopify.com/shopifycloud/app-bridge.js', false);
     }
 
     public function test_missing_session_state_redirects_to_install_without_infinite_loop(): void

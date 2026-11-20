@@ -1,57 +1,139 @@
 {% comment %}
   SocialNest Wishlist Page (App Block)
-  Allows merchants to add a dedicated responsive Wishlist grid to any page or section via Theme Editor.
+  Renders a responsive Wishlist grid on the dedicated Wishlist page (/pages/wishlist).
+  Protected by page-level and template-level guards so it never leaks into
+  standard content pages (such as Privacy Choices, About Us, Contact, etc.).
 {% endcomment %}
 
-{{ 'socialnest-storefront.css' | asset_url | stylesheet_tag }}
+{%- liquid
+  assign target_handle = block.settings.target_page_handle | default: 'wishlist' | strip | downcase
+  assign current_handle = page.handle | strip | downcase
+  assign current_suffix = page.template_suffix | default: template.suffix | strip | downcase
 
-<style>
-  /* Hide the theme's default page title (e.g. Dawn/Horizon h1.main-page-title "Wishlist")
-     on the Wishlist page, keeping the SocialNest "My Wishlist" block heading and item count. */
-  .main-page-title,
-  h1.page-title:not(.sn-wishlist-title),
-  .page-header h1:not(.sn-wishlist-title),
-  .section-header__title:not(.sn-wishlist-title),
-  .section-header h1:not(.sn-wishlist-title),
-  .shopify-section:has(.socialnest-wishlist-page-wrapper) h1:not(.sn-wishlist-title) {
-    display: none !important;
-  }
-</style>
+  assign is_wishlist_page = false
 
-<div class="socialnest-wishlist-page-wrapper"
-     data-shop="{{ shop.myshopify_domain | default: shop.permanent_domain }}"
-     data-app-url="https://socialvire.webvire.com"
-     data-columns="{{ block.settings.grid_columns | default: 4 }}"
-     data-empty-heading="{{ block.settings.empty_heading | default: 'Your wishlist is empty' | escape }}"
-     data-empty-text="{{ block.settings.empty_text | default: 'Explore our catalog and click the heart icon on any product to save it here.' | escape }}"
-     data-continue-url="{{ block.settings.continue_url | default: routes.all_products_collection_url | default: '/collections/all' | escape }}"
-     data-continue-label="{{ block.settings.continue_label | default: 'Continue Shopping' | escape }}"
-     style="--sn-grid-cols: {{ block.settings.grid_columns | default: 4 }};">
-  
-  {% if block.settings.heading != blank %}
-    <div class="sn-wishlist-header">
-      <h1 class="sn-wishlist-title">{{ block.settings.heading | escape }}</h1>
-      <span class="sn-wishlist-total-count" aria-live="polite"></span>
+  if request.page_type == 'page'
+    if current_handle == target_handle
+      assign is_wishlist_page = true
+    elsif current_suffix == 'wishlist'
+      assign is_wishlist_page = true
+    endif
+  endif
+-%}
+
+{%- if is_wishlist_page -%}
+  {{ 'socialnest-storefront.css' | asset_url | stylesheet_tag }}
+
+  {%- assign configured_app_url = block.settings.custom_app_url | default: 'https://socialvire.webvire.com' | strip -%}
+  {%- if configured_app_url == blank -%}
+    {%- assign configured_app_url = 'https://socialvire.webvire.com' -%}
+  {%- endif -%}
+
+  {%- assign raw_proxy = block.settings.custom_app_proxy_path | default: '/apps/socialvire' | strip -%}
+  {%- if raw_proxy == blank or raw_proxy == '/apps/socialnest' -%}
+    {%- assign active_proxy_path = '/apps/socialvire' -%}
+  {%- else -%}
+    {%- assign active_proxy_path = raw_proxy -%}
+  {%- endif -%}
+
+  <script>
+    window.__SOCIALNEST_APP_URL__ = window.__SOCIALNEST_APP_URL__ || {{ configured_app_url | json }};
+    window.__SOCIALVIRE_APP_URL__ = window.__SOCIALNEST_APP_URL__;
+    window.__SOCIALVIRE_PROXY_PATH__ = {{ active_proxy_path | json }};
+  </script>
+  <script type="module" src="{{ 'socialnest-wishlist.js' | asset_url }}"></script>
+
+  <style>
+    /* Scoped to dedicated wishlist page: hide theme default page heading to avoid duplicate titles */
+    .main-page-title,
+    h1.page-title:not(.sn-wishlist-title),
+    .page-header h1:not(.sn-wishlist-title),
+    .section-header__title:not(.sn-wishlist-title),
+    .section-header h1:not(.sn-wishlist-title),
+    .shopify-section:has(.socialnest-wishlist-page-wrapper) h1:not(.sn-wishlist-title) {
+      display: none !important;
+    }
+  </style>
+
+  <div class="socialnest-wishlist-page-wrapper"
+       data-shop="{{ shop.myshopify_domain | default: shop.permanent_domain }}"
+       data-app-url="{{ configured_app_url | escape }}"
+       data-app-proxy-path="{{ active_proxy_path | escape }}"
+       data-target-handle="{{ target_handle | escape }}"
+       data-columns="{{ block.settings.grid_columns | default: 4 }}"
+       data-empty-heading="{{ block.settings.empty_heading | default: 'Your wishlist is empty' | escape }}"
+       data-empty-text="{{ block.settings.empty_text | default: 'Explore our catalog and click the heart icon on any product to save it here.' | escape }}"
+       data-continue-url="{{ block.settings.continue_url | default: routes.all_products_collection_url | default: '/collections/all' | escape }}"
+       data-continue-label="{{ block.settings.continue_label | default: 'Continue Shopping' | escape }}"
+       style="--sn-grid-cols: {{ block.settings.grid_columns | default: 4 }};">
+    
+    {% if block.settings.heading != blank %}
+      <div class="sn-wishlist-header">
+        <h1 class="sn-wishlist-title">{{ block.settings.heading | escape }}</h1>
+        <span class="sn-wishlist-total-count" aria-live="polite"></span>
+      </div>
+    {% endif %}
+
+    <div id="socialnest-wishlist-grid-root" class="sn-wishlist-grid" aria-live="polite">
+      <!-- Populated dynamically by socialnest-wishlist.js -->
     </div>
-  {% endif %}
-
-  <div id="socialnest-wishlist-grid-root" class="sn-wishlist-grid" aria-live="polite">
-    <!-- Populated dynamically by socialnest-wishlist.js -->
   </div>
-</div>
+
+{%- elsif request.design_mode -%}
+  <!-- Theme Editor Preview Notice: Visible only inside Shopify Theme Editor when viewing non-wishlist pages -->
+  <div class="socialnest-theme-editor-notice"
+       style="padding: 1.5rem; margin: 1.5rem 0; border: 2px dashed #cbd5e1; border-radius: 8px; background: #f8fafc; color: #334155; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" style="flex-shrink: 0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <strong style="font-size: 0.95rem; color: #0f172a;">SocialNest Wishlist &mdash; Page Guard Active</strong>
+    </div>
+    <p style="margin: 0; font-size: 0.875rem; line-height: 1.5; color: #475569;">
+      This block is configured to render exclusively on your dedicated Wishlist page (<code>/pages/{{ target_handle }}</code>) using template <code>page.wishlist</code>.
+      It is hidden on this page (<code>{{ request.path | default: page.handle | default: 'current page' }}</code>) to prevent displaying wishlist items on standard content pages.
+    </p>
+    <p style="margin: 0.5rem 0 0; font-size: 0.8rem; color: #64748b;">
+      To customize the wishlist, navigate to <strong>Pages &gt; Wishlist</strong> in the Theme Editor top bar.
+    </p>
+  </div>
+{%- endif -%}
 
 {% schema %}
 {
   "name": "SocialNest Wishlist",
   "target": "section",
   "stylesheet": "socialnest-storefront.css",
-  "javascript": "socialnest-wishlist.js",
   "settings": [
     {
       "type": "text",
       "id": "heading",
       "label": "Heading",
       "default": "My Wishlist"
+    },
+    {
+      "type": "header",
+      "content": "Page Isolation Settings"
+    },
+    {
+      "type": "text",
+      "id": "target_page_handle",
+      "label": "Dedicated Page Handle",
+      "default": "wishlist",
+      "info": "URL handle of your dedicated Wishlist page (e.g. 'wishlist' for /pages/wishlist). Restricts rendering exclusively to this page."
+    },
+    {
+      "type": "header",
+      "content": "API & Proxy Configuration"
+    },
+    {
+      "type": "text",
+      "id": "custom_app_proxy_path",
+      "label": "App Proxy Subpath",
+      "default": "/apps/socialvire",
+      "info": "Shopify App Proxy subpath (e.g. '/apps/socialnest' or '/apps/socialvire')."
+    },
+    {
+      "type": "header",
+      "content": "Layout & Styling"
     },
     {
       "type": "range",
@@ -88,6 +170,16 @@
       "id": "continue_label",
       "label": "Continue Shopping Button Label",
       "default": "Continue Shopping"
+    },
+    {
+      "type": "header",
+      "content": "Developer / Advanced"
+    },
+    {
+      "type": "text",
+      "id": "custom_app_url",
+      "label": "Custom App / Tunnel URL",
+      "info": "Optional. Override for local Shopify CLI tunnel or staging domain. Leave blank for default."
     }
   ]
 }

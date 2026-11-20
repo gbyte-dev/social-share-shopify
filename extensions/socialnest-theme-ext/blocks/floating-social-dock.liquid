@@ -6,14 +6,26 @@
 {% endcomment %}
 
 {{ 'socialnest-storefront.css' | asset_url | stylesheet_tag }}
-<script src="{{ 'socialnest-storefront.js' | asset_url }}" defer="defer"></script>
+
+{%- assign configured_dock_app_url = block.settings.custom_app_url | default: 'https://socialvire.webvire.com' | strip -%}
+{%- if configured_dock_app_url == blank -%}
+  {%- assign configured_dock_app_url = 'https://socialvire.webvire.com' -%}
+{%- endif -%}
+
+<script>
+  window.__sn_page_type = {{ request.page_type | json }};
+  window.__SOCIALNEST_APP_URL__ = window.__SOCIALNEST_APP_URL__ || {{ configured_dock_app_url | json }};
+  window.__SOCIALVIRE_APP_URL__ = window.__SOCIALNEST_APP_URL__;
+  window.__SOCIALVIRE_PROXY_PATH__ = "/apps/socialvire";
+</script>
+<script type="module" src="{{ 'socialnest-storefront.js' | asset_url }}"></script>
 <script type="module" src="{{ 'socialnest-wishlist.js' | asset_url }}"></script>
-<script>window.__sn_page_type = {{ request.page_type | json }};</script>
 
 <div id="socialnest-floating-dock-root"
      class="socialnest-dock-container"
      data-shop="{{ shop.myshopify_domain | default: shop.permanent_domain }}"
-     data-app-url="https://socialvire.webvire.com"
+     data-app-url="{{ configured_dock_app_url | escape }}"
+     data-app-proxy-path="/apps/socialvire"
      data-design-mode="{% if request.design_mode %}true{% else %}false{% endif %}"
      data-page-type="{{ request.page_type | escape }}"
      aria-label="Social media links">
@@ -24,11 +36,16 @@
   "name": "SocialNest Floating Dock",
   "target": "body",
   "stylesheet": "socialnest-storefront.css",
-  "javascript": "socialnest-storefront.js",
   "settings": [
     {
       "type": "paragraph",
       "content": "Enable SocialNest storefront integration. Manage all widget settings from your SocialNest Dashboard."
+    },
+    {
+      "type": "text",
+      "id": "custom_app_url",
+      "label": "Custom App / Tunnel URL",
+      "info": "Optional. Override for local Shopify CLI tunnel or custom domain. Leave blank for default."
     }
   ]
 }

@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Models\ShopifyStore;
 use App\Models\SocialLink;
 use App\Models\StorefrontSetting;
+use Firebase\JWT\JWT;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
 use Tests\TestCase;
 
 class StorefrontSettingsAndAnalyticsTest extends TestCase
@@ -16,9 +18,16 @@ class StorefrontSettingsAndAnalyticsTest extends TestCase
 
     protected ShopifyStore $storeB;
 
+    protected string $testApiKey = 'test_shopify_api_key_123';
+
+    protected string $testApiSecret = 'test_shopify_api_secret_32bytes_minimum_length_key_abc123';
+
     protected function setUp(): void
     {
         parent::setUp();
+
+        Config::set('shopify.api_key', $this->testApiKey);
+        Config::set('shopify.api_secret', $this->testApiSecret);
 
         $this->storeA = ShopifyStore::create([
             'shop' => 'store-alpha.myshopify.com',
@@ -37,19 +46,44 @@ class StorefrontSettingsAndAnalyticsTest extends TestCase
         ]);
     }
 
+    protected function generateSessionToken(ShopifyStore $store): string
+    {
+        $payload = [
+            'iss' => "https://{$store->shop}/admin",
+            'dest' => "https://{$store->shop}",
+            'aud' => $this->testApiKey,
+            'sub' => '12345678',
+            'exp' => time() + 3600,
+            'nbf' => time() - 10,
+            'iat' => time() - 10,
+            'jti' => 'test-jwt-id-'.uniqid(),
+            'sid' => 'test-session-id-'.uniqid(),
+        ];
+
+        return JWT::encode($payload, $this->testApiSecret, 'HS256');
+    }
+
     protected function authStoreA(): self
     {
+        $token = $this->generateSessionToken($this->storeA);
+
         return $this->withSession([
             'shopify_shop' => $this->storeA->shop,
             'shopify_store_id' => $this->storeA->id,
+        ])->withHeaders([
+            'Authorization' => "Bearer {$token}",
         ]);
     }
 
     protected function authStoreB(): self
     {
+        $token = $this->generateSessionToken($this->storeB);
+
         return $this->withSession([
             'shopify_shop' => $this->storeB->shop,
             'shopify_store_id' => $this->storeB->id,
+        ])->withHeaders([
+            'Authorization' => "Bearer {$token}",
         ]);
     }
 
@@ -67,7 +101,7 @@ class StorefrontSettingsAndAnalyticsTest extends TestCase
         $response->assertStatus(200);
         $response->assertViewIs('shopify.settings.index');
         $response->assertSee('Widget Configuration');
-        $response->assertSee('Bottom Right');
+        $response->assertSee('Storefront Settings');
     }
 
     public function test_merchant_can_update_settings(): void
@@ -303,9 +337,9 @@ class StorefrontSettingsAndAnalyticsTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertViewIs('shopify.plans.index');
-        $response->assertSee('Free Plan');
-        $response->assertSee('Pro Plan');
-        $response->assertSee('Shopify Billing API Status');
+        $response->assertSee('Subscription & Billing');
+        $response->assertSee('SocialNest Pro');
+        $response->assertSee('Your subscription');
     }
 
     public function test_support_page_renders_for_authenticated_merchant(): void

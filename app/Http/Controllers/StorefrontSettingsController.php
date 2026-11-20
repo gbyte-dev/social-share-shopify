@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ShopifyStore;
+use App\Services\EntitlementService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
@@ -14,13 +15,24 @@ use Illuminate\Validation\ValidationException;
 
 class StorefrontSettingsController extends Controller
 {
+    public function __construct(
+        protected EntitlementService $entitlementService
+    ) {}
+
     /**
      * Display the storefront settings customization page.
      */
-    public function index(Request $request): View
+    public function index(Request $request): View|RedirectResponse
     {
         /** @var ShopifyStore $store */
         $store = $this->resolveStore($request);
+
+        if (! $this->entitlementService->canAccessStorefrontSettings($store)) {
+            return redirect()->route('shopify.plans.index', [
+                'shop' => $store->shop,
+                'host' => session('shopify_host') ?? $request->query('host'),
+            ])->with('warning', 'Storefront Settings customization requires a SocialNest Pro subscription.');
+        }
 
         $settings = $store->getStorefrontSettings();
         $links = $store->socialLinks()->where('is_active', true)->get();
@@ -41,6 +53,25 @@ class StorefrontSettingsController extends Controller
     {
         /** @var ShopifyStore $store */
         $store = $this->resolveStore($request);
+
+        if (! $this->entitlementService->canAccessStorefrontSettings($store)) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'error' => 'UPGRADE_REQUIRED',
+                    'code' => 'UPGRADE_REQUIRED',
+                    'message' => 'Storefront Settings customization requires a SocialNest Pro subscription.',
+                    'upgrade_url' => route('shopify.plans.index', [
+                        'shop' => $store->shop,
+                        'host' => session('shopify_host') ?? $request->query('host'),
+                    ]),
+                ], 403);
+            }
+
+            return redirect()->route('shopify.plans.index', [
+                'shop' => $store->shop,
+                'host' => session('shopify_host') ?? $request->query('host'),
+            ])->with('warning', 'Storefront Settings customization requires a SocialNest Pro subscription.');
+        }
 
         $validated = $request->validate([
             'is_enabled' => ['sometimes', 'boolean'],
@@ -130,9 +161,13 @@ class StorefrontSettingsController extends Controller
         $hoverAnimation = ! empty($validated['hover_animation'])
             ? $validated['hover_animation']
             : ($settings->hover_animation ?? 'lift');
-        $productShareEnabled = $request->has('product_share_enabled')
-            ? $request->boolean('product_share_enabled')
-            : (bool) $settings->product_share_enabled;
+        if ($request->has('product_share_enabled')) {
+            $productShareEnabled = $request->boolean('product_share_enabled');
+        } elseif ($request->hasAny(['product_share_button_text', 'product_share_button_style', 'product_share_button_background_color'])) {
+            $productShareEnabled = false;
+        } else {
+            $productShareEnabled = (bool) $settings->product_share_enabled;
+        }
         $productShareButtonText = ! empty($validated['product_share_button_text'])
             ? $validated['product_share_button_text']
             : ($settings->product_share_button_text ?? 'Share Product');

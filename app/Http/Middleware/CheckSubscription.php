@@ -27,6 +27,10 @@ class CheckSubscription
         'shopify.plans.cancel',
         'shopify.plans.resume',
         'shopify.plans.status',
+        'shopify.subscription.cancel.active',
+        'shopify.billing.callback',
+        'shopify.billing.welcome',
+        'shopify.pricing.welcome',
         'shopify.webhooks',
         'api.storefront.config',
         'api.storefront.track-click',
@@ -44,6 +48,9 @@ class CheckSubscription
         'callback*',
         'shopify/logout*',
         'shopify/plans*',
+        'shopify/subscription/cancel-active*',
+        'shopify/billing/welcome*',
+        'shopify/pricing/welcome*',
         'shopify/webhooks*',
         'api/storefront/*',
         'up',
@@ -79,24 +86,28 @@ class CheckSubscription
             return $next($request);
         }
 
-        if (! $this->subscriptionService->isActive($store)) {
-            if ($request->expectsJson() || $request->is('api/*') || $request->ajax()) {
-                return response()->json([
-                    'error' => 'SUBSCRIPTION_REQUIRED',
-                    'code' => 'SUBSCRIPTION_REQUIRED',
-                    'message' => 'Paid plan is required to use features on this app',
-                    'upgrade_url' => route('shopify.plans.index', [
-                        'shop' => $store->shop,
-                        'host' => session('shopify_host') ?? $request->query('host'),
-                    ]),
-                ], 403);
-            }
-
-            return redirect()->route('shopify.plans.index', [
-                'shop' => $store->shop,
-                'host' => session('shopify_host') ?? $request->query('host'),
-            ])->with('warning', 'Paid plan is required to use features on this app');
+        // Installed stores without an active paid subscription fall back to the unverified/free tier limits.
+        // Pro-specific features (Settings, Wishlist, >2 links) are strictly enforced by EnsureProSubscription and EntitlementService.
+        if ($store->isInstalled() || $this->subscriptionService->isActive($store)) {
+            return $next($request);
         }
+
+        if ($request->expectsJson() || $request->is('api/*') || $request->ajax()) {
+            return response()->json([
+                'error' => 'SUBSCRIPTION_REQUIRED',
+                'code' => 'SUBSCRIPTION_REQUIRED',
+                'message' => 'Paid plan is required to use features on this app',
+                'upgrade_url' => route('shopify.plans.index', [
+                    'shop' => $store->shop,
+                    'host' => session('shopify_host') ?? $request->query('host'),
+                ]),
+            ], 403);
+        }
+
+        return redirect()->route('shopify.plans.index', [
+            'shop' => $store->shop,
+            'host' => session('shopify_host') ?? $request->query('host'),
+        ])->with('warning', 'Paid plan is required to use features on this app');
 
         return $next($request);
     }

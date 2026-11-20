@@ -1707,6 +1707,39 @@
         }
     </style>
 
+    @if(!empty($isFree))
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <span style="background: #e0f2fe; color: #0369a1; font-size: 0.75rem; font-weight: 700; padding: 3px 8px; border-radius: 9999px;">
+                    Free Plan
+                </span>
+                <span style="font-size: 0.875rem; color: #374151;">
+                    <strong>{{ $links->count() }} of {{ $creationStatus['limit'] ?? 2 }}</strong> social links configured.
+                    @if(!$creationStatus['can_create'])
+                        <span style="color: #b91c1c; font-weight: 600; margin-left: 4px;">Limit reached. Existing links remain fully editable and manageable.</span>
+                    @endif
+                </span>
+            </div>
+            <a href="{{ route('shopify.plans.index') }}" class="btn btn-primary btn-sm" style="flex-shrink: 0;">
+                Upgrade for Unlimited Links
+            </a>
+        </div>
+    @else
+        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 16px; margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <span style="background: #dcfce7; color: #15803d; font-size: 0.75rem; font-weight: 700; padding: 3px 8px; border-radius: 9999px;">
+                    SocialNest Pro
+                </span>
+                <span style="font-size: 0.875rem; color: #166534;">
+                    <strong>{{ $links->count() }}</strong> social links active (Unlimited on Pro).
+                </span>
+            </div>
+            <a href="{{ route('shopify.plans.index') }}" style="font-size: 0.8125rem; font-weight: 600; color: #16a34a; text-decoration: none;">
+                Manage Subscription &rarr;
+            </a>
+        </div>
+    @endif
+
     <div class="sn-links-wrap sn-available-platforms">
         @php
             $configuredBuiltInPlatforms = $links->where('platform', '!=', 'other')->pluck('platform')->toArray();
@@ -2316,6 +2349,7 @@
     </div>
 
     <script>
+        (function () {
         // Storefront Settings State & Live Preview Engine
         let initialSettings = {};
         let currentSettings = {};
@@ -2722,7 +2756,14 @@
             const label = document.getElementById('label_' + fieldId.replace('custom_', ''));
             if (label) label.textContent = clamped + 'px';
 
-            updateLivePreview();
+            if (fieldId.includes('desktop') && currentPreviewDevice !== 'desktop') {
+                setPreviewDevice('desktop');
+            } else if (fieldId.includes('mobile') && currentPreviewDevice !== 'mobile') {
+                setPreviewDevice('mobile');
+            } else {
+                updateLivePreview();
+            }
+
             if (source !== 'init') {
                 checkDirtyState();
             }
@@ -2862,29 +2903,28 @@
                 if (isNaN(rawX)) rawX = currentPreviewDevice === 'mobile' ? 16 : 24;
                 if (isNaN(rawY)) rawY = currentPreviewDevice === 'mobile' ? 16 : 24;
 
-                // Scale proportionally for preview container dimensions (0px raw = 0px scaled)
-                const scaleX = Math.round(rawX * 0.4);
-                const scaleY = Math.round(rawY * 0.4);
+                const offsetX = Math.max(0, Math.min(200, rawX));
+                const offsetY = Math.max(0, Math.min(200, rawY));
 
                 if (hAlign === 'left') {
-                    dock.style.left = scaleX + 'px';
+                    dock.style.left = offsetX + 'px';
                     dock.style.right = 'auto';
                 } else if (hAlign === 'right') {
-                    dock.style.right = scaleX + 'px';
+                    dock.style.right = offsetX + 'px';
                     dock.style.left = 'auto';
                 } else {
-                    dock.style.left = `calc(50% + ${scaleX}px)`;
+                    dock.style.left = `calc(50% + ${offsetX}px)`;
                     dock.style.right = 'auto';
                 }
 
                 if (vAlign === 'top') {
-                    dock.style.top = scaleY + 'px';
+                    dock.style.top = offsetY + 'px';
                     dock.style.bottom = 'auto';
                 } else if (vAlign === 'bottom') {
-                    dock.style.bottom = needsElevation ? `calc(${scaleY}px + 64px)` : scaleY + 'px';
+                    dock.style.bottom = offsetY + 'px';
                     dock.style.top = 'auto';
                 } else {
-                    dock.style.top = `calc(50% + ${scaleY}px)`;
+                    dock.style.top = `calc(50% + ${offsetY}px)`;
                     dock.style.bottom = 'auto';
                 }
 
@@ -3160,7 +3200,7 @@
 
             try {
                 const formData = new FormData(form);
-                const response = await fetch(form.action, {
+                const response = await shopifyAuthenticatedFetch(form.action, {
                     method: 'POST',
                     headers: {
                         'Accept': 'application/json',
@@ -3744,6 +3784,21 @@
         window.removeCtaIcon = removeCtaIcon;
         window.updateCtaLivePreview = updateCtaLivePreview;
 
+        // Expose setting control handlers for inline HTML event attributes
+        window.onPositionChanged = onPositionChanged;
+        window.onAlignChanged = onAlignChanged;
+        window.syncOffset = syncOffset;
+        window.onSizeChanged = onSizeChanged;
+        window.onShapeChanged = onShapeChanged;
+        window.onAnimationChanged = onAnimationChanged;
+        window.onSettingChanged = onSettingChanged;
+        window.onButtonStyleChanged = onButtonStyleChanged;
+        window.onProductShareChanged = onProductShareChanged;
+        window.onProductShareInput = onProductShareInput;
+        window.onWhatsAppInput = onWhatsAppInput;
+        window.updateWhatsAppCharCount = updateWhatsAppCharCount;
+        window.updateLivePreview = updateLivePreview;
+
         function initStorefrontSettingsPage() {
             initColorPicker();
 
@@ -3766,47 +3821,108 @@
                 form.addEventListener('submit', handleFormSubmit);
                 form._boundAjaxSubmit = true;
             }
+
+            document.addEventListener('shopify:before-swap', function teardownSettings() {
+                if (beforeUnloadAttached) {
+                    window.removeEventListener('beforeunload', handleBeforeUnload);
+                }
+                window.removeEventListener('resize', positionColorPicker);
+                window.removeEventListener('scroll', positionColorPicker, true);
+                document.removeEventListener('shopify:before-swap', teardownSettings);
+            });
         }
+
+        window.setPreviewDevice = setPreviewDevice;
+        window.insertTag = insertTag;
 
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', initStorefrontSettingsPage);
         } else {
             initStorefrontSettingsPage();
         }
+        })();
     </script>
     <script>
         // Tab navigation is presentation-only; all settings remain in one safe update form.
         (function () {
+            function normalizeTabKey(key) {
+                if (!key) return '';
+                const lower = String(key).trim().toLowerCase();
+                if (lower === 'position' || lower === 'dock-position') return 'dock-position';
+                if (lower === 'appearance' || lower === 'icon-appearance') return 'icon-appearance';
+                if (lower === 'hover-animation' || lower === 'hover' || lower === 'animation') return 'hover-animation';
+                if (lower === 'social-links' || lower === 'links' || lower === 'sharing') return 'social-links';
+                if (lower === 'configured-links' || lower === 'connected-platforms' || lower === 'connected') return 'configured-links';
+                return lower;
+            }
+
             function initSocialLinkTabs() {
                 const root = document.querySelector('.sn-settings-shell');
-                if (!root || root.dataset.tabsInitialized === '1') return;
+                if (!root) return;
                 const tabs = root.querySelectorAll('[data-settings-tab]');
                 const panels = root.querySelectorAll('[data-settings-panel]');
                 if (!tabs.length || !panels.length) return;
 
                 function activateSettingsTab(name) {
+                    const target = normalizeTabKey(name);
                     tabs.forEach(tab => {
-                        const active = tab.dataset.settingsTab === name;
+                        const tabKey = normalizeTabKey(tab.dataset.settingsTab);
+                        const active = tabKey === target;
                         tab.classList.toggle('is-active', active);
                         tab.setAttribute('aria-selected', active ? 'true' : 'false');
                     });
                     panels.forEach(panel => {
-                        const active = panel.dataset.settingsPanel === name;
+                        const panelKey = normalizeTabKey(panel.dataset.settingsPanel);
+                        const active = panelKey === target;
                         panel.classList.toggle('is-active', active);
                         panel.hidden = !active;
+                        panel.style.display = active ? 'block' : 'none';
                     });
-                    if (name !== 'configured-links' && typeof updateLivePreview === 'function') {
-                        updateLivePreview();
+                    if (target !== 'configured-links' && typeof window.updateLivePreview === 'function') {
+                        try {
+                            window.updateLivePreview();
+                        } catch (e) {
+                            console.warn('[SocialNest] updateLivePreview error on tab switch', e);
+                        }
                     }
                 }
 
-                tabs.forEach(tab => tab.addEventListener('click', () => activateSettingsTab(tab.dataset.settingsTab)));
-                root.dataset.tabsInitialized = '1';
-                activateSettingsTab('configured-links');
+                tabs.forEach(tab => {
+                    if (tab._tabClickHandler) {
+                        tab.removeEventListener('click', tab._tabClickHandler);
+                    }
+                    tab._tabClickHandler = function (e) {
+                        if (e && e.preventDefault) e.preventDefault();
+                        activateSettingsTab(tab.dataset.settingsTab);
+                    };
+                    tab.addEventListener('click', tab._tabClickHandler);
+                });
+
+                window.activateSettingsTab = activateSettingsTab;
+                window.switchSettingsTab = activateSettingsTab;
+
+                // Retain currently selected active tab or default to configured-links
+                const currentActive = root.querySelector('.sn-settings-tab.is-active');
+                if (currentActive && currentActive.dataset.settingsTab) {
+                    activateSettingsTab(currentActive.dataset.settingsTab);
+                } else {
+                    activateSettingsTab('configured-links');
+                }
+
+                document.addEventListener('shopify:before-swap', function teardownTabs() {
+                    tabs.forEach(tab => {
+                        if (tab._tabClickHandler) {
+                            tab.removeEventListener('click', tab._tabClickHandler);
+                        }
+                    });
+                    document.removeEventListener('shopify:before-swap', teardownTabs);
+                });
             }
 
+            window.initSocialLinkTabs = initSocialLinkTabs;
+
             if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', initSocialLinkTabs, { once: true });
+                document.addEventListener('DOMContentLoaded', initSocialLinkTabs);
             } else {
                 initSocialLinkTabs();
             }
@@ -3830,6 +3946,7 @@
 
                 <div class="sn-modal-body">
                     <div class="sn-modal-left">
+                        <div class="sn-field-error" id="err_general" style="margin-bottom: 0.75rem; padding: 0.5rem 0.75rem; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; color: #b91c1c; font-size: 0.8125rem; font-weight: 500; display: none;"></div>
                         <label class="sn-label" style="margin-top: 0;">Social Media Platform <span style="color: #d72c0d;">*</span></label>
                         <div id="selectedPlatformBox" class="sn-selected-platform-box" onclick="openPlatformPicker()">
                             <div id="selectedPlatformVisual"></div>
@@ -3851,6 +3968,7 @@
                             <input type="text" id="custom_platform_name" name="custom_platform_name">
                             <input type="text" id="official_website_url" name="official_website_url">
                             <input type="hidden" name="selected_logo_url" id="selected_logo_url">
+                            <div class="sn-field-error" id="err_logo_file"></div>
                         </div>
 
                         <label class="sn-label">Destination or Profile URL <span style="color: #d72c0d;">*</span></label>
@@ -3980,6 +4098,7 @@
 
     <!-- Client-side Logic -->
     <script>
+        (function () {
         const builtinPlatforms = {
             @foreach($allPlatforms as $k => $p)
                 '{{ $k }}': { name: @json($p['name']), color: @json($p['brand_color'] ?? '#4f46e5'), placeholder: @json($p['placeholder']), icon: {!! json_encode(\App\Services\SocialPlatformService::iconSvg($k, 16)) !!} },
@@ -3998,6 +4117,8 @@
         const customAppModal = document.getElementById('customAppModal');
         const form = document.getElementById('socialLinkForm');
         const selPlatform = document.getElementById('platform');
+
+        const fallbackIconSvg = "this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIvPjxwYXRoIGQ9Ik0xMiA4djhNOCAxMmg4Ii8+PC9zdmc+';";
 
         function renderCustomAppsInGrid() {
             document.querySelectorAll('.sn-plat-card.dynamic-custom').forEach(el => el.remove());
@@ -4025,7 +4146,7 @@
 
                 card.innerHTML = `
                     <div class="sn-plat-icon" style="background: #4f46e5;">
-                        <img src="${app.logo}" style="width:16px;height:16px;object-fit:contain;">
+                        <img src="${app.logo}" style="width:16px;height:16px;object-fit:contain;" onerror="${fallbackIconSvg}">
                     </div>
                     <span class="sn-plat-name">${app.name}</span>
                 `;
@@ -4152,12 +4273,13 @@
                 <input type="text" id="custom_platform_name" name="custom_platform_name" value="${app.name}">
                 <input type="text" id="official_website_url" name="official_website_url" value="${app.website || ''}">
                 <input type="hidden" name="selected_logo_url" id="selected_logo_url" value="${app.logo || ''}">
+                <div class="sn-field-error" id="err_logo_file"></div>
             `;
 
             const visualBox = document.getElementById('selectedPlatformVisual');
             visualBox.innerHTML = `
                 <div class="sn-plat-icon" style="background: #4f46e5; width: 28px; height: 28px;">
-                    <img src="${app.logo}" style="width:16px;height:16px;object-fit:contain;">
+                    <img src="${app.logo}" style="width:16px;height:16px;object-fit:contain;" onerror="${fallbackIconSvg}">
                 </div>
                 <div>
                     <span style="font-weight: 600; font-size: 0.8125rem; color: #202223; display: block;">${app.name}</span>
@@ -4193,13 +4315,18 @@
             document.getElementById('regLogoPreviewBox').style.display = 'none';
         }
 
+        let isSavingCustomApp = false;
         async function saveCustomApp(e) {
             e.preventDefault();
+            if (isSavingCustomApp) return;
+
             const nameInput = document.getElementById('reg_custom_name');
             const name = nameInput.value.trim();
             const website = document.getElementById('reg_custom_website').value.trim();
             const previewImg = document.getElementById('regLogoPreviewImg').src;
             const errDiv = document.getElementById('err_reg_custom_platform_name');
+            const submitBtn = document.getElementById('customAppSubmitBtn');
+            const originalBtnText = submitBtn ? submitBtn.textContent : 'Done & Select';
 
             // Final double check on submit
             if (customAppsRegistry.some(app => app.name.toLowerCase() === name.toLowerCase())) {
@@ -4212,8 +4339,13 @@
 
             let finalLogo = regSelectedLogoUrl || (document.getElementById('regLogoPreviewBox').style.display === 'flex' ? previewImg : null);
 
-            if (!name) { alert('Please enter App Name'); return; }
-            if (!finalLogo) { alert('Please select or upload a logo for this custom app.'); return; }
+            if (!name) { AppNotice.warning('Please enter App Name.', 'Required Information Missing'); return; }
+
+            isSavingCustomApp = true;
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Saving...';
+            }
 
             const formData = new FormData();
             formData.append('name', name);
@@ -4229,7 +4361,7 @@
             if (queryParams.has('shop')) formData.append('shop', queryParams.get('shop'));
 
             try {
-                const res = await fetch('{{ route("shopify.social-links.store-global-custom-app") }}?' + queryParams.toString(), {
+                const res = await shopifyAuthenticatedFetch('{{ route("shopify.social-links.store-global-custom-app") }}?' + queryParams.toString(), {
                     method: 'POST',
                     headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
                     body: formData
@@ -4240,7 +4372,7 @@
                     if (data.errors && data.errors.name) {
                         if(errDiv) { errDiv.textContent = data.errors.name[0]; errDiv.style.display = 'block'; nameInput.style.borderColor = '#d72c0d'; }
                     } else {
-                        alert(data.message || 'Failed to save custom app.');
+                        AppNotice.error(data.message || 'Failed to save custom app.', 'Unable to Save App');
                     }
                     return;
                 }
@@ -4253,7 +4385,13 @@
                     selectCustomAppCard(data.app);
                 }
             } catch (err) {
-                alert('A network error occurred while saving the custom app.');
+                AppNotice.error('A network error occurred while saving the custom app.', 'Network Request Failed');
+            } finally {
+                isSavingCustomApp = false;
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalBtnText;
+                }
             }
         }
 
@@ -4313,16 +4451,31 @@
         function clearErrors() {
             document.querySelectorAll('.sn-field-error').forEach(el => { el.textContent = ''; el.style.display = 'none'; });
             document.querySelectorAll('.sn-input, .sn-selected-platform-box').forEach(el => el.style.borderColor = '#c9cccf');
+            const gen = document.getElementById('err_general');
+            if (gen) { gen.textContent = ''; gen.style.display = 'none'; }
         }
 
         function showErrors(errors) {
             clearErrors();
+            let unhandled = [];
             for (const [key, msgs] of Object.entries(errors)) {
                 const errDiv = document.getElementById('err_' + key);
                 const input = document.getElementById(key);
-                if (errDiv) { errDiv.textContent = msgs[0]; errDiv.style.display = 'block'; }
+                if (errDiv) {
+                    errDiv.textContent = msgs[0];
+                    errDiv.style.display = 'block';
+                } else {
+                    unhandled.push(msgs[0]);
+                }
                 if (input) { input.style.borderColor = '#d72c0d'; }
                 if (key === 'platform') { document.getElementById('selectedPlatformBox').style.borderColor = '#d72c0d'; }
+            }
+            if (unhandled.length > 0) {
+                const gen = document.getElementById('err_general');
+                if (gen) {
+                    gen.textContent = unhandled.join(' ');
+                    gen.style.display = 'block';
+                }
             }
         }
 
@@ -4341,7 +4494,7 @@
 
                 if (activeLogo) {
                     iconWrap.style.background = '#4f46e5';
-                    iconWrap.innerHTML = `<img src="${activeLogo}" style="width:16px;height:16px;object-fit:contain;">`;
+                    iconWrap.innerHTML = `<img src="${activeLogo}" style="width:16px;height:16px;object-fit:contain;" onerror="${fallbackIconSvg}">`;
                 } else {
                     iconWrap.style.background = '#4f46e5';
                     iconWrap.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>';
@@ -4357,8 +4510,13 @@
             }
         }
 
+        let isSubmittingSocialLink = false;
         async function submitForm(e) {
             e.preventDefault();
+            if (isSubmittingSocialLink) {
+                return;
+            }
+
             if (!selPlatform.value) {
                 document.getElementById('selectedPlatformBox').style.borderColor = '#d72c0d';
                 document.getElementById('err_platform').textContent = "Please select a platform.";
@@ -4366,6 +4524,7 @@
                 return;
             }
 
+            isSubmittingSocialLink = true;
             const btn = document.getElementById('btnSubmit');
             const originalText = btn.textContent;
             btn.textContent = 'Saving...';
@@ -4382,7 +4541,7 @@
             if (urlParams.has('shop')) formData.append('shop', urlParams.get('shop'));
 
             try {
-                const res = await fetch(form.action, {
+                const res = await shopifyAuthenticatedFetch(form.action, {
                     method: 'POST',
                     headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
                     body: formData
@@ -4393,14 +4552,20 @@
                     if (res.status === 422 && data.errors) {
                         showErrors(data.errors);
                     } else {
-                        alert(data.message || 'An error occurred while saving.');
+                        AppNotice.error(data.message || 'An error occurred while saving.', 'Unable to Save Link');
                     }
                 } else if (data.success) {
-                    window.location.reload();
+                    closeModal();
+                    if (typeof window.shopifyNavigateTo === 'function') {
+                        window.shopifyNavigateTo(window.location.href, false);
+                    } else {
+                        window.location.reload();
+                    }
                 }
             } catch (err) {
-                alert('A network error occurred.');
+                AppNotice.error('A network error occurred while saving your social link.', 'Network Request Failed');
             } finally {
+                isSubmittingSocialLink = false;
                 btn.textContent = originalText;
                 btn.disabled = false;
             }
@@ -4412,14 +4577,14 @@
         async function triggerLogoDiscovery(silent = false) {
             const name = document.getElementById('reg_custom_name').value.trim();
             const web = document.getElementById('reg_custom_website').value.trim();
-            if (!name && !web) { if(!silent) alert('Please enter App Name or Website URL.'); return; }
+            if (!name && !web) { if(!silent) AppNotice.warning('Please enter App Name or Website URL.', 'Required Information Missing'); return; }
 
             document.getElementById('discoveryStatus').style.display = 'inline-flex';
             document.getElementById('candidatesContainer').style.display = 'none';
 
             const queryParams = new URLSearchParams(window.location.search);
             try {
-                const res = await fetch('{{ route("shopify.social-links.discover-logos") }}?' + queryParams.toString(), {
+                const res = await shopifyAuthenticatedFetch('{{ route("shopify.social-links.discover-logos") }}?' + queryParams.toString(), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
                     body: JSON.stringify({ name, website_url: web, shop: queryParams.get('shop') })
@@ -4449,12 +4614,43 @@
                         grid.appendChild(card);
                     });
                     if (data.preselected) grid.children[0].click();
-                } else if (!silent) alert(data.message || 'No logos found automatically.');
+                } else if (!silent) AppNotice.info(data.message || 'No logos found automatically.', 'No Logos Discovered');
             } catch (err) {
                 document.getElementById('discoveryStatus').style.display = 'none';
-                if (!silent) alert('Discovery request failed. Upload a logo manually.');
+                if (!silent) AppNotice.error('Discovery request failed. Upload a logo manually.', 'Discovery Failed');
             }
         }
 
+        window.builtinPlatforms = builtinPlatforms;
+        window.customAppsRegistry = customAppsRegistry;
+        window.renderCustomAppsInGrid = renderCustomAppsInGrid;
+        window.openPlatformPicker = openPlatformPicker;
+        window.closePlatformPicker = closePlatformPicker;
+        window.openCustomAppModal = openCustomAppModal;
+        window.closeCustomAppModal = closeCustomAppModal;
+        window.filterPlatforms = filterPlatforms;
+        window.checkDuplicateCustomApp = checkDuplicateCustomApp;
+        window.selectPlatformCard = selectPlatformCard;
+        window.selectCustomAppCard = selectCustomAppCard;
+        window.handleRegFileUpload = handleRegFileUpload;
+        window.clearRegLogo = clearRegLogo;
+        window.saveCustomApp = saveCustomApp;
+        window.resetPlatformVisual = resetPlatformVisual;
+        window.openModal = openModal;
+        window.closeModal = closeModal;
+        window.clearErrors = clearErrors;
+        window.showErrors = showErrors;
+        window.updatePreview = updatePreview;
+        window.submitForm = submitForm;
+        window.debouncedLogoDiscovery = debouncedLogoDiscovery;
+        window.triggerLogoDiscovery = triggerLogoDiscovery;
+
+        document.addEventListener('shopify:before-swap', function teardownSocialLinksModal() {
+            if (typeof discTimer !== 'undefined') {
+                clearTimeout(discTimer);
+            }
+            document.removeEventListener('shopify:before-swap', teardownSocialLinksModal);
+        });
+        })();
     </script>
 @endsection

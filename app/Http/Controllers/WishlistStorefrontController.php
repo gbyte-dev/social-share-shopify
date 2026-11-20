@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ShopifyStore;
+use App\Services\EntitlementService;
 use App\Services\WishlistService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,7 +14,8 @@ use InvalidArgumentException;
 class WishlistStorefrontController extends Controller
 {
     public function __construct(
-        protected WishlistService $wishlistService
+        protected WishlistService $wishlistService,
+        protected EntitlementService $entitlementService
     ) {}
 
     /**
@@ -33,14 +35,40 @@ class WishlistStorefrontController extends Controller
     }
 
     /**
-     * Get verified store from request attributes.
+     * Get verified store from request attributes or header/query.
      */
-    protected function getStore(Request $request): ShopifyStore
+    protected function getStore(Request $request): ?ShopifyStore
     {
-        /** @var ShopifyStore $store */
+        /** @var ShopifyStore|null $store */
         $store = $request->attributes->get('shopify_store');
 
+        if (! $store) {
+            $shop = $request->query('shop') ?? $request->header('X-Shopify-Shop-Domain');
+            if ($shop) {
+                $store = ShopifyStore::where('shop', $shop)->first();
+            }
+        }
+
         return $store;
+    }
+
+    /**
+     * Verify whether store is entitled to Wishlist features.
+     */
+    protected function checkEntitlement(?ShopifyStore $store): ?JsonResponse
+    {
+        if (! $store || ! $this->entitlementService->canAccessWishlist($store)) {
+            return response()->json([
+                'success' => false,
+                'enabled' => false,
+                'items' => [],
+                'count' => 0,
+                'error' => 'Wishlist features require an active SocialNest Pro subscription.',
+                'code' => 'UPGRADE_REQUIRED',
+            ], 403, $this->corsHeaders());
+        }
+
+        return null;
     }
 
     /**
@@ -82,6 +110,11 @@ class WishlistStorefrontController extends Controller
     public function index(Request $request): JsonResponse
     {
         $store = $this->getStore($request);
+
+        if ($denied = $this->checkEntitlement($store)) {
+            return $denied;
+        }
+
         $customerId = $this->getCustomerId($request);
         $guestUuid = $this->getGuestUuid($request);
 
@@ -128,6 +161,11 @@ class WishlistStorefrontController extends Controller
     public function count(Request $request): JsonResponse
     {
         $store = $this->getStore($request);
+
+        if ($denied = $this->checkEntitlement($store)) {
+            return $denied;
+        }
+
         $customerId = $this->getCustomerId($request);
         $guestUuid = $this->getGuestUuid($request);
 
@@ -154,6 +192,11 @@ class WishlistStorefrontController extends Controller
     public function status(Request $request): JsonResponse
     {
         $store = $this->getStore($request);
+
+        if ($denied = $this->checkEntitlement($store)) {
+            return $denied;
+        }
+
         $customerId = $this->getCustomerId($request);
         $guestUuid = $this->getGuestUuid($request);
 
@@ -209,6 +252,11 @@ class WishlistStorefrontController extends Controller
     public function add(Request $request): JsonResponse
     {
         $store = $this->getStore($request);
+
+        if ($denied = $this->checkEntitlement($store)) {
+            return $denied;
+        }
+
         $customerId = $this->getCustomerId($request);
         $guestUuid = $this->getGuestUuid($request);
 
@@ -284,6 +332,11 @@ class WishlistStorefrontController extends Controller
     public function remove(Request $request): JsonResponse
     {
         $store = $this->getStore($request);
+
+        if ($denied = $this->checkEntitlement($store)) {
+            return $denied;
+        }
+
         $customerId = $this->getCustomerId($request);
         $guestUuid = $this->getGuestUuid($request);
 
@@ -323,6 +376,11 @@ class WishlistStorefrontController extends Controller
     public function merge(Request $request): JsonResponse
     {
         $store = $this->getStore($request);
+
+        if ($denied = $this->checkEntitlement($store)) {
+            return $denied;
+        }
+
         $customerId = $this->getCustomerId($request);
 
         if (! $customerId) {
@@ -359,6 +417,11 @@ class WishlistStorefrontController extends Controller
     public function migrateLocal(Request $request): JsonResponse
     {
         $store = $this->getStore($request);
+
+        if ($denied = $this->checkEntitlement($store)) {
+            return $denied;
+        }
+
         $customerId = $this->getCustomerId($request);
         $guestUuid = $this->getGuestUuid($request);
 

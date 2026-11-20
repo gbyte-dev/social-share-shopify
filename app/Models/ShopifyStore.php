@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\EntitlementService;
 use Database\Factories\ShopifyStoreFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -64,6 +65,7 @@ class ShopifyStore extends Model
      */
     protected $fillable = [
         'shop',
+        'shopify_shop_gid',
         'access_token',
         'refresh_token',
         'access_token_expires_at',
@@ -71,6 +73,7 @@ class ShopifyStore extends Model
         'scope',
         'plan_name',
         'is_active',
+        'reauthorization_required',
         'installed_at',
         'uninstalled_at',
     ];
@@ -81,9 +84,9 @@ class ShopifyStore extends Model
      * @var list<string>
      */
     protected $hidden = [
-    'access_token',
-    'refresh_token',
-];
+        'access_token',
+        'refresh_token',
+    ];
 
     /**
      * Get the attributes that should be cast.
@@ -98,9 +101,29 @@ class ShopifyStore extends Model
             'access_token_expires_at' => 'datetime',
             'refresh_token_expires_at' => 'datetime',
             'is_active' => 'boolean',
+            'reauthorization_required' => 'boolean',
             'installed_at' => 'datetime',
             'uninstalled_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Check if this store currently requires reauthorization via Shopify OAuth.
+     */
+    public function requiresReauthorization(): bool
+    {
+        if ($this->reauthorization_required) {
+            return true;
+        }
+
+        // If access token is expired and refresh token is missing or expired, reauthorization is strictly required
+        if ($this->access_token_expires_at && $this->access_token_expires_at->isPast()) {
+            if (empty($this->refresh_token) || ($this->refresh_token_expires_at && $this->refresh_token_expires_at->isPast())) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -110,6 +133,7 @@ class ShopifyStore extends Model
     {
         return $this->is_active
             && ! empty($this->access_token)
+            && ! $this->requiresReauthorization()
             && $this->installed_at !== null
             && $this->uninstalled_at === null;
     }
@@ -199,8 +223,54 @@ class ShopifyStore extends Model
         return $this->hasOne(ShopSubscription::class, 'shop_id')
             ->where('status', ShopSubscription::STATUS_ACTIVE)
             ->where('current_period_start', '<=', now())
-            ->where('current_period_end', '>', now())
+            ->where(function ($q): void {
+                $q->whereNull('current_period_end')
+                    ->orWhere('current_period_end', '>', now());
+            })
             ->latestOfMany();
+    }
+
+    /**
+     * Determine if store has active Pro subscription.
+     */
+    public function isPro(): bool
+    {
+        return app(EntitlementService::class)->isPro($this);
+    }
+
+    /**
+     * Determine if store is on Free tier.
+     */
+    public function isFree(): bool
+    {
+        return app(EntitlementService::class)->isFree($this);
+    }
+
+    /**
+     * Check if store can create additional social link records.
+     */
+    public function canCreateSocialLink(): bool
+    {
+        return app(EntitlementService::class)->canCreateSocialLink($this);
+    }
+
+    /**
+     * Get the store handle from the myshopify domain.
+     */
+    public function getShopHandle(): string
+    {
+        return preg_replace('/\.myshopify\.com$/i', '', strtolower(trim($this->shop)));
+    }
+
+    /**
+     * Generate the Shopify hosted pricing URL for this store.
+     */
+    public function getAppPricingUrl(?string $appHandle = null): string
+    {
+        $appHandle = $appHandle ?: config('shopify.app_handle', 'socialvire');
+        $handle = $this->getShopHandle();
+
+        return "https://admin.shopify.com/store/{$handle}/charges/{$appHandle}/pricing_plans";
     }
 
     /**
@@ -221,7 +291,7 @@ class ShopifyStore extends Model
             'icon_shape' => 'circle',
             'hover_animation' => 'lift',
             'show_tooltips' => true,
-            'whatsapp_message' => 'Check out this product on ' . $this->shop,
+            'whatsapp_message' => 'Check out this product on '.$this->shop,
             'product_share_enabled' => true,
             'product_share_button_text' => 'Share Product',
             'product_share_button_style' => 'outline',

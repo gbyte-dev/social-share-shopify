@@ -28,6 +28,7 @@ class Plan extends Model
         'price',
         'currency',
         'billing_interval',
+        'social_link_limit',
         'description',
         'features',
         'is_active',
@@ -44,6 +45,7 @@ class Plan extends Model
             'price' => 'decimal:2',
             'features' => 'array',
             'is_active' => 'boolean',
+            'social_link_limit' => 'integer',
         ];
     }
 
@@ -62,11 +64,27 @@ class Plan extends Model
      */
     public function isFree(): bool
     {
-        return (float) $this->price === 0.0;
+        return $this->slug === 'free' || (float) $this->price <= 0.0;
     }
 
     /**
-     * Format the price string (e.g. "$0" or "$4.99").
+     * Check if the plan is Pro/Premium.
+     */
+    public function isPro(): bool
+    {
+        return ! $this->isFree();
+    }
+
+    /**
+     * Get configured Social Link limit (null means unlimited).
+     */
+    public function getSocialLinkLimit(): ?int
+    {
+        return $this->social_link_limit;
+    }
+
+    /**
+     * Format the price string (e.g. "$0" or "$5.00").
      */
     public function formattedPrice(): string
     {

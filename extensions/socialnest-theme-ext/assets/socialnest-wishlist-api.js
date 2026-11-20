@@ -6,7 +6,9 @@
 import {
   getShopDomain,
   getApiBase,
+  getDirectAppUrl,
   getGuestUuid,
+  isInvalidPublicHost,
 } from "./socialnest-wishlist-storage.js";
 
 var win = typeof window !== "undefined" ? window : null;
@@ -65,15 +67,44 @@ function parseResponse(res) {
   return res.json();
 }
 
-/**
- * Secure fetch wrapper targeting Shopify App Proxy with identity headers and direct fallback.
- */
+var isProxyDown = false;
+
+// Secure fetch wrapper targeting Shopify App Proxy with direct fallback.
 export function apiRequest(endpoint, options) {
   options = options || {};
   var guestUuid = getGuestUuid();
   var shop = getShopDomain();
   var method = (options.method || "GET").toUpperCase();
-  var url = buildRequestUrl('/apps/socialvire/wishlist', endpoint, method, guestUuid, shop);
+
+  // If App Proxy is already known to be down, route directly to backend API
+  if (isProxyDown) {
+    var directBaseKnown = getDirectAppUrl();
+    if (directBaseKnown && !isInvalidPublicHost(directBaseKnown)) {
+      var directEndpointKnown =
+        "/api/storefront/wishlist" +
+        (endpoint
+          ? endpoint.charAt(0) === "/"
+            ? endpoint
+            : "/" + endpoint
+          : "");
+      var directUrlKnown = buildRequestUrl(
+        directBaseKnown,
+        directEndpointKnown,
+        method,
+        guestUuid,
+        shop,
+      );
+      var directOptionsKnown = Object.assign({}, options, {
+        _isFallback: true,
+        credentials: "omit",
+        mode: "cors",
+      });
+      return fetch(directUrlKnown, directOptionsKnown).then(parseResponse);
+    }
+  }
+
+  var proxyBase = getApiBase();
+  var url = buildRequestUrl(proxyBase, endpoint, method, guestUuid, shop);
 
   var headers = {
     Accept: "application/json",
@@ -110,19 +141,47 @@ export function apiRequest(endpoint, options) {
   return fetch(url, options)
     .then(parseResponse)
     .catch(function (err) {
-      console.error("[SN Wishlist] Production API request failed:", {
-        url: url,
-        method: method,
-        error: err,
-      });
+      if (!options._isFallback) {
+        isProxyDown = true;
+        var directBase = getDirectAppUrl();
+        if (directBase && !isInvalidPublicHost(directBase)) {
+          var directEndpoint =
+            "/api/storefront/wishlist" +
+            (endpoint
+              ? endpoint.charAt(0) === "/"
+                ? endpoint
+                : "/" + endpoint
+              : "");
+          var directUrl = buildRequestUrl(
+            directBase,
+            directEndpoint,
+            method,
+            guestUuid,
+            shop,
+          );
+          console.warn("[SN Wishlist] Proxy failed, direct fallback:", directUrl);
+          var fallbackOptions = Object.assign({}, options, {
+            _isFallback: true,
+            credentials: "omit",
+            mode: "cors",
+          });
+          return fetch(directUrl, fallbackOptions)
+            .then(parseResponse)
+            .catch(function (fbErr) {
+              console.error("[SN Wishlist] Fallback failed:", fbErr);
+              throw fbErr;
+            });
+        } else {
+          console.warn("[SN Wishlist] Direct fallback skipped: no valid public backend API URL configured.");
+        }
+      }
 
+      console.error("[SN Wishlist] API failed:", { url: url, error: err });
       throw err;
     });
 }
 
-/**
- * One-time safe migration from browser localStorage (socialnest_wishlist_v1) to server.
- */
+// One-time safe migration from browser localStorage to server.
 export function migrateLegacyLocalStorage() {
   if (migrationPromise) {
     return migrationPromise;
@@ -169,9 +228,7 @@ export function migrateLegacyLocalStorage() {
   return migrationPromise;
 }
 
-/**
- * Check if a product ID or handle exists in the wishlist.
- */
+// Check if a product ID or handle exists in the wishlist.
 export function isInWishlist(idOrHandle) {
   if (!idOrHandle) return false;
   var target = String(idOrHandle).trim();
@@ -183,9 +240,7 @@ export function isInWishlist(idOrHandle) {
   return false;
 }
 
-/**
- * Fetch wishlist items from Laravel database via App Proxy or direct storefront API.
- */
+// Fetch wishlist items via App Proxy or direct storefront API.
 export function fetchWishlist(onUpdate) {
   isInitialLoading = true;
   hasLoadError = false;
@@ -216,9 +271,7 @@ export function fetchWishlist(onUpdate) {
     });
 }
 
-/**
- * Add a product to the database wishlist.
- */
+// Add a product to the database wishlist.
 export function addProduct(product, onUpdate) {
   if (!product || (!product.id && !product.product_id && !product.handle)) {
     return Promise.resolve(items);
@@ -258,18 +311,12 @@ export function addProduct(product, onUpdate) {
     shop: getShopDomain(),
   };
 
-  console.log("[SN Wishlist] addProduct initiated for product:", pid, payload);
-
   return apiRequest("/add", {
     method: "POST",
     body: JSON.stringify(payload),
   })
     .then(function (res) {
       delete inFlight[pid];
-      console.log(
-        "[SN Wishlist] addProduct successfully synced to database:",
-        res,
-      );
       if (res && res.success && res.item) {
         for (var i = 0; i < items.length; i++) {
           if (String(items[i].id || items[i].product_id) === pid) {
@@ -283,10 +330,6 @@ export function addProduct(product, onUpdate) {
     })
     .catch(function (err) {
       delete inFlight[pid];
-      console.error(
-        "[SN Wishlist] addProduct failed to save, rolling back UI:",
-        err,
-      );
       items = items.filter(function (item) {
         return String(item.id || item.product_id) !== pid;
       });
@@ -295,9 +338,7 @@ export function addProduct(product, onUpdate) {
     });
 }
 
-/**
- * Remove a product from the database wishlist.
- */
+// Remove a product from the database wishlist.
 export function removeProduct(idOrHandle, onUpdate) {
   if (!idOrHandle) return Promise.resolve(items);
   var pid = String(idOrHandle).trim();
@@ -342,9 +383,7 @@ export function removeProduct(idOrHandle, onUpdate) {
     });
 }
 
-/**
- * Toggle product wishlist status.
- */
+// Toggle product wishlist status.
 export function toggleProduct(product, onUpdate) {
   if (!product) return Promise.resolve(items);
   var pid = String(product.product_id || product.id || product.handle || "");

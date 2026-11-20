@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Models\ShopifyStore;
 use App\Models\SocialLink;
 use App\Models\SocialLinkClick;
+use Firebase\JWT\JWT;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
 use Tests\TestCase;
 
 class ProductShareButtonTest extends TestCase
@@ -14,9 +16,16 @@ class ProductShareButtonTest extends TestCase
 
     protected ShopifyStore $store;
 
+    protected string $testApiKey = 'test_product_share_api_key_123';
+
+    protected string $testApiSecret = 'test_product_share_api_secret_32bytes_minimum_length_key_abc123';
+
     protected function setUp(): void
     {
         parent::setUp();
+
+        Config::set('shopify.api_key', $this->testApiKey);
+        Config::set('shopify.api_secret', $this->testApiSecret);
 
         $this->store = ShopifyStore::create([
             'shop' => 'store-product-share.myshopify.com',
@@ -26,12 +35,33 @@ class ProductShareButtonTest extends TestCase
         ]);
     }
 
+    protected function generateSessionToken(ShopifyStore $store): string
+    {
+        $payload = [
+            'iss' => "https://{$store->shop}/admin",
+            'dest' => "https://{$store->shop}",
+            'aud' => $this->testApiKey,
+            'sub' => '12345678',
+            'exp' => time() + 3600,
+            'nbf' => time() - 10,
+            'iat' => time() - 10,
+            'jti' => 'test-jwt-id-'.uniqid(),
+            'sid' => 'test-session-id-'.uniqid(),
+        ];
+
+        return JWT::encode($payload, $this->testApiSecret, 'HS256');
+    }
+
     protected function authStore(ShopifyStore $store): self
     {
+        $token = $this->generateSessionToken($store);
+
         return $this->withSession([
             'shopify_shop' => $store->shop,
             'shopify_store_id' => $store->id,
             'shopify_host' => base64_encode($store->shop.'/admin'),
+        ])->withHeaders([
+            'Authorization' => "Bearer {$token}",
         ]);
     }
 
@@ -78,18 +108,132 @@ class ProductShareButtonTest extends TestCase
         $this->assertEquals('solid', $apiRes->json('settings.product_share_button_style'));
     }
 
-    public function test_product_share_button_toggle_off_persists_as_false_when_omitted_from_request(): void
+    public function test_product_share_button_toggle_on_persists_as_true(): void
+    {
+        $settings = $this->store->getStorefrontSettings();
+        $settings->update(['product_share_enabled' => false]);
+        $this->assertFalse($this->store->fresh()->storefrontSettings->product_share_enabled);
+
+        $response = $this->authStore($this->store)->put('/shopify/settings', [
+            'position' => 'bottom_right',
+            'icon_size' => 'medium',
+            'icon_shape' => 'circle',
+            'product_share_enabled' => '1',
+        ]);
+
+        $response->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('storefront_settings', [
+            'shopify_store_id' => $this->store->id,
+            'product_share_enabled' => true,
+        ]);
+
+        $apiRes = $this->getJson("/api/storefront/config?shop={$this->store->shop}");
+        $apiRes->assertStatus(200);
+        $this->assertTrue($apiRes->json('settings.product_share_enabled'));
+    }
+
+    public function test_product_share_button_toggle_off_with_hidden_input_zero_persists_as_false(): void
+    {
+        $settings = $this->store->getStorefrontSettings();
+        $settings->update(['product_share_enabled' => true]);
+        $this->assertTrue($this->store->fresh()->storefrontSettings->product_share_enabled);
+
+        $response = $this->authStore($this->store)->put('/shopify/settings', [
+            'position' => 'bottom_right',
+            'icon_size' => 'medium',
+            'icon_shape' => 'circle',
+            'product_share_enabled' => '0',
+        ]);
+
+        $response->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('storefront_settings', [
+            'shopify_store_id' => $this->store->id,
+            'product_share_enabled' => false,
+        ]);
+
+        $apiRes = $this->getJson("/api/storefront/config?shop={$this->store->shop}");
+        $apiRes->assertStatus(200);
+        $this->assertFalse($apiRes->json('settings.product_share_enabled'));
+    }
+
+    public function test_product_share_button_explicit_json_false_persists_as_false(): void
+    {
+        $settings = $this->store->getStorefrontSettings();
+        $settings->update(['product_share_enabled' => true]);
+        $this->assertTrue($this->store->fresh()->storefrontSettings->product_share_enabled);
+
+        $response = $this->authStore($this->store)->putJson('/shopify/settings', [
+            'position' => 'bottom_right',
+            'product_share_enabled' => false,
+        ]);
+
+        $response->assertOk();
+
+        $this->assertDatabaseHas('storefront_settings', [
+            'shopify_store_id' => $this->store->id,
+            'product_share_enabled' => false,
+        ]);
+
+        $apiRes = $this->getJson("/api/storefront/config?shop={$this->store->shop}");
+        $apiRes->assertStatus(200);
+        $this->assertFalse($apiRes->json('settings.product_share_enabled'));
+    }
+
+    public function test_omitted_product_share_enabled_in_partial_update_preserves_existing_value(): void
+    {
+        $settings = $this->store->getStorefrontSettings();
+
+        // 1. Preserves true when existing value is true
+        $settings->update(['product_share_enabled' => true]);
+        $this->assertTrue($this->store->fresh()->storefrontSettings->product_share_enabled);
+
+        $responseTrue = $this->authStore($this->store)->put('/shopify/settings', [
+            'position' => 'bottom_left',
+            'icon_size' => 'large',
+            'icon_shape' => 'square',
+        ]);
+        $responseTrue->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('storefront_settings', [
+            'shopify_store_id' => $this->store->id,
+            'product_share_enabled' => true,
+            'position' => 'bottom_left',
+        ]);
+
+        // 2. Preserves false when existing value is false
+        $settings->update(['product_share_enabled' => false]);
+        $this->assertFalse($this->store->fresh()->storefrontSettings->product_share_enabled);
+
+        $responseFalse = $this->authStore($this->store)->put('/shopify/settings', [
+            'position' => 'vertical_right',
+            'icon_size' => 'small',
+            'icon_shape' => 'circle',
+        ]);
+        $responseFalse->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('storefront_settings', [
+            'shopify_store_id' => $this->store->id,
+            'product_share_enabled' => false,
+            'position' => 'vertical_right',
+        ]);
+    }
+
+    public function test_product_share_button_toggle_off_persists_as_false_when_omitted_from_full_form_submission(): void
     {
         // First ensure settings exist and product_share_enabled is true
         $settings = $this->store->getStorefrontSettings();
         $settings->update(['product_share_enabled' => true]);
         $this->assertTrue($this->store->fresh()->storefrontSettings->product_share_enabled);
 
-        // Submit form with product_share_enabled omitted (standard unchecked HTML checkbox behavior)
+        // Submit form containing product share fields with product_share_enabled omitted (standard unchecked HTML checkbox behavior)
         $response = $this->authStore($this->store)->put('/shopify/settings', [
             'position' => 'bottom_right',
             'icon_size' => 'medium',
             'icon_shape' => 'circle',
+            'product_share_button_text' => 'Share Product',
+            'product_share_button_style' => 'outline',
             // product_share_enabled is intentionally omitted
         ]);
 

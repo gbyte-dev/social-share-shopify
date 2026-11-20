@@ -311,7 +311,8 @@ class ShopifyInstallationFlowTest extends TestCase
             'uninstalled_at' => now()->subDay(),
         ]);
 
-        $response = $this->withSession(['shopify_shop' => $store->shop])
+        $response = $this
+            ->withSession(['shopify_shop' => $store->shop])
             ->get('/shopify/dashboard');
 
         $response->assertStatus(302);
@@ -368,9 +369,8 @@ class ShopifyInstallationFlowTest extends TestCase
             'shopify_store_id' => $storeA->id,
         ])->get('/shopify/dashboard?shop=store-b.myshopify.com');
 
-        $response->assertStatus(200);
-        // Dashboard renders for Store A, rejecting cross-store switch without authenticating
-        $response->assertSee('store-a.myshopify.com');
+        $response->assertStatus(403);
+        $response->assertSee('Authentication Mismatch');
         $response->assertDontSee('store-b.myshopify.com');
     }
 

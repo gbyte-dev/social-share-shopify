@@ -91,9 +91,9 @@ class VerifyShopifyAppProxySignature
             return $next($request);
         }
 
-        // Direct Storefront API route (/api/storefront/wishlist/*):
+        // Direct Storefront API route (/api/storefront/wishlist/* or direct /shopify/proxy/config or /apps/*/config):
         // Allow secure guest access with shop validation when Shopify App Proxy is not routing
-        if ($request->is('api/storefront/wishlist*')) {
+        if ($request->is('api/storefront/wishlist*') || $request->is('shopify/proxy/config*') || $request->is('apps/*/config*')) {
             if (! $rawShop || ! is_string($rawShop)) {
                 Log::warning('[WishlistProxy] Missing shop in storefront API request');
 
@@ -156,7 +156,7 @@ class VerifyShopifyAppProxySignature
                 $val = implode(',', $val);
             }
 
-            $signatureParts[] = $key . '=' . $val;
+            $signatureParts[] = $key.'='.$val;
         }
 
         $signatureString = implode('', $signatureParts);

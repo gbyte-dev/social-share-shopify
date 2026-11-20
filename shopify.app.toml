@@ -1,6 +1,6 @@
-client_id = "752cf8b0c2bfaf76e31eab78d35362c8"
-name = "Socialvire"
-handle = "socialvire-webvire"
+client_id = "aa60f115e4cce7b9b6680ee50adf9efd"
+name = "SocialNest"
+handle = "socialnest"
 application_url = "https://socialvire.webvire.com"
 embedded = true
  
@@ -16,11 +16,19 @@ redirect_urls = [
 ]
  
 [webhooks]
-api_version = "2025-10"
+api_version = "2026-10"
+
+[[webhooks.subscriptions]]
+topics = [ "app/uninstalled" ]
+uri = "/shopify/webhooks"
+
+[[webhooks.subscriptions]]
+compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+uri = "/shopify/webhooks"
  
 [app_proxy]
 url = "https://socialvire.webvire.com/shopify/proxy"
-subpath = "socialvire"
+subpath = "socialnest"
 prefix = "apps"
  
 [pos]

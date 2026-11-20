@@ -1,1 +1,215 @@
-"use strict";!function(){let t=document,e=window;if(e.SocialNestStorefront)return e.SocialNestStorefront.init();let a=navigator,s=encodeURIComponent,o=e.ShopifyAnalytics,n=location,r=t=>!(!e.Shopify?.designMode&&"true"!==t?.dataset.designMode),i=(e,a=t)=>a?.querySelector(e),l=(e,a,s=t)=>{let o=i(e,s);return o&&(a?o.getAttribute(a):o.textContent)||""},c=(e="div")=>t.createElement(e),p=(t,e,s=e?.textContent||"Copy")=>(a.clipboard?.writeText(t),e&&(e.textContent="Copied!",setTimeout(()=>e.textContent=s,2e3))),d="/api/storefront/",h=t=>{try{t.shop=A.lastShop||n.hostname,t.referrer=n.href;let e=JSON.stringify(t),s=A.lastAppUrl+d+"track-click";a.sendBeacon?.(s,e)||fetch(s,{method:"POST",headers:{"content-type":"application/json"},body:e,keepalive:1}).catch(()=>{})}catch{}},u=(t,e,a=b)=>h({platform:t,link_type:a,product_id:e?.id,product_title:e?.title}),m=t=>"Check out "+t.title+(t.price?" ("+t.price+")":""),_=".shopify-payment-button,[data-shopify=payment-button]",f=".sn-product-row-2",$=".sn-product-share-btn",b="product_share",g="addEventListener",y=()=>768>=e.innerWidth||/Mobi|Android/i.test(a.userAgent),k=()=>"product"==(e.__sn_page_type||A.rootEl?.dataset.pageType||o?.meta?.page?.pageType)||/\/products\//.test(n.pathname),v=()=>{let t=o?.meta?.product||{},e=t=>l(`meta[property*=${t}]`,"content"),a=e("title")||l(".product__title,h1")||t.title||"",s=e("image")||l(".product__media img","src"),r=e("price"),i=r?"$"+r:l(".price-item--regular,.product__price"),c=l("form [name=id]","value")||t.variants?.[0]?.id||"",p=n.href+(c&&!n.search.includes("variant=")?(n.search?"&":"?")+"variant="+c:"");return{id:(t.id||"")+"",title:a.trim(),url:p,img:s,price:i?.trim()||""}},x=e=>{let o=i(".sn-share-modal");o||(o=c(),o.className="sn-share-modal",o.setAttribute("role","dialog"),t.body.append(o));let n=m(e),r=s(e.url),l=s(n),d=s(e.img),h=r+"&text="+l,_="sn-modal-",f="."+_,$=("whatsapp,facebook,pinterest,telegram,x,instagram"+(a.share?",native":"")).split(",").map(t=>`<button class="${_}option" data-k=${t}><i class="${_}icon sn-ico-${t}"></i><span>${"native"==t?"More":t}</span></button>`).join(""),b='<div class="'+_;o.innerHTML=`${b}backdrop"></div>${b}card">${b}header"><b>Share</b><button class="${_}close">×</button></div>${e.img?`${b}product"><img src="${e.img}"><div><b>${e.title}</b><small>${e.price}</small></div></div>`:""}${b}grid">${$}</div>${b}copy-box"><input value="${e.url}" readonly><button>Copy</button></div>${b}feedback"></div></div>`,o.style.display="flex";let y,k=()=>(o.style.display="none",t.removeEventListener("keydown",y));t[g]("keydown",y=t=>"Escape"==t.key&&k());let v=i(f+"feedback",o);o.onclick=t=>{if(t.target.matches(f+"backdrop,"+f+"close"))return k();let s=t.target.closest("[data-k]");if(s){let t=s.dataset.k;if(u(t,e),/instagram|native/.test(t)&&a.share)return a.share({title:e.title,text:n,url:e.url}).catch(()=>{});if("instagram"==t)return p(e.url,v,"Copied!");let o="whatsapp"==t?`wa.me/?text=${l} ${r}`:"facebook"==t?"facebook.com/sharer.php?u="+r:"x"==t?"x.com/intent/tweet?url="+h:"telegram"==t?"t.me/share/url?url="+h:"pinterest"==t?`pinterest.com/pin/create/button/?url=${r}${d?"&media="+d:""}&description=${l}`:"";o&&open("https://"+o,"_blank","noopener")}let c=t.target.closest(f+"copy-box button");c&&(i("input",o)?.select(),u("copy_link",e),p(e.url,c))}},S=e=>{let a="socialnest-floating-cta";if(i("."+a)?.remove(),!(e?.cta_enabled&&e.cta_text&&e.cta_url&&(y()?e.cta_mobile_enabled:e.cta_desktop_enabled)))return;let s=c("a");s.className=`${a} ${a}--${e.cta_size||"medium"}${e.cta_mobile_enabled?"":" sn-cta-hide-mobile"}${e.cta_desktop_enabled?"":" sn-cta-hide-desktop"}`,s.href=e.cta_url,s.target="_blank",s.rel="noopener",s.style.cssText=`background:${e.cta_background_color||"#111827"};color:${e.cta_text_color||"#fff"}`;let o=`<div class="${a}__`;s.innerHTML=(e.cta_show_icon&&e.cta_icon_url?`${o}icon"><img src="${e.cta_icon_url}"></div>`:"")+`${o}content"><span class="${a}__text">${e.cta_text}</span></div>`,s.onclick=()=>u("floating_cta",null,"floating_cta"),t.body.append(s)},w=(t,e)=>{let a=A.rootEl;if(!a||!t?.length)return a&&(a.innerHTML="");let i=e.position||"bottom_right",l="custom"===i,p=e.custom_horizontal_align||"right",d=e.custom_vertical_align||"bottom";/^(left|center)$/.test(p)||(p="right"),/^(top|center)$/.test(d)||(d="bottom");let h=(t,a)=>{let s=e["custom_offset_"+(t[0]+"_"+t.slice(1)).toLowerCase()];return isNaN(s)||null==s||""===s?a:Math.max(0,Math.min(200,+s))},[u,m]=[h("XDesktop",24),h("YDesktop",24)],[_,f]=[h("XMobile",u),h("YMobile",m)],{icon_size:$="medium",icon_shape:b="circle",hover_animation:g="lift",whatsapp_message:y=""}=e,k=0!=e.show_tooltips;if(a.className=`socialnest-dock-container sn-pos-${i.replace(/_/g,"-")} sn-size-${$} sn-shape-${b} sn-anim-${g}`,a.dataset.hAlign=p,a.dataset.vAlign=d,a.style.cssText="",l){let t="--sn-custom-",o="left"===p?`calc(env(safe-area-inset-left,0px) + var(${t}x))`:"right"===p?"auto":`calc(50% + var(${t}x))`,n="right"===p?`calc(env(safe-area-inset-right,0px) + var(${t}x))`:"auto",r="top"===d?`calc(env(safe-area-inset-top,0px) + var(${t}y))`:"bottom"===d?"auto":`calc(50% + var(${t}y))`,s="bottom"===d?`calc(env(safe-area-inset-bottom,0px) + var(${t}y))`:"auto",c="center"===p&&"center"===d?"translate(-50%,-50%)":"center"===p?"translateX(-50%)":"center"===d?"translateY(-50%)":"none";a.style.cssText=`${t}x-desktop:${u}px;${t}y-desktop:${m}px;${t}x-mobile:${_}px;${t}y-mobile:${f}px;left:${o};right:${n};top:${r};bottom:${s};transform:${c};flex-direction:${"center"===d&&"center"!==p?"column":"row"}`}a.innerHTML=t.map(t=>{let e=(t.platform||"").toLowerCase().trim(),a=t.custom_name||t.name||t.label||e,o=t.url||"#";"whatsapp"===e&&y&&!o.includes("text=")&&(o+=(o.includes("?")?"&":"?")+"text="+s(y));let n=t["logo_"+$]||t.logo_medium;return`<a href="${o}" target="_blank" rel="noopener" class="sn-dock-item" style="background:${t.brand_color||"#4f46e5"}" aria-label="${a}" data-platform="${e}"${t.id?" data-link-id="+t.id:""}>${n?`<img src="${n}" class="sn-custom-logo">`:t.icon_svg||""}${k?`<span class="sn-dock-tooltip">${a}</span>`:""}</a>`}).join("")},T=s=>{let o,n=()=>{let t=i(f),e=i(_,t);e&&t.before(e),t?.remove(),i($)?.remove()},{product_share_button_text:r="Share Product",product_share_button_style:l="outline",product_share_button_background_color:p="rgba(17, 24, 39, 1)",product_share_enabled:d}=s||{},h=()=>(clearTimeout(o),e._snShareObs&&(e._snShareObs.disconnect(),e._snShareObs=0));if(!k()||!d)return h(),n();function b(){if(!A.settings?.product_share_enabled||!k())return h(),n();let t=i("[name=add],.product-form__submit"),e=t?.closest("form")||i("product-info form,form[action*='/cart/add']");if(!e||e.closest(".card,.card-wrapper"))return;let s=i(f),o=i($),d=i(_,e)||i(_),b="sn-share-text-";if(o){let t=i("."+b+"full",o);t&&(t.textContent=r)}else{o=c("button"),o.type="button",o.innerHTML=`<i class="sn-product-share-icon"></i><span class="${b}full">${r}</span><span class="${b}short">Share</span>`,o.onclick=t=>{t.preventDefault(),t.stopPropagation();let e=v();y()&&a.share?a.share({title:e.title,text:m(e),url:e.url}).then(()=>u("native",e)).catch(t=>"AbortError"!==t?.name&&x(e)):x(e)},o.className=`${$.slice(1)} sn-btn-${l}`;let n,h=17,_=24,g=39,k=1,S="--sn-share-";if("#"==p[0]?(h=(n=parseInt(p.slice(1),16))>>16&255,_=n>>8&255,g=255&n):(n=p.match(/[\d.]+/g))&&(h=+n[0],_=+n[1],g=+n[2],k=+n[3]||1),o.style.cssText=`${S}bg:${p};${S}border:${p};${S}color:${p};${S}text:${140>k*(.299*h+.587*_+.114*g)+255*(1-k)?"#fff":"#111"};${S}hover-bg:${"solid"===l?"transparent":`rgba(${h},${_},${g},.08)`}`,d||t){s||((s=c()).className=f.slice(1),d?d.before(s):t.after(s)),d&&!s.contains(d)&&s.prepend(d),s.contains(o)||s.append(o);let e=d&&i(".shopify-payment-terms",d);e&&s.after(e)}else e&&(e.contains(o)||e.append(o))}}b(),e._snShareObs||(e._snShareObs=new MutationObserver(()=>{clearTimeout(o),o=setTimeout(()=>{b();e.SocialNestWishlist?.init()},60)}),e._snShareObs.observe(t.body,{childList:1,subtree:1}))},M=t=>(T(t),S(t)),A=e.SocialNestStorefront={rootEl:null,_reqId:0,isProductPage:k,getProductInfo:v,openShareModal:x,initFloatingCta:S,renderDock:w,initProductShare:T,renderExt:M,init(){let t=i("#socialnest-floating-dock-root"),a=t?.dataset.shop||e.Shopify?.shop||n.hostname||"",s=(t?.dataset.appUrl||"https://socialvire.webvire.com").replace(/\/+$/,""),o=r(t);this.rootEl=t,this.lastAppUrl=s,this.lastShop=a,t&&!t.dataset.d&&(t.dataset.d="1",t.onclick=e=>{let a=e.target.closest(".sn-dock-item");a&&(r(t)?e.preventDefault():h({link_id:a.dataset.linkId,platform:a.dataset.platform,link_type:"floating_dock"}))}),this.settings&&M(this.settings),(a||o)&&this.fetchAndRender(s,a,o);e.SocialNestWishlist?.init()},refresh(){this.lastAppUrl&&this.lastShop?this.fetchAndRender(this.lastAppUrl,this.lastShop,r(this.rootEl)):this.init();e.SocialNestWishlist?.init()},fetchAndRender(t,e,a){let o=++this._reqId,n=this.rootEl;fetch(t+d+"config?shop="+s(e)+(a?"&preview=1":"")).then(t=>t.json()).then(t=>{if(o===this._reqId){this.settings=t?.settings||{};let r=0!=t?.enabled&&0!=t?.success;n&&(n.style.display=r?"":"none",r?w(t.links||[],this.settings):(n.innerHTML="")),M(this.settings)}}).catch(()=>{o===this._reqId&&n&&(n.innerHTML="",n.style.display="none")})},copyCurrentPageLink(t){p(n.href,i("span",t))}};t[g]("click",t=>{let e=t.target.closest(".socialnest-inline-share .sn-share-btn");if(e){r()&&!e.matches(".sn-share-copy")&&t.preventDefault();let a=(e.className.match(/sn-share-([\w-]+)/)?.[1]||"").replace("copy","copy_link");a&&u(a,k()?v():null,"inline_share")}},1),"loading"==t.readyState?t[g]("DOMContentLoaded",()=>A.init()):A.init(),t[g]("shopify:section:load",()=>{A.refresh();e.SocialNestWishlist?.init()})}();
+"use strict";
+import { initSocialDock, renderDock, initFloatingCta } from "./socialnest-social-dock.js";
+import { createProductFeatures } from "./socialnest-product-share.js";
+
+const t = document;
+const e = window;
+
+if (e.SocialNestStorefront && typeof e.SocialNestStorefront.renderDock === "function") {
+  e.SocialNestStorefront.init();
+} else {
+  const o = navigator;
+  const a = encodeURIComponent;
+  const s = location;
+  const n = el => !(!e.Shopify?.designMode && el?.dataset.designMode !== "true");
+  const i = (selector, root = t) => root?.querySelector(selector);
+  const r = "/api/storefront/";
+
+  const l = payload => {
+    try {
+      payload.shop = g.lastShop || s.hostname;
+      payload.referrer = s.href;
+      const body = JSON.stringify(payload);
+      const endpoint = (g.lastAppUrl || "") + r + "track-click";
+      if (!o.sendBeacon?.(endpoint, body)) {
+        fetch(endpoint, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body,
+          keepalive: true,
+        }).catch(() => { });
+      }
+    } catch { }
+  };
+
+  const c = "addEventListener";
+  const p = () => g.rootEl || (g.rootEl = i("#socialnest-floating-dock-root"));
+
+  const isLocalDomain = url => {
+    if (!url || typeof url !== "string") return true;
+    const lower = url.toLowerCase();
+    return lower.includes(".test") || lower.includes("localhost") || lower.includes("127.0.0.1");
+  };
+
+  const sanitizeUrl = url => {
+    if (!url || typeof url !== "string") return "";
+    const clean = url.trim().replace(/\/+$/, "");
+    return isLocalDomain(clean) ? "" : clean;
+  };
+
+  let m = null;
+
+  const h = settings => {
+    m?.initProductShare(settings);
+    initFloatingCta(settings, l);
+  };
+
+  const g = Object.assign(e.SocialNestStorefront || {}, {
+    rootEl: null,
+    _reqId: 0,
+    isProductPage: () => m?.isProductPage() || false,
+    getProductInfo: () => m?.getProductInfo() || null,
+    openShareModal: (...args) => m?.openShareModal(...args),
+    initFloatingCta: settings => initFloatingCta(settings, l),
+    renderDock: (links, settings, customRoot) => renderDock(links, settings, customRoot || p(), l),
+    initProductShare: (...args) => m?.initProductShare(...args),
+    renderExt: h,
+
+    init() {
+      const root = p();
+      const shop = root?.dataset.shop || e.Shopify?.shop || s.hostname || "";
+      const appUrl =
+        sanitizeUrl(root?.dataset.appUrl) ||
+        sanitizeUrl(e.__SOCIALNEST_APP_URL__) ||
+        sanitizeUrl(e.__SOCIALVIRE_APP_URL__) ||
+        sanitizeUrl(e.__SOCIALNEST_PUBLIC_APP_URL__) ||
+        "" ||
+        "https://socialvire.webvire.com";
+      const isDesignMode = n(root);
+
+      this.rootEl = root;
+      this.lastAppUrl = appUrl;
+      this.lastShop = shop;
+
+      initSocialDock({
+        getRootEl: () => p(),
+        isDesignMode: () => n(p()),
+        trackClick: l,
+      });
+
+      if (this.settings) {
+        h(this.settings);
+      }
+
+      if (shop || isDesignMode) {
+        this.fetchAndRender(appUrl, shop, isDesignMode);
+      }
+
+      e.SocialNestWishlist?.init?.();
+    },
+
+    refresh() {
+      const root = p();
+      if (this.lastAppUrl && this.lastShop) {
+        this.fetchAndRender(this.lastAppUrl, this.lastShop, n(root));
+      } else {
+        this.init();
+      }
+      e.SocialNestWishlist?.init?.();
+    },
+
+    fetchAndRender(appUrl, shop, isDesignMode) {
+      const reqId = ++this._reqId;
+      const root = p();
+      const directUrl = (sanitizeUrl(appUrl) || "https://socialvire.webvire.com") + r + "config?shop=" + a(shop) + (isDesignMode ? "&preview=1" : "");
+      let proxyPath = root?.dataset.appProxyPath || e.__SOCIALVIRE_PROXY_PATH__ || e.__SOCIALNEST_PROXY_PATH__ || "/apps/socialvire";
+      if (typeof proxyPath === "string" && proxyPath.indexOf("/apps/socialnest") !== -1) {
+        proxyPath = proxyPath.replace("/apps/socialnest", "/apps/socialvire");
+      }
+      const proxyUrl = (proxyPath.replace(/\/+$/, "") + "/config?shop=" + a(shop) + (isDesignMode ? "&preview=1" : ""));
+
+      const doFetch = targetUrl => fetch(targetUrl).then(res => {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      });
+
+      const hasCustomAppUrl = !!(sanitizeUrl(root?.dataset.appUrl) || sanitizeUrl(e.__SOCIALNEST_APP_URL__) || sanitizeUrl(e.__SOCIALVIRE_APP_URL__));
+
+      (hasCustomAppUrl ? doFetch(directUrl) : doFetch(proxyUrl).catch(() => doFetch(directUrl)))
+        .then(data => {
+          if (reqId === this._reqId) {
+            this.settings = data?.settings || {};
+            if (data?.public_app_url && !isLocalDomain(data.public_app_url)) {
+              e.__SOCIALNEST_PUBLIC_APP_URL__ = data.public_app_url;
+              e.__SOCIALVIRE_PUBLIC_APP_URL__ = data.public_app_url;
+            }
+            if (data?.app_proxy_path) {
+              const currentRoot = p();
+              if (currentRoot && !currentRoot.dataset.appProxyPath) {
+                currentRoot.dataset.appProxyPath = data.app_proxy_path;
+              }
+              e.__SOCIALNEST_PROXY_PATH__ = data.app_proxy_path;
+              e.__SOCIALVIRE_PROXY_PATH__ = data.app_proxy_path;
+            }
+
+            if (e.SocialNestWishlist?.getState?.()?.hasLoadError) {
+              e.SocialNestWishlist.fetchItems?.();
+            }
+
+            const isEnabled = data?.success === true && data?.enabled === true;
+            const currentRoot = p();
+            if (currentRoot) {
+              currentRoot.style.display = isEnabled ? "" : "none";
+              if (isEnabled) {
+                renderDock(data.links || [], this.settings, currentRoot, l);
+              } else {
+                currentRoot.innerHTML = "";
+              }
+            }
+            h(this.settings);
+          }
+        })
+        .catch(err => {
+          console.warn("[SocialNest] Error fetching storefront widget config:", err);
+          const currentRoot = p();
+          if (reqId === this._reqId && currentRoot) {
+            currentRoot.innerHTML = "";
+            currentRoot.style.display = "none";
+          }
+        });
+    },
+
+    copyCurrentPageLink(buttonEl) {
+      if (o.clipboard?.writeText) {
+        o.clipboard.writeText(s.href);
+      }
+      const span = i("span", buttonEl);
+      if (span) {
+        const orig = span.textContent || "Copy";
+        span.textContent = "Copied!";
+        setTimeout(() => {
+          span.textContent = orig;
+        }, 2000);
+      }
+    },
+  });
+
+  e.SocialNestStorefront = g;
+
+  // Initialize product features synchronously
+  m = createProductFeatures({
+    rootEl: () => g.rootEl,
+    settings: () => g.settings,
+    track: l,
+    isDesignMode: () => n(g.rootEl),
+  });
+
+  if (t.readyState === "loading") {
+    t[c]("DOMContentLoaded", () => g.init());
+  } else {
+    g.init();
+  }
+
+  e[c]("load", () => {
+    if (g.rootEl && !g.rootEl.innerHTML) {
+      g.init();
+    }
+  });
+
+  t[c]("shopify:section:load", () => {
+    g.refresh();
+    e.SocialNestWishlist?.init?.();
+  });
+}
+
+export { initSocialDock, renderDock, initFloatingCta, createProductFeatures };

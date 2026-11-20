@@ -2060,6 +2060,7 @@
     </style>
 
     <script>
+        (function () {
         // Storefront Settings State & Live Preview Engine
         let initialSettings = {};
         let currentSettings = {};
@@ -2471,7 +2472,14 @@
             const label = document.getElementById('label_' + fieldId.replace('custom_', ''));
             if (label) label.textContent = clamped + 'px';
 
-            updateLivePreview();
+            if (fieldId.includes('desktop') && currentPreviewDevice !== 'desktop') {
+                setPreviewDevice('desktop');
+            } else if (fieldId.includes('mobile') && currentPreviewDevice !== 'mobile') {
+                setPreviewDevice('mobile');
+            } else {
+                updateLivePreview();
+            }
+
             if (source !== 'init') {
                 checkDirtyState();
             }
@@ -2615,29 +2623,28 @@
                 if (isNaN(rawX)) rawX = currentPreviewDevice === 'mobile' ? 16 : 24;
                 if (isNaN(rawY)) rawY = currentPreviewDevice === 'mobile' ? 16 : 24;
 
-                // Scale proportionally for preview container dimensions (0px raw = 0px scaled)
-                const scaleX = Math.round(rawX * 0.4);
-                const scaleY = Math.round(rawY * 0.4);
+                const offsetX = Math.max(0, Math.min(200, rawX));
+                const offsetY = Math.max(0, Math.min(200, rawY));
 
                 if (hAlign === 'left') {
-                    dock.style.left = scaleX + 'px';
+                    dock.style.left = offsetX + 'px';
                     dock.style.right = 'auto';
                 } else if (hAlign === 'right') {
-                    dock.style.right = scaleX + 'px';
+                    dock.style.right = offsetX + 'px';
                     dock.style.left = 'auto';
                 } else {
-                    dock.style.left = `calc(50% + ${scaleX}px)`;
+                    dock.style.left = `calc(50% + ${offsetX}px)`;
                     dock.style.right = 'auto';
                 }
 
                 if (vAlign === 'top') {
-                    dock.style.top = scaleY + 'px';
+                    dock.style.top = offsetY + 'px';
                     dock.style.bottom = 'auto';
                 } else if (vAlign === 'bottom') {
-                    dock.style.bottom = needsElevation ? `calc(${scaleY}px + 64px)` : scaleY + 'px';
+                    dock.style.bottom = offsetY + 'px';
                     dock.style.top = 'auto';
                 } else {
-                    dock.style.top = `calc(50% + ${scaleY}px)`;
+                    dock.style.top = `calc(50% + ${offsetY}px)`;
                     dock.style.bottom = 'auto';
                 }
 
@@ -2913,7 +2920,7 @@
 
             try {
                 const formData = new FormData(form);
-                const response = await fetch(form.action, {
+                const response = await shopifyAuthenticatedFetch(form.action, {
                     method: 'POST',
                     headers: {
                         'Accept': 'application/json',
@@ -3474,6 +3481,17 @@
             }
         }
 
+        // Safe Teardown for Client-Side Authenticated Navigation
+        document.addEventListener('shopify:before-swap', function onSettingsBeforeSwap() {
+            if (beforeUnloadAttached) {
+                window.removeEventListener('beforeunload', handleBeforeUnload);
+                beforeUnloadAttached = false;
+            }
+            window.removeEventListener('resize', positionColorPicker);
+            window.removeEventListener('scroll', positionColorPicker, true);
+            document.removeEventListener('shopify:before-swap', onSettingsBeforeSwap);
+        });
+
         // Expose global helper methods immediately
         window.normalize = normalize;
         window.normalizeSettings = normalize;
@@ -3496,6 +3514,11 @@
         window.onCtaIconFileSelected = onCtaIconFileSelected;
         window.removeCtaIcon = removeCtaIcon;
         window.updateCtaLivePreview = updateCtaLivePreview;
+        window.setPreviewDevice = setPreviewDevice;
+        window.onProductShareChanged = onProductShareChanged;
+        window.onButtonStyleChanged = onButtonStyleChanged;
+        window.updateLivePreview = updateLivePreview;
+        window.initStorefrontSettingsPage = initStorefrontSettingsPage;
 
         function initStorefrontSettingsPage() {
             initColorPicker();
@@ -3526,5 +3549,6 @@
         } else {
             initStorefrontSettingsPage();
         }
+        })();
     </script>
 @endsection

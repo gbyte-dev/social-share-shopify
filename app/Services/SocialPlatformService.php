@@ -16,14 +16,45 @@ class SocialPlatformService
         'other' => ['key' => 'other', 'name' => 'Other / Custom Platform', 'brand_color' => '#4f46e5', 'placeholder' => 'https://example.com/yourprofile', 'description' => 'Connect any custom social platform, community, or messaging app.'],
     ];
 
-    public static function all(): array { return self::$platforms; }
-    public static function keys(): array { return array_keys(self::$platforms); }
-    public static function builtInKeys(): array { return array_values(array_filter(array_keys(self::$platforms), fn ($k) => $k !== 'other')); }
-    public static function isCustom(string $platform): bool { return in_array(strtolower(trim($platform)), ['other', 'custom'], true); }
-    public static function isBuiltIn(string $platform): bool { return ! self::isCustom($platform) && self::exists($platform); }
-    public static function exists(string $platform): bool { return isset(self::$platforms[strtolower(trim($platform))]); }
-    public static function get(string $platform): ?array { return self::$platforms[strtolower(trim($platform))] ?? null; }
-    public static function name(string $platform): string { return self::$platforms[strtolower(trim($platform))]['name'] ?? ucfirst($platform); }
+    public static function all(): array
+    {
+        return self::$platforms;
+    }
+
+    public static function keys(): array
+    {
+        return array_keys(self::$platforms);
+    }
+
+    public static function builtInKeys(): array
+    {
+        return array_values(array_filter(array_keys(self::$platforms), fn ($k) => $k !== 'other'));
+    }
+
+    public static function isCustom(string $platform): bool
+    {
+        return in_array(strtolower(trim($platform)), ['other', 'custom'], true);
+    }
+
+    public static function isBuiltIn(string $platform): bool
+    {
+        return ! self::isCustom($platform) && self::exists($platform);
+    }
+
+    public static function exists(string $platform): bool
+    {
+        return isset(self::$platforms[strtolower(trim($platform))]);
+    }
+
+    public static function get(string $platform): ?array
+    {
+        return self::$platforms[strtolower(trim($platform))] ?? null;
+    }
+
+    public static function name(string $platform): string
+    {
+        return self::$platforms[strtolower(trim($platform))]['name'] ?? ucfirst($platform);
+    }
 
     public static function normalizeUrl(string $url): string
     {
@@ -31,6 +62,7 @@ class SocialPlatformService
         if (! preg_match('~^[a-zA-Z][a-zA-Z0-9+.-]*://~', $clean)) {
             $clean = 'https://'.$clean;
         }
+
         return $clean;
     }
 
@@ -39,15 +71,21 @@ class SocialPlatformService
         $platformKey = strtolower(trim($platform));
         $config = self::get($platformKey);
 
-        if (! $config) return ['is_valid' => false, 'error' => "Unsupported social platform: {$platform}", 'normalized_url' => null];
+        if (! $config) {
+            return ['is_valid' => false, 'error' => "Unsupported social platform: {$platform}", 'normalized_url' => null];
+        }
 
         $trimmed = trim($url);
-        if ($trimmed === '') return ['is_valid' => false, 'error' => 'Destination URL cannot be empty.', 'normalized_url' => null];
-        if (preg_match('~^\s*(?:javascript|data|file|vbscript):~i', $trimmed)) return ['is_valid' => false, 'error' => 'Dangerous URL schemes are not permitted.', 'normalized_url' => null];
+        if ($trimmed === '') {
+            return ['is_valid' => false, 'error' => 'Destination URL cannot be empty.', 'normalized_url' => null];
+        }
+        if (preg_match('~^\s*(?:javascript|data|file|vbscript):~i', $trimmed)) {
+            return ['is_valid' => false, 'error' => 'Dangerous URL schemes are not permitted.', 'normalized_url' => null];
+        }
 
         $normalized = self::normalizeUrl($trimmed);
         $scheme = parse_url($normalized, PHP_URL_SCHEME);
-        
+
         if (! in_array(strtolower((string) $scheme), ['http', 'https'], true)) {
             return ['is_valid' => false, 'error' => 'Only HTTP and HTTPS URLs are permitted.', 'normalized_url' => null];
         }
@@ -65,6 +103,7 @@ class SocialPlatformService
     public static function iconSvg(string $platform, int $size = 20): string
     {
         $platformKey = strtolower(trim($platform));
+
         return match ($platformKey) {
             'instagram' => '<svg width="'.$size.'" height="'.$size.'" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>',
             'facebook' => '<svg width="'.$size.'" height="'.$size.'" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>',
@@ -103,7 +142,8 @@ class SocialPlatformService
             'star' => '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
             default => '<circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/>'
         };
-        return $base . $path . '</svg>';
+
+        return $base.$path.'</svg>';
     }
 
     /**

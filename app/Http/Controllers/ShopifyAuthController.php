@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ShopifyStore;
+use App\Services\ShopifyPricingService;
 use App\Services\ShopifyService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -105,10 +106,14 @@ class ShopifyAuthController extends Controller
                 'has_hmac' => $hasHmac,
             ]);
 
-            return redirect()->route('shopify.dashboard', array_filter([
-                'shop' => $canonicalShop,
-                'host' => $host,
-            ]));
+            // Forward the launch query parameters (preserving hmac, shop, host, timestamp)
+            $queryParams = $request->query();
+            $queryParams['shop'] = $canonicalShop;
+            if (! empty($host) && empty($queryParams['host'])) {
+                $queryParams['host'] = $host;
+            }
+
+            return redirect()->route('shopify.dashboard', $queryParams);
         }
 
         // 2. If the store is not installed or unverified, initiate or resume the installation flow
@@ -169,9 +174,10 @@ class ShopifyAuthController extends Controller
         $isInstalled = $existingStore && $existingStore->isInstalled();
 
         // Check if any configured required scopes are missing from the store's granted scopes
-        $configuredScopes = array_filter(array_map('trim', explode(',', (string) config('shopify.api_scopes'))));
-        $grantedScopes = array_filter(array_map('trim', explode(',', (string) ($existingStore?->scope ?? ''))));
-        $hasMissingScopes = ! empty(array_diff($configuredScopes, $grantedScopes));
+        $hasMissingScopes = $this->shopifyService->hasMissingScopes(
+            (string) config('shopify.api_scopes'),
+            $existingStore?->scope
+        );
 
         // If the store is already installed, has all required scopes, and is not requesting reauth, bind session and send to dashboard
         if ($isInstalled && ! $request->has('reauth') && ! $hasMissingScopes) {
@@ -186,10 +192,10 @@ class ShopifyAuthController extends Controller
                 'destination' => 'shopify.dashboard',
             ]);
 
-            return redirect()->route('shopify.dashboard', array_filter([
-                'shop' => $canonicalShop,
-                'host' => $request->query('host'),
-            ]));
+            $queryParams = $request->query();
+            $queryParams['shop'] = $canonicalShop;
+
+            return redirect()->route('shopify.dashboard', $queryParams);
         }
 
         // Store is not installed or session is unauthenticated: initiate OAuth flow
@@ -226,10 +232,11 @@ class ShopifyAuthController extends Controller
         );
 
         // Break out of Shopify Admin iframe
-        if (
-            $request->query('embedded') === '1' ||
-            $request->header('Sec-Fetch-Dest') === 'iframe'
-        ) {
+        $isEmbedded = $request->query('embedded') === '1'
+            || $request->header('Sec-Fetch-Dest') === 'iframe'
+            || ! empty($request->query('host'));
+
+        if ($isEmbedded) {
             $escapedAuthUrl = e($authUrl);
 
             $authUrlJson = json_encode(
@@ -317,12 +324,20 @@ class ShopifyAuthController extends Controller
                     const authUrl = {$authUrlJson};
 
                     try {
-                        window.top.location.assign(authUrl);
+                        if (window.top && window.top !== window.self) {
+                            window.top.location.href = authUrl;
+                        } else {
+                            window.location.href = authUrl;
+                        }
                     } catch (error) {
-                        console.warn(
-                            'Automatic Shopify redirect failed:',
-                            error
-                        );
+                        try {
+                            window.open(authUrl, '_top');
+                        } catch (e2) {
+                            console.warn(
+                                'Automatic Shopify redirect failed:',
+                                error
+                            );
+                        }
                     }
                 })();
             </script>
@@ -388,7 +403,7 @@ class ShopifyAuthController extends Controller
         } catch (RuntimeException $e) {
             return response()->view('shopify.error', [
                 'title' => 'Token Exchange Failed',
-                'message' => 'Failed to obtain access token from Shopify: ' . $e->getMessage(),
+                'message' => 'Failed to obtain access token from Shopify: '.$e->getMessage(),
             ], 502);
         }
 
@@ -400,7 +415,7 @@ class ShopifyAuthController extends Controller
 
         Log::info('Shopify OAuth token persisted', [
             'shop' => $canonicalShop,
-            'token_present' => !empty($tokenData['access_token']),
+            'token_present' => ! empty($tokenData['access_token']),
             'scope' => $tokenData['scope'] ?? null,
         ]);
 
@@ -409,6 +424,16 @@ class ShopifyAuthController extends Controller
             'shopify_shop' => $store->shop,
             'shopify_store_id' => $store->id,
         ]);
+
+        // Idempotently synchronize active Shopify subscription upon successful OAuth authorization
+        try {
+            app(ShopifyPricingService::class)->verifyAndSyncActiveSubscription($store);
+        } catch (\Throwable $e) {
+            Log::warning('Automatic post-OAuth subscription sync failed', [
+                'shop' => $canonicalShop,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         $host = $request->query('host') ?? ($cachedState['host'] ?? null);
         if (empty($host) && $canonicalShop) {

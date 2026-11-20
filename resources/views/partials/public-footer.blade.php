@@ -24,6 +24,7 @@
                 <h4 class="footer-title">Get Started</h4>
                 <ul class="footer-links-list">
                     <li><a href="{{ route('home') }}#how-it-works">How It Works</a></li>
+                    <li><a href="{{ route('support.public') }}">Support &amp; Help Center</a></li>
                     <li><a href="{{ route('privacy.policy') }}">Privacy Policy</a></li>
                     <li><a href="{{ route('terms.conditions') }}">Terms &amp; Conditions</a></li>
                 </ul>

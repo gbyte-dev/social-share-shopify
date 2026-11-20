@@ -518,6 +518,7 @@
     </div>
 
     <script>
+        (function () {
         const platformData = {
             @foreach($allPlatforms as $k => $p)
                 '{{ $k }}': {
@@ -621,7 +622,7 @@
                         errorEl.textContent = 'Please enter an App Name or Website URL first.';
                         errorEl.style.display = 'inline';
                     } else {
-                        alert('Please enter an App Name, Destination URL, or Official Website URL to search for logos.');
+                        AppNotice.warning('Please enter an App Name, Destination URL, or Official Website URL to search for logos.', 'Required Information Missing');
                     }
                 }
                 return;
@@ -637,7 +638,7 @@
             if (urlParams.get('host')) queryParams.set('host', urlParams.get('host'));
             const endpoint = '{{ route("shopify.social-links.discover-logos") }}' + (queryParams.toString() ? '?' + queryParams.toString() : '');
 
-            fetch(endpoint, {
+            shopifyAuthenticatedFetch(endpoint, {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: {
@@ -688,7 +689,7 @@
                             errorEl.textContent = data.message || 'No logos found automatically. Please upload a logo file below.';
                             errorEl.style.display = 'inline';
                         } else {
-                            alert(data.message || 'No logos found automatically. Please upload a logo file manually below.');
+                            AppNotice.info(data.message || 'No logos found automatically. Please upload a logo file manually below.', 'No Logos Discovered');
                         }
                     }
                 }
@@ -755,7 +756,27 @@
             updateLivePreview();
         }
 
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', handlePlatformChange);
+        window.handlePlatformChange = handlePlatformChange;
+        window.updateLivePreview = updateLivePreview;
+        window.debouncedLogoDiscovery = debouncedLogoDiscovery;
+        window.triggerLogoDiscovery = triggerLogoDiscovery;
+        window.selectCandidateLogo = selectCandidateLogo;
+        window.handleManualFileUpload = handleManualFileUpload;
+        window.clearSelectedLogo = clearSelectedLogo;
+
+        document.addEventListener('shopify:before-swap', function teardownCreateLink() {
+            if (typeof discoveryTimer !== 'undefined') {
+                clearTimeout(discoveryTimer);
+            }
+            document.removeEventListener('shopify:before-swap', teardownCreateLink);
+        });
+
+        // Initialize on page load or after SPA swap
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', handlePlatformChange);
+        } else {
+            handlePlatformChange();
+        }
+        })();
     </script>
 @endsection

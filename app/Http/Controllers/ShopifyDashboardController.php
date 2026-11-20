@@ -4,7 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\ShopifyStore;
 use App\Services\AnalyticsService;
+use App\Services\EntitlementService;
+use App\Services\ShopifyPricingService;
 use App\Services\SocialPlatformService;
+use App\Services\SubscriptionService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -13,7 +16,10 @@ use Illuminate\Http\Request;
 class ShopifyDashboardController extends Controller
 {
     public function __construct(
-        protected AnalyticsService $analyticsService
+        protected AnalyticsService $analyticsService,
+        protected EntitlementService $entitlementService,
+        protected SubscriptionService $subscriptionService,
+        protected ShopifyPricingService $pricingService
     ) {}
 
     /**
@@ -52,6 +58,8 @@ class ShopifyDashboardController extends Controller
                 ->with('error', 'Authentication required to access the SocialNest dashboard.');
         }
 
+        $store = $store->fresh() ?? $store;
+
         $shop = $store->shop;
         $host = $request->query('host') ?? session('shopify_host');
 
@@ -85,6 +93,28 @@ class ShopifyDashboardController extends Controller
             $platformClicks[$item['platform']] = $item['clicks'];
         }
 
+        $activeSubscription = $this->subscriptionService->getActiveSubscription($store);
+
+        // Auto-sync if merchant returned from Shopify billing / pricing directly to dashboard
+        if (! $activeSubscription && ! empty($store->access_token) && ($request->has('purchased') || $request->has('billing_success') || $request->has('plan_handle'))) {
+            $syncResult = $this->pricingService->verifyAndSyncActiveSubscription($store, $request->query('plan_handle'));
+            if (! empty($syncResult['success']) && ! empty($syncResult['subscription'])) {
+                $activeSubscription = $syncResult['subscription'];
+                $planName = $activeSubscription->plan?->name ?? 'Socialvire Starter';
+                $purchaseMsg = "Your {$planName} plan is now active. Enjoy your premium features!";
+                session()->flash('purchase_success', $purchaseMsg);
+                session()->flash('success', "Purchase Successful! {$purchaseMsg}");
+            }
+        }
+
+        $latestSubscription = $this->subscriptionService->getLatestSubscription($store);
+        $effectivePlan = $this->entitlementService->getEffectivePlan($store);
+        $isPro = $this->entitlementService->isPro($store);
+        $isFree = $this->entitlementService->isFree($store);
+        $creationStatus = $this->entitlementService->getSocialLinkCreationStatus($store);
+        $hasActiveSubscription = $activeSubscription !== null;
+        $currentPlan = $activeSubscription ? $activeSubscription->plan : ($latestSubscription?->plan ?? $effectivePlan);
+
         return view('shopify.dashboard', [
             'store' => $store,
             'shop' => $shop,
@@ -101,6 +131,14 @@ class ShopifyDashboardController extends Controller
             'todayClicks' => $todayClicks,
             'platformClicks' => $platformClicks,
             'analyticsData' => $analyticsData,
+            'effectivePlan' => $effectivePlan,
+            'activeSubscription' => $activeSubscription,
+            'latestSubscription' => $latestSubscription,
+            'hasActiveSubscription' => $hasActiveSubscription,
+            'currentPlan' => $currentPlan,
+            'isPro' => $isPro,
+            'isFree' => $isFree,
+            'creationStatus' => $creationStatus,
         ]);
     }
 

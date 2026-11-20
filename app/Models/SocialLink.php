@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 class SocialLink extends Model
 {
@@ -66,6 +67,7 @@ class SocialLink extends Model
         if ($this->isCustom() && ! empty($this->custom_platform_name)) {
             return $this->custom_platform_name;
         }
+
         return SocialPlatformService::name($this->platform);
     }
 
@@ -75,8 +77,10 @@ class SocialLink extends Model
             if (! empty($this->custom_platform_name) && strtolower(trim($this->custom_platform_name)) === 'reddit') {
                 return '#FF4500';
             }
+
             return '#4f46e5';
         }
+
         return SocialPlatformService::get($this->platform)['brand_color'] ?? '#4f46e5';
     }
 
@@ -88,46 +92,54 @@ class SocialLink extends Model
                 return SocialPlatformService::iconSvg('reddit');
             }
         }
+
         return SocialPlatformService::iconSvg($this->platform);
     }
 
-    // Yahan 'public/' add kiya gaya hai taaki shared hosting par URL effectively map ho sake
-  public function getLogoSmallUrlAttribute(): ?string
+    public function resolveLogoUrl(?string $path): ?string
     {
-        if (! $this->logo_small_path) return null;
-        
-        // Agar pehle se http, https ya data URI hai toh direct return karo[cite: 19, 22]
-        if (str_starts_with($this->logo_small_path, 'http://') || str_starts_with($this->logo_small_path, 'https://')) {
-            return $this->logo_small_path;
-        }
-        
-        if (str_starts_with($this->logo_small_path, 'data:image')) {
-            return $this->logo_small_path;
+        if (empty($path)) {
+            return null;
         }
 
-        return asset('public/' . $this->logo_small_path);
+        if (str_starts_with($path, 'data:image')) {
+            return $path;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return preg_replace('#^(https?://[^/]+)/public/uploads/#', '$1/uploads/', $path);
+        }
+
+        $cleanPath = ltrim($path, '/');
+        if (str_starts_with($cleanPath, 'public/')) {
+            $cleanPath = substr($cleanPath, 7);
+        }
+
+        if (str_starts_with($cleanPath, 'logos/')) {
+            return Storage::disk('public')->url($cleanPath);
+        }
+
+        return asset($cleanPath);
+    }
+
+    public function getLogoSmallUrlAttribute(): ?string
+    {
+        return $this->resolveLogoUrl($this->logo_small_path);
     }
 
     public function getLogoMediumUrlAttribute(): ?string
     {
-        if (! $this->logo_medium_path) return null;
-
-        // Agar pehle se http ya https URL hai, toh direct return karo[cite: 22]
-        if (str_starts_with($this->logo_medium_path, 'http://') || str_starts_with($this->logo_medium_path, 'https://')) {
-            return $this->logo_medium_path;
-        }
-
-        return asset('public/' . $this->logo_medium_path);
+        return $this->resolveLogoUrl($this->logo_medium_path);
     }
 
     public function getLogoLargeUrlAttribute(): ?string
     {
-        return $this->logo_large_path ? asset('public/' . $this->logo_large_path) : null;
+        return $this->resolveLogoUrl($this->logo_large_path);
     }
 
     public function getOriginalLogoUrlAttribute(): ?string
     {
-        return $this->original_logo_path ? asset('public/' . $this->original_logo_path) : null;
+        return $this->resolveLogoUrl($this->original_logo_path);
     }
 
     public function getIconHtmlAttribute(): string
@@ -142,9 +154,9 @@ class SocialLink extends Model
             $base64Svg = base64_encode($fallbackSvg);
 
             // Replace the broken image source with the Base64 SVG cleanly
-            $fallback = "this.onerror=null; this.src='data:image/svg+xml;base64," . $base64Svg . "';";
+            $fallback = "this.onerror=null; this.src='data:image/svg+xml;base64,".$base64Svg."';";
 
-            return '<img src="' . htmlspecialchars($this->logo_small_url, ENT_QUOTES, 'UTF-8') . '" alt="' . $alt . '" style="width: 20px; height: 20px; object-fit: contain; display: block;" onerror="' . $fallback . '" />';
+            return '<img src="'.htmlspecialchars($this->logo_small_url, ENT_QUOTES, 'UTF-8').'" alt="'.$alt.'" style="width: 20px; height: 20px; object-fit: contain; display: block;" onerror="'.$fallback.'" />';
         }
 
         return $this->icon_svg;

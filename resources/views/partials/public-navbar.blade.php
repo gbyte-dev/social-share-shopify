@@ -129,6 +129,7 @@
                     <li><a href="{{ route('home') }}#preview" class="nav-link">Preview</a></li>
                     <li><a href="{{ route('home') }}#pricing" class="nav-link">Pricing</a></li>
                     <li><a href="{{ route('home') }}#faq" class="nav-link">FAQ</a></li>
+                    <li><a href="{{ route('support.public') }}" class="nav-link">Support</a></li>
                 </ul>
             </nav>
 
@@ -149,6 +150,7 @@
             <a href="{{ route('home') }}#preview" class="nav-link">Preview</a>
             <a href="{{ route('home') }}#pricing" class="nav-link">Pricing</a>
             <a href="{{ route('home') }}#faq" class="nav-link">FAQ</a>
+            <a href="{{ route('support.public') }}" class="nav-link">Support</a>
             <a href="{{ route('home') }}#how-it-works" class="btn btn-primary" style="margin-top: 0.5rem;">Get Started</a>
         </div>
     </header>

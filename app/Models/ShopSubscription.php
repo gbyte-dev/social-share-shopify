@@ -16,7 +16,11 @@ class ShopSubscription extends Model
 
     public const STATUS_CANCELLED = 'cancelled';
 
+    public const STATUS_FROZEN = 'frozen';
+
     public const STATUS_SUSPENDED = 'suspended';
+
+    public const STATUS_PENDING = 'pending';
 
     /**
      * The table associated with the model.
@@ -33,12 +37,19 @@ class ShopSubscription extends Model
     protected $fillable = [
         'shop_id',
         'plan_id',
+        'shopify_charge_id',
+        'shopify_app_gid',
+        'plan_handle',
         'status',
         'cancel_at_period_end',
         'cancelled_at',
         'activated_at',
+        'last_verified_at',
+        'billing_interval',
         'current_period_start',
         'current_period_end',
+        'metadata',
+        'response_snapshot',
     ];
 
     /**
@@ -52,8 +63,11 @@ class ShopSubscription extends Model
             'cancel_at_period_end' => 'boolean',
             'cancelled_at' => 'datetime',
             'activated_at' => 'datetime',
+            'last_verified_at' => 'datetime',
             'current_period_start' => 'datetime',
             'current_period_end' => 'datetime',
+            'metadata' => 'array',
+            'response_snapshot' => 'array',
         ];
     }
 
@@ -78,6 +92,32 @@ class ShopSubscription extends Model
     }
 
     /**
+     * Determine if this subscription has been verified through Shopify Partner API.
+     */
+    public function isVerified(): bool
+    {
+        return $this->last_verified_at !== null || ! empty($this->plan_handle);
+    }
+
+    /**
+     * Determine if this subscription is in a frozen state.
+     */
+    public function isFrozen(): bool
+    {
+        return $this->status === self::STATUS_FROZEN;
+    }
+
+    /**
+     * Determine if this subscription is permanent free tier.
+     */
+    public function isPermanentFree(): bool
+    {
+        $plan = $this->plan;
+
+        return $plan !== null && $plan->isFree() && $this->current_period_end === null;
+    }
+
+    /**
      * Check if the subscription is currently active.
      */
     public function isActive(): bool
@@ -86,6 +126,22 @@ class ShopSubscription extends Model
             return false;
         }
 
+        $plan = $this->plan;
+
+        if (! $plan || ! $plan->is_active) {
+            return false;
+        }
+
+        // Free plan semantics: valid permanently if current_period_end is null or in the future
+        if ($plan->isFree()) {
+            if ($this->current_period_end === null) {
+                return true;
+            }
+
+            return $this->current_period_end->gt(now());
+        }
+
+        // Paid / Pro plan semantics: must have valid non-expired billing period
         if (! $this->current_period_start || ! $this->current_period_end) {
             return false;
         }
@@ -94,11 +150,6 @@ class ShopSubscription extends Model
 
         if ($this->current_period_start->gt($now) || $this->current_period_end->lte($now)) {
             return false;
-        }
-
-        // Only active, paid plans (such as SocialNest Pro) grant access
-        if ($this->relationLoaded('plan') && $this->plan) {
-            return $this->plan->is_active && ! $this->plan->isFree();
         }
 
         return true;
@@ -117,7 +168,7 @@ class ShopSubscription extends Model
      */
     public function canCancel(): bool
     {
-        return $this->isActive();
+        return $this->isActive() && $this->plan?->isPro();
     }
 
     /**
@@ -127,6 +178,10 @@ class ShopSubscription extends Model
     {
         if ($this->status === self::STATUS_EXPIRED) {
             return true;
+        }
+
+        if ($this->isPermanentFree()) {
+            return false;
         }
 
         if ($this->current_period_end && $this->current_period_end->lte(now())) {
@@ -141,8 +196,12 @@ class ShopSubscription extends Model
      */
     public function daysRemaining(): int
     {
-        if (! $this->isActive() || ! $this->current_period_end) {
+        if (! $this->isActive()) {
             return 0;
+        }
+
+        if ($this->isPermanentFree() || $this->current_period_end === null) {
+            return -1;
         }
 
         $now = now();

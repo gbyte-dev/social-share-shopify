@@ -7,13 +7,17 @@
 @section('header_actions')
     <div class="sn-dashboard-header-actions">
         <div class="sn-dashboard-header-row">
-            
+            <span id="wishlist-status-badge" class="sn-embed-status" aria-live="polite">
+                Checking Wishlist status...
+            </span>
+
             <button
                 type="button"
                 id="wishlist-setup-btn"
                 data-url="{{ route('shopify.wishlist.setup') }}"
+                data-status-url="{{ route('shopify.wishlist.status') }}"
                 class="btn btn-secondary btn-sm sn-wishlist-setup-btn">
-                <span>Click to  Setup Wishlist</span>
+                <span>Setup Wishlist</span>
             </button>
 
             <a href="{{ route('shopify.social-links.create') }}" class="btn btn-primary btn-sm">
@@ -515,6 +519,45 @@
             </button>
         </div>
 
+        @php
+            $displayPlanName = $activeSubscription?->plan?->name 
+                ?? $currentPlan?->name 
+                ?? $effectivePlan?->name 
+                ?? $store->plan_name 
+                ?? 'Free Plan';
+            $isSubActive = $hasActiveSubscription || (!empty($activeSubscription) && $activeSubscription->isActive());
+            $isUnlimitedLinks = $isPro || ($creationStatus['limit'] ?? null) === null;
+        @endphp
+
+        <div style="background: {{ $isSubActive ? '#f0fdf4' : '#f8fafc' }}; border: 1px solid {{ $isSubActive ? '#bbf7d0' : '#e2e8f0' }}; border-radius: 8px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 0.5rem; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <span style="display: inline-flex; align-items: center; gap: 6px; background: {{ $isSubActive ? '#dcfce7' : '#e0f2fe' }}; color: {{ $isSubActive ? '#15803d' : '#0369a1' }}; font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 9999px;">
+                    @if($isSubActive)
+                        <span style="width: 7px; height: 7px; border-radius: 50%; background: #16a34a; display: inline-block;"></span>
+                        {{ $displayPlanName }} Active
+                    @else
+                        {{ $displayPlanName }}
+                    @endif
+                </span>
+                <span style="font-size: 0.875rem; color: {{ $isSubActive ? '#166534' : '#374151' }};">
+                    @if($isUnlimitedLinks)
+                        Unlimited Social Links, Custom Themes & Floating CTA, Full Features Enabled.
+                    @else
+                        Social Links: <strong>{{ $totalLinks }} of {{ $creationStatus['limit'] ?? 2 }}</strong> used. Storefront Settings and Wishlist are available on SocialNest Pro.
+                    @endif
+                </span>
+            </div>
+            @if($isSubActive)
+                <a href="{{ route('shopify.plans.index', array_filter(['shop' => $shop, 'host' => $host])) }}" style="font-size: 0.8125rem; font-weight: 600; color: #16a34a; text-decoration: none; flex-shrink: 0;">
+                    Manage Billing &rarr;
+                </a>
+            @else
+                <a href="{{ route('shopify.plans.index', array_filter(['shop' => $shop, 'host' => $host])) }}" class="btn btn-primary btn-sm" style="flex-shrink: 0;">
+                    Upgrade to Pro
+                </a>
+            @endif
+        </div>
+
         <!-- 1. Store Overview Metric Cards (Single-Line Content) -->
         <div class="sn-metric-grid">
             <!-- Metric 1: Configured Social Links -->
@@ -794,9 +837,7 @@
         </div>
 
     </div>
-@endsection
 
-@push('scripts')
     <!-- Chart.js 4.4.1 for Polaris-style analytics graphs -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
@@ -815,6 +856,41 @@
 
             let weeklyChartInstance = null;
             let platformChartInstance = null;
+            let pollTimer = null;
+
+            function onVisibilityChange() {
+                if (!document.hidden && !state.loading) {
+                    fetchAnalytics(true);
+                }
+            }
+
+            function onWindowFocus() {
+                if (!state.loading) {
+                    fetchAnalytics(true);
+                }
+                if (typeof checkWishlistStatus === 'function') {
+                    checkWishlistStatus();
+                }
+            }
+
+            // Safe Teardown for Client-Side Authenticated Navigation
+            document.addEventListener('shopify:before-swap', function onDashboardBeforeSwap() {
+                if (weeklyChartInstance) {
+                    try { weeklyChartInstance.destroy(); } catch (e) {}
+                    weeklyChartInstance = null;
+                }
+                if (platformChartInstance) {
+                    try { platformChartInstance.destroy(); } catch (e) {}
+                    platformChartInstance = null;
+                }
+                if (pollTimer) {
+                    clearInterval(pollTimer);
+                    pollTimer = null;
+                }
+                document.removeEventListener('visibilitychange', onVisibilityChange);
+                window.removeEventListener('focus', onWindowFocus);
+                document.removeEventListener('shopify:before-swap', onDashboardBeforeSwap);
+            });
 
             // DOM Elements
             const eventTabs = document.getElementById('sn-event-type-tabs');
@@ -1099,7 +1175,7 @@
                 if (urlParams.get('host')) params.set('host', urlParams.get('host'));
                 if (urlParams.get('shop')) params.set('shop', urlParams.get('shop'));
 
-                fetch('{{ route('shopify.analytics') }}?' + params.toString(), {
+                shopifyAuthenticatedFetch('{{ route('shopify.analytics') }}?' + params.toString(), {
                     headers: {
                         'Accept': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest'
@@ -1177,7 +1253,6 @@
             initPlatformChart(initialData.platform_chart || {});
 
             // Polling interval to refresh analytics automatically while the dashboard is open
-            let pollTimer = null;
             function startPolling() {
                 if (pollTimer) clearInterval(pollTimer);
                 pollTimer = setInterval(function() {
@@ -1187,85 +1262,192 @@
                 }, 8000);
             }
 
-            document.addEventListener('visibilitychange', function() {
-                if (!document.hidden) {
-                    fetchAnalytics(true);
-                }
-            });
-            window.addEventListener('focus', function() {
-                fetchAnalytics(true);
-            });
+            document.addEventListener('visibilitychange', onVisibilityChange);
+            window.addEventListener('focus', onWindowFocus);
 
             startPolling();
-        })();
 
-   
-document.addEventListener('DOMContentLoaded', function () {
-    const button = document.getElementById('wishlist-setup-btn');
+            // Wishlist status and setup handler
+            const wishlistBtn = document.getElementById('wishlist-setup-btn');
+            const wishlistStatusBadge = document.getElementById('wishlist-status-badge');
+            let inFlightWishlistCheck = false;
+            let currentWishlistStatus = 'unknown';
 
-    if (!button) return;
+            function setWishlistUI(status, customMessage) {
+                if (!wishlistStatusBadge || !wishlistBtn) return;
 
-    button.addEventListener('click', async function () {
-        const originalText = button.innerHTML;
+                wishlistStatusBadge.classList.remove('is-active', 'is-inactive');
 
-        button.disabled = true;
-        button.textContent = 'Setting up Wishlist...';
-
-        try {
-            const response = await fetch(button.dataset.url, {
-                method: 'GET',
-                credentials: 'same-origin',
-                headers: {
-                    Accept: 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
+                if (status === 'checking') {
+                    wishlistStatusBadge.textContent = 'Checking Wishlist Status...';
+                    wishlistBtn.textContent = 'Setup Wishlist';
+                } else if (status === 'active') {
+                    wishlistStatusBadge.textContent = 'Wishlist Active';
+                    wishlistStatusBadge.classList.add('is-active');
+                    wishlistBtn.textContent = 'Customize Wishlist';
+                    wishlistBtn.disabled = false;
+                } else if (status === 'setup_pending') {
+                    wishlistStatusBadge.textContent = 'Waiting for Theme Save';
+                    wishlistStatusBadge.classList.add('is-inactive');
+                    wishlistBtn.textContent = 'Complete Wishlist Setup';
+                    wishlistBtn.disabled = false;
+                } else if (status === 'preparing') {
+                    wishlistStatusBadge.textContent = 'Waiting for Theme Save';
+                    wishlistStatusBadge.classList.add('is-inactive');
+                    wishlistBtn.textContent = 'Preparing Wishlist Setup...';
+                    wishlistBtn.disabled = true;
+                } else if (status === 'not_configured') {
+                    wishlistStatusBadge.textContent = 'Wishlist Not Configured';
+                    wishlistStatusBadge.classList.add('is-inactive');
+                    wishlistBtn.textContent = 'Setup Wishlist';
+                    wishlistBtn.disabled = false;
+                } else {
+                    wishlistStatusBadge.textContent = customMessage || 'Wishlist status unavailable';
+                    wishlistBtn.disabled = false;
                 }
-            });
+            }
 
-            const responseText = await response.text();
+            async function checkWishlistStatus() {
+                if (!wishlistBtn || !wishlistBtn.dataset.statusUrl || inFlightWishlistCheck) {
+                    return;
+                }
 
-            let data;
+                inFlightWishlistCheck = true;
+                try {
+                    // Optional client-side verification via App Bridge extensions API
+                    let appBridgeActive = false;
+                    try {
+                        if (window.shopify?.app?.extensions) {
+                            const extensions = await window.shopify.app.extensions();
+                            const themeExtensions = (Array.isArray(extensions) ? extensions : []).filter(
+                                (ext) => ext && ext.type === 'theme_app_extension'
+                            );
+                            const wishlistAct = themeExtensions
+                                .flatMap((ext) => (Array.isArray(ext.activations) ? ext.activations : []))
+                                .find((act) => act && act.handle === 'wishlist-page');
 
-            try {
-                data = JSON.parse(responseText);
-            } catch (error) {
-                console.error('Wishlist invalid JSON response:', {
-                    status: response.status,
-                    response: responseText
+                            if (wishlistAct && wishlistAct.status === 'active') {
+                                appBridgeActive = true;
+                            }
+                        }
+                    } catch (e) {
+                        // Server-side check is primary fallback
+                    }
+
+                    const response = await shopifyAuthenticatedFetch(wishlistBtn.dataset.statusUrl, {
+                        method: 'GET',
+                        credentials: 'same-origin',
+                        headers: {
+                            Accept: 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Status check HTTP error ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    if (!data.success) {
+                        throw new Error(data.message || 'Status check failed');
+                    }
+
+                    const effectiveStatus = (appBridgeActive || data.setup_status === 'active')
+                        ? 'active'
+                        : data.setup_status;
+
+                    currentWishlistStatus = effectiveStatus;
+                    setWishlistUI(effectiveStatus);
+
+                    if (data.deep_link_url) {
+                        wishlistBtn.dataset.editorUrl = data.deep_link_url;
+                    }
+                } catch (error) {
+                    console.warn('[SocialNest] Wishlist status check failed:', error);
+                    if (currentWishlistStatus === 'unknown') {
+                        setWishlistUI('not_configured');
+                    }
+                } finally {
+                    inFlightWishlistCheck = false;
+                }
+            }
+
+            if (wishlistBtn && !wishlistBtn._boundWishlist) {
+                wishlistBtn._boundWishlist = true;
+                wishlistBtn.addEventListener('click', async function () {
+                    setWishlistUI('preparing');
+
+                    try {
+                        const response = await shopifyAuthenticatedFetch(wishlistBtn.dataset.url, {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                Accept: 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            body: JSON.stringify({
+                                preview_path: '/pages/wishlist'
+                            })
+                        });
+
+                        const responseText = await response.text();
+                        let data;
+                        try {
+                            data = JSON.parse(responseText);
+                        } catch (parseError) {
+                            console.error('Wishlist invalid JSON response:', {
+                                status: response.status,
+                                response: responseText
+                            });
+                            throw new Error('Server returned an invalid response.');
+                        }
+
+                        if (!response.ok || !data.success) {
+                            console.error('Wishlist setup API failed:', {
+                                status: response.status,
+                                response: data
+                            });
+                            throw new Error(data.message || `Request failed: ${response.status}`);
+                        }
+
+                        if (!data.deep_link_url) {
+                            throw new Error('Theme Editor URL missing.');
+                        }
+
+                        console.info('Wishlist setup successful:', data);
+
+                        if (!data.installed) {
+                            setWishlistUI('setup_pending');
+                        }
+
+                        let targetUrl = data.deep_link_url;
+                        try {
+                            const parsedUrl = new URL(targetUrl, window.location.origin);
+                            if (parsedUrl.searchParams.get('template') === 'page') {
+                                parsedUrl.searchParams.delete('template');
+                            }
+                            const pageHandle = (data.page && data.page.handle) ? data.page.handle : 'wishlist';
+                            parsedUrl.searchParams.set('previewPath', '/pages/' + pageHandle);
+                            targetUrl = parsedUrl.toString();
+                        } catch (urlError) {
+                            if (targetUrl && !targetUrl.includes('previewPath=')) {
+                                const glue = targetUrl.includes('?') ? '&' : '?';
+                                targetUrl += glue + 'previewPath=%2Fpages%2Fwishlist';
+                            }
+                        }
+
+                        window.top.location.href = targetUrl;
+                    } catch (error) {
+                        console.error('Wishlist setup failed:', error);
+                        AppNotice.error(error.message || 'Wishlist setup failed. Please try again.', 'Wishlist Setup Failed');
+                        setWishlistUI(currentWishlistStatus !== 'unknown' ? currentWishlistStatus : 'not_configured');
+                    }
                 });
-
-                throw new Error('Server returned an invalid response.');
             }
 
-            if (!response.ok || !data.success) {
-                console.error('Wishlist setup API failed:', {
-                    status: response.status,
-                    response: data
-                });
-
-                throw new Error(
-                    data.message || `Request failed: ${response.status}`
-                );
-            }
-
-            if (!data.deep_link_url) {
-                throw new Error('Theme Editor URL missing.');
-            }
-
-            console.info('Wishlist setup successful:', data);
-
-            // Navigate outside Shopify embedded iframe.
-            window.top.location.href = data.deep_link_url;
-
-        } catch (error) {
-            console.error('Wishlist setup failed:', error);
-
-            alert(error.message || 'Wishlist setup failed.');
-
-            button.disabled = false;
-            button.innerHTML = originalText;
-        }
-    });
-});
-
+            // Trigger initial Wishlist status check
+            checkWishlistStatus();
+        })();
     </script>
-@endpush
+@endsection

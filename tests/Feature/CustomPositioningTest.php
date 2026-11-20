@@ -460,8 +460,48 @@ class CustomPositioningTest extends TestCase
         $this->assertStringContainsString('left: calc(50% + var(--sn-custom-x));', $css);
         $this->assertStringContainsString('top: calc(50% + var(--sn-custom-y));', $css);
 
-        $js = file_get_contents(base_path('extensions/socialnest-theme-ext/assets/socialnest-storefront.js'));
+        $jsPath = file_exists(base_path('extensions/socialnest-theme-ext/assets/socialnest-social-dock.js'))
+            ? base_path('extensions/socialnest-theme-ext/assets/socialnest-social-dock.js')
+            : (file_exists(base_path('extensions/socialnest-theme-ext/assets/modules/social-dock.js'))
+                ? base_path('extensions/socialnest-theme-ext/assets/modules/social-dock.js')
+                : base_path('extensions/socialnest-theme-ext/assets/socialnest-storefront.js'));
+        $js = file_get_contents($jsPath);
         $this->assertStringContainsString('calc(50% + var(${t}x))', $js);
         $this->assertStringContainsString('calc(50% + var(${t}y))', $js);
+    }
+
+    public function test_all_nine_alignment_combinations_with_zero_100_and_200_pixel_offsets(): void
+    {
+        $hAligns = ['left', 'center', 'right'];
+        $vAligns = ['top', 'center', 'bottom'];
+        $testOffsets = [0, 100, 200];
+
+        foreach ($hAligns as $h) {
+            foreach ($vAligns as $v) {
+                foreach ($testOffsets as $offset) {
+                    $response = $this->authStore($this->storeA)->put('/shopify/settings', [
+                        'position' => 'custom',
+                        'custom_horizontal_align' => $h,
+                        'custom_vertical_align' => $v,
+                        'custom_offset_x_desktop' => $offset,
+                        'custom_offset_y_desktop' => $offset,
+                        'custom_offset_x_mobile' => min(50, $offset),
+                        'custom_offset_y_mobile' => min(50, $offset),
+                    ]);
+
+                    $response->assertSessionHasNoErrors();
+
+                    $apiRes = $this->getJson("/api/storefront/config?shop={$this->storeA->shop}");
+                    $settings = $apiRes->json('settings');
+
+                    $this->assertEquals($h, $settings['custom_horizontal_align']);
+                    $this->assertEquals($v, $settings['custom_vertical_align']);
+                    $this->assertSame($offset, $settings['custom_offset_x_desktop']);
+                    $this->assertSame($offset, $settings['custom_offset_y_desktop']);
+                    $this->assertSame(min(50, $offset), $settings['custom_offset_x_mobile']);
+                    $this->assertSame(min(50, $offset), $settings['custom_offset_y_mobile']);
+                }
+            }
+        }
     }
 }

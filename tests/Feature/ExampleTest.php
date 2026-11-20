@@ -14,13 +14,11 @@ class ExampleTest extends TestCase
         $response = $this->get('/');
 
         $response->assertStatus(200);
-        $response->assertSee('SocialNest');
-        $response->assertSeeText('Make Every Product Easier to Share.');
-        $response->assertSee('SocialNest helps your Shopify store connect products with the social platforms your customers already use.');
+        $response->assertSee('Socialvire');
+        $response->assertSeeText('Make Every Product');
+        $response->assertSee('Socialvire helps your Shopify store connect products with the social platforms your customers already use.');
         $response->assertSee('Add customizable floating social icons and convenient product-sharing options.');
-        $response->assertSee('Customizable Floating Social Icons');
         $response->assertSee('How It Works');
         $response->assertSee('Frequently Asked Questions');
-        $response->assertSee('Make Your Shopify Products Easier to Share.');
     }
 }

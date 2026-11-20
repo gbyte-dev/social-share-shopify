@@ -1,235 +1,215 @@
-
 "use strict";
-!(function () {
-  let t = document,
-    e = window;
-  if (e.SocialNestStorefront) return e.SocialNestStorefront.init();
-  let a = navigator,
-    s = encodeURIComponent,
-    o = e.ShopifyAnalytics,
-    n = location,
-    r = (t) => !(!e.Shopify?.designMode && "true" !== t?.dataset.designMode),
-    i = (e, a = t) => a?.querySelector(e),
-    c = (e = "div") => t.createElement(e),
-    p = (t, e, s = e?.textContent || "Copy") => (
-      a.clipboard?.writeText(t),
-      e &&
-        ((e.textContent = "Copied!"),
-        setTimeout(() => (e.textContent = s), 2e3))
-    ),
-    d = "/api/storefront/",
-    h = (t) => {
-      try {
-        ((t.shop = A.lastShop || n.hostname), (t.referrer = n.href));
-        let e = JSON.stringify(t),
-          s = A.lastAppUrl + d + "track-click";
-        a.sendBeacon?.(s, e) ||
-          fetch(s, {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: e,
-            keepalive: 1,
-          }).catch(() => {});
-      } catch {}
-    },
-    u = (t, e, a = "product_share") =>
-      h({
-        platform: t,
-        link_type: a,
-        product_id: e?.id,
-        product_title: e?.title,
-      }),
-    g = "addEventListener",
-    y = () => 768 >= e.innerWidth || /Mobi|Android/i.test(a.userAgent),
-    S = (e) => {
-      let a = "socialnest-floating-cta";
-      if (
-        (i("." + a)?.remove(),
-        !(
-          e?.cta_enabled &&
-          e.cta_text &&
-          e.cta_url &&
-          (y() ? e.cta_mobile_enabled : e.cta_desktop_enabled)
-        ))
-      )
-        return;
-      let s = c("a");
-      ((s.className = `${a} ${a}--${e.cta_size || "medium"}${e.cta_mobile_enabled ? "" : " sn-cta-hide-mobile"}${e.cta_desktop_enabled ? "" : " sn-cta-hide-desktop"}`),
-        (s.href = e.cta_url),
-        (s.target = "_blank"),
-        (s.rel = "noopener"),
-        (s.style.cssText = `background:${e.cta_background_color || "#111827"};color:${e.cta_text_color || "#fff"}`));
-      let o = `<div class="${a}__`;
-      ((s.innerHTML =
-        (e.cta_show_icon && e.cta_icon_url
-          ? `${o}icon"><img src="${e.cta_icon_url}"></div>`
-          : "") +
-        `${o}content"><span class="${a}__text">${e.cta_text}</span></div>`),
-        (s.onclick = () => u("floating_cta", null, "floating_cta")),
-        t.body.append(s));
-    },
-    w = (t, e) => {
-      let a = A.rootEl;
-      if (!a || !t?.length) return a && (a.innerHTML = "");
-      let i = e.position || "bottom_right",
-        l = "custom" === i,
-        p = e.custom_horizontal_align || "right",
-        d = e.custom_vertical_align || "bottom";
-      (/^(left|center)$/.test(p) || (p = "right"),
-        /^(top|center)$/.test(d) || (d = "bottom"));
-      let h = (t, a) => {
-          let s = e["custom_offset_" + (t[0] + "_" + t.slice(1)).toLowerCase()];
-          return isNaN(s) || null == s || "" === s
-            ? a
-            : Math.max(0, Math.min(200, +s));
-        },
-        [u, m] = [h("XDesktop", 24), h("YDesktop", 24)],
-        [_, f] = [h("XMobile", u), h("YMobile", m)],
-        {
-          icon_size: $ = "medium",
-          icon_shape: b = "circle",
-          hover_animation: g = "lift",
-          whatsapp_message: y = "",
-        } = e,
-        k = 0 != e.show_tooltips;
-      if (
-        ((a.className = `socialnest-dock-container sn-pos-${i.replace(/_/g, "-")} sn-size-${$} sn-shape-${b} sn-anim-${g}`),
-        (a.dataset.hAlign = p),
-        (a.dataset.vAlign = d),
-        (a.style.cssText = ""),
-        l)
-      ) {
-        let t = "--sn-custom-",
-          o =
-            "left" === p
-              ? `calc(env(safe-area-inset-left,0px) + var(${t}x))`
-              : "right" === p
-                ? "auto"
-                : `calc(50% + var(${t}x))`,
-          n =
-            "right" === p
-              ? `calc(env(safe-area-inset-right,0px) + var(${t}x))`
-              : "auto",
-          r =
-            "top" === d
-              ? `calc(env(safe-area-inset-top,0px) + var(${t}y))`
-              : "bottom" === d
-                ? "auto"
-                : `calc(50% + var(${t}y))`,
-          s =
-            "bottom" === d
-              ? `calc(env(safe-area-inset-bottom,0px) + var(${t}y))`
-              : "auto",
-          c =
-            "center" === p && "center" === d
-              ? "translate(-50%,-50%)"
-              : "center" === p
-                ? "translateX(-50%)"
-                : "center" === d
-                  ? "translateY(-50%)"
-                  : "none";
-        a.style.cssText = `${t}x-desktop:${u}px;${t}y-desktop:${m}px;${t}x-mobile:${_}px;${t}y-mobile:${f}px;left:${o};right:${n};top:${r};bottom:${s};transform:${c};flex-direction:${"center" === d && "center" !== p ? "column" : "row"}`;
+import { initSocialDock, renderDock, initFloatingCta } from "./socialnest-social-dock.js";
+import { createProductFeatures } from "./socialnest-product-share.js";
+
+const t = document;
+const e = window;
+
+if (e.SocialNestStorefront && typeof e.SocialNestStorefront.renderDock === "function") {
+  e.SocialNestStorefront.init();
+} else {
+  const o = navigator;
+  const a = encodeURIComponent;
+  const s = location;
+  const n = el => !(!e.Shopify?.designMode && el?.dataset.designMode !== "true");
+  const i = (selector, root = t) => root?.querySelector(selector);
+  const r = "/api/storefront/";
+
+  const l = payload => {
+    try {
+      payload.shop = g.lastShop || s.hostname;
+      payload.referrer = s.href;
+      const body = JSON.stringify(payload);
+      const endpoint = (g.lastAppUrl || "") + r + "track-click";
+      if (!o.sendBeacon?.(endpoint, body)) {
+        fetch(endpoint, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body,
+          keepalive: true,
+        }).catch(() => { });
       }
-      a.innerHTML = t
-        .map((t) => {
-          let e = (t.platform || "").toLowerCase().trim(),
-            a = t.custom_name || t.name || t.label || e,
-            o = t.url || "#";
-          "whatsapp" === e &&
-            y &&
-            !o.includes("text=") &&
-            (o += (o.includes("?") ? "&" : "?") + "text=" + s(y));
-          let n = t["logo_" + $] || t.logo_medium;
-          return `<a href="${o}" target="_blank" rel="noopener" class="sn-dock-item" style="background:${t.brand_color || "#4f46e5"}" aria-label="${a}" data-platform="${e}"${t.id ? " data-link-id=" + t.id : ""}>${n ? `<img src="${n}" class="sn-custom-logo">` : t.icon_svg || ""}${k ? `<span class="sn-dock-tooltip">${a}</span>` : ""}</a>`;
-        })
-        .join("");
-    },
-    M = (t) => (productFeatures?.initProductShare(t), S(t)),
-    A = (e.SocialNestStorefront = {
-      rootEl: null,
-      _reqId: 0,
-      isProductPage: () => productFeatures?.isProductPage() || false,
-      getProductInfo: () => productFeatures?.getProductInfo() || null,
-      openShareModal: (...args) => productFeatures?.openShareModal(...args),
-      initFloatingCta: S,
-      renderDock: w,
-      initProductShare: (...args) => productFeatures?.initProductShare(...args),
-      renderExt: M,
-      init() {
-        let t = i("#socialnest-floating-dock-root"),
-          a = t?.dataset.shop || e.Shopify?.shop || n.hostname || "",
-          s = (t?.dataset.appUrl || "https://socialvire.webvire.com").replace(/\/+$/, ""),
-          o = r(t);
-        ((this.rootEl = t),
-          (this.lastAppUrl = s),
-          (this.lastShop = a),
-          t &&
-            !t.dataset.d &&
-            ((t.dataset.d = "1"),
-            (t.onclick = (e) => {
-              let a = e.target.closest(".sn-dock-item");
-              a &&
-                (r(t)
-                  ? e.preventDefault()
-                  : h({
-                      link_id: a.dataset.linkId,
-                      platform: a.dataset.platform,
-                      link_type: "floating_dock",
-                    }));
-            })),
-          this.settings && M(this.settings),
-          (a || o) && this.fetchAndRender(s, a, o));
-        e.SocialNestWishlist?.init();
-      },
-      refresh() {
-        this.lastAppUrl && this.lastShop
-          ? this.fetchAndRender(this.lastAppUrl, this.lastShop, r(this.rootEl))
-          : this.init();
-        e.SocialNestWishlist?.init();
-      },
-      fetchAndRender(t, e, a) {
-        let o = ++this._reqId,
-          n = this.rootEl;
-        fetch(t + d + "config?shop=" + s(e) + (a ? "&preview=1" : ""))
-          .then((t) => t.json())
-          .then((t) => {
-            if (o === this._reqId) {
-              this.settings = t?.settings || {};
-              let r = t?.success === true && t?.enabled === true;
-              (n &&
-                ((n.style.display = r ? "" : "none"),
-                r ? w(t.links || [], this.settings) : (n.innerHTML = "")),
-                M(this.settings));
-            }
-          })
-          .catch(() => {
-            o === this._reqId &&
-              n &&
-              ((n.innerHTML = ""), (n.style.display = "none"));
-          });
-      },
-      copyCurrentPageLink(t) {
-        p(n.href, i("span", t));
-      },
-    });
-  let productFeatures = null;
-  import(new URL("socialnest-storefront-product.js", document.currentScript?.src || location.href).href)
-    .then(({ createProductFeatures }) => {
-      productFeatures = createProductFeatures({
-        rootEl: () => A.rootEl,
-        settings: () => A.settings,
-        track: h,
-        isDesignMode: () => r(A.rootEl),
+    } catch { }
+  };
+
+  const c = "addEventListener";
+  const p = () => g.rootEl || (g.rootEl = i("#socialnest-floating-dock-root"));
+
+  const isLocalDomain = url => {
+    if (!url || typeof url !== "string") return true;
+    const lower = url.toLowerCase();
+    return lower.includes(".test") || lower.includes("localhost") || lower.includes("127.0.0.1");
+  };
+
+  const sanitizeUrl = url => {
+    if (!url || typeof url !== "string") return "";
+    const clean = url.trim().replace(/\/+$/, "");
+    return isLocalDomain(clean) ? "" : clean;
+  };
+
+  let m = null;
+
+  const h = settings => {
+    m?.initProductShare(settings);
+    initFloatingCta(settings, l);
+  };
+
+  const g = Object.assign(e.SocialNestStorefront || {}, {
+    rootEl: null,
+    _reqId: 0,
+    isProductPage: () => m?.isProductPage() || false,
+    getProductInfo: () => m?.getProductInfo() || null,
+    openShareModal: (...args) => m?.openShareModal(...args),
+    initFloatingCta: settings => initFloatingCta(settings, l),
+    renderDock: (links, settings, customRoot) => renderDock(links, settings, customRoot || p(), l),
+    initProductShare: (...args) => m?.initProductShare(...args),
+    renderExt: h,
+
+    init() {
+      const root = p();
+      const shop = root?.dataset.shop || e.Shopify?.shop || s.hostname || "";
+      const appUrl =
+        sanitizeUrl(root?.dataset.appUrl) ||
+        sanitizeUrl(e.__SOCIALNEST_APP_URL__) ||
+        sanitizeUrl(e.__SOCIALVIRE_APP_URL__) ||
+        sanitizeUrl(e.__SOCIALNEST_PUBLIC_APP_URL__) ||
+        "" ||
+        "https://socialvire.webvire.com";
+      const isDesignMode = n(root);
+
+      this.rootEl = root;
+      this.lastAppUrl = appUrl;
+      this.lastShop = shop;
+
+      initSocialDock({
+        getRootEl: () => p(),
+        isDesignMode: () => n(p()),
+        trackClick: l,
       });
-      if (A.settings) productFeatures.initProductShare(A.settings);
-    })
-    .catch((error) => console.error("[SocialNest] Product share module failed to load:", error));
-  (
-    "loading" == t.readyState
-      ? t[g]("DOMContentLoaded", () => A.init())
-      : A.init(),
-    t[g]("shopify:section:load", () => {
-      A.refresh();
-      e.SocialNestWishlist?.init();
-    }));
-})();
+
+      if (this.settings) {
+        h(this.settings);
+      }
+
+      if (shop || isDesignMode) {
+        this.fetchAndRender(appUrl, shop, isDesignMode);
+      }
+
+      e.SocialNestWishlist?.init?.();
+    },
+
+    refresh() {
+      const root = p();
+      if (this.lastAppUrl && this.lastShop) {
+        this.fetchAndRender(this.lastAppUrl, this.lastShop, n(root));
+      } else {
+        this.init();
+      }
+      e.SocialNestWishlist?.init?.();
+    },
+
+    fetchAndRender(appUrl, shop, isDesignMode) {
+      const reqId = ++this._reqId;
+      const root = p();
+      const directUrl = (sanitizeUrl(appUrl) || "https://socialvire.webvire.com") + r + "config?shop=" + a(shop) + (isDesignMode ? "&preview=1" : "");
+      let proxyPath = root?.dataset.appProxyPath || e.__SOCIALVIRE_PROXY_PATH__ || e.__SOCIALNEST_PROXY_PATH__ || "/apps/socialvire";
+      if (typeof proxyPath === "string" && proxyPath.indexOf("/apps/socialnest") !== -1) {
+        proxyPath = proxyPath.replace("/apps/socialnest", "/apps/socialvire");
+      }
+      const proxyUrl = (proxyPath.replace(/\/+$/, "") + "/config?shop=" + a(shop) + (isDesignMode ? "&preview=1" : ""));
+
+      const doFetch = targetUrl => fetch(targetUrl).then(res => {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      });
+
+      const hasCustomAppUrl = !!(sanitizeUrl(root?.dataset.appUrl) || sanitizeUrl(e.__SOCIALNEST_APP_URL__) || sanitizeUrl(e.__SOCIALVIRE_APP_URL__));
+
+      (hasCustomAppUrl ? doFetch(directUrl) : doFetch(proxyUrl).catch(() => doFetch(directUrl)))
+        .then(data => {
+          if (reqId === this._reqId) {
+            this.settings = data?.settings || {};
+            if (data?.public_app_url && !isLocalDomain(data.public_app_url)) {
+              e.__SOCIALNEST_PUBLIC_APP_URL__ = data.public_app_url;
+              e.__SOCIALVIRE_PUBLIC_APP_URL__ = data.public_app_url;
+            }
+            if (data?.app_proxy_path) {
+              const currentRoot = p();
+              if (currentRoot && !currentRoot.dataset.appProxyPath) {
+                currentRoot.dataset.appProxyPath = data.app_proxy_path;
+              }
+              e.__SOCIALNEST_PROXY_PATH__ = data.app_proxy_path;
+              e.__SOCIALVIRE_PROXY_PATH__ = data.app_proxy_path;
+            }
+
+            if (e.SocialNestWishlist?.getState?.()?.hasLoadError) {
+              e.SocialNestWishlist.fetchItems?.();
+            }
+
+            const isEnabled = data?.success === true && data?.enabled === true;
+            const currentRoot = p();
+            if (currentRoot) {
+              currentRoot.style.display = isEnabled ? "" : "none";
+              if (isEnabled) {
+                renderDock(data.links || [], this.settings, currentRoot, l);
+              } else {
+                currentRoot.innerHTML = "";
+              }
+            }
+            h(this.settings);
+          }
+        })
+        .catch(err => {
+          console.warn("[SocialNest] Error fetching storefront widget config:", err);
+          const currentRoot = p();
+          if (reqId === this._reqId && currentRoot) {
+            currentRoot.innerHTML = "";
+            currentRoot.style.display = "none";
+          }
+        });
+    },
+
+    copyCurrentPageLink(buttonEl) {
+      if (o.clipboard?.writeText) {
+        o.clipboard.writeText(s.href);
+      }
+      const span = i("span", buttonEl);
+      if (span) {
+        const orig = span.textContent || "Copy";
+        span.textContent = "Copied!";
+        setTimeout(() => {
+          span.textContent = orig;
+        }, 2000);
+      }
+    },
+  });
+
+  e.SocialNestStorefront = g;
+
+  // Initialize product features synchronously
+  m = createProductFeatures({
+    rootEl: () => g.rootEl,
+    settings: () => g.settings,
+    track: l,
+    isDesignMode: () => n(g.rootEl),
+  });
+
+  if (t.readyState === "loading") {
+    t[c]("DOMContentLoaded", () => g.init());
+  } else {
+    g.init();
+  }
+
+  e[c]("load", () => {
+    if (g.rootEl && !g.rootEl.innerHTML) {
+      g.init();
+    }
+  });
+
+  t[c]("shopify:section:load", () => {
+    g.refresh();
+    e.SocialNestWishlist?.init?.();
+  });
+}
+
+export { initSocialDock, renderDock, initFloatingCta, createProductFeatures };

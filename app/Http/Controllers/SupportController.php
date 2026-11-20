@@ -17,10 +17,25 @@ class SupportController extends Controller
         /** @var ShopifyStore $store */
         $store = $this->resolveStore($request);
 
+        $supportEmail = config('shopify.support_email') ?: env('SUPPORT_EMAIL');
+
         return view('shopify.support.index', [
             'store' => $store,
             'shop' => $store->shop,
             'host' => session('shopify_host') ?? $request->query('host'),
+            'supportEmail' => $supportEmail,
+        ]);
+    }
+
+    /**
+     * Display the public Help & Support Center page for merchants and prospective users.
+     */
+    public function publicIndex(Request $request): View
+    {
+        $supportEmail = config('shopify.support_email') ?: env('SUPPORT_EMAIL');
+
+        return view('support.public', [
+            'supportEmail' => $supportEmail,
         ]);
     }
 

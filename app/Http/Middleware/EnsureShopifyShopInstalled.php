@@ -29,6 +29,15 @@ class EnsureShopifyShopInstalled
      */
     public function handle(Request $request, Closure $next): Response
     {
+        // If store is already verified and attached (e.g. via VerifyShopifyIdToken), pass through immediately
+        if ($request->attributes->has('shopify_store')) {
+            /** @var ShopifyStore|null $existingStore */
+            $existingStore = $request->attributes->get('shopify_store');
+            if ($existingStore instanceof ShopifyStore && $existingStore->isInstalled()) {
+                return $next($request);
+            }
+        }
+
         $sessionShop = session('shopify_shop');
         $sessionStoreId = session('shopify_store_id');
         $queryShop = $request->query('shop') ?? $request->input('shop');
@@ -44,7 +53,8 @@ class EnsureShopifyShopInstalled
                     'raw_shop' => $queryShop,
                 ]);
 
-                return redirect()->route('shopify.install')
+                return redirect()
+                    ->route('shopify.install')
                     ->with('error', 'Please provide a valid myshopify.com store domain.');
             }
 
@@ -69,6 +79,15 @@ class EnsureShopifyShopInstalled
                     $request->attributes->set('shopify_store', $store);
 
                     return $next($request);
+                }
+
+                if ($store && $store->requiresReauthorization()) {
+                    Log::info('Shopify auth state: reauthorization_required - Stored credentials invalid or expired', [
+                        'route' => $routeName,
+                        'shop' => $canonicalQueryShop,
+                    ]);
+
+                    return $this->redirectToInstall($request, $canonicalQueryShop, 'reauthorization_required');
                 }
             }
 
@@ -114,6 +133,15 @@ class EnsureShopifyShopInstalled
                     $request->attributes->set('shopify_store', $store);
 
                     return $next($request);
+                }
+
+                if ($store && $store->requiresReauthorization()) {
+                    Log::info('Shopify auth state: reauthorization_required - Valid HMAC but store credentials need re-authorization', [
+                        'route' => $routeName,
+                        'shop' => $canonicalQueryShop,
+                    ]);
+
+                    return $this->redirectToInstall($request, $canonicalQueryShop, 'reauthorization_required');
                 }
 
                 // Valid HMAC but not installed or token missing -> start install flow
@@ -186,6 +214,15 @@ class EnsureShopifyShopInstalled
                 return $next($request);
             }
 
+            if ($store && $store->requiresReauthorization()) {
+                Log::info('Shopify auth state: reauthorization_required - Active session store requires re-authorization', [
+                    'route' => $routeName,
+                    'shop' => $sessionShop,
+                ]);
+
+                return $this->redirectToInstall($request, $sessionShop, 'reauthorization_required');
+            }
+
             // Session has an uninstalled or inactive store -> clear stale session and redirect to install
             Log::info('Shopify auth state: not_installed - Stale or uninstalled store in session', [
                 'route' => $routeName,
@@ -215,11 +252,13 @@ class EnsureShopifyShopInstalled
         }
 
         $host = $request->query('host');
+        $isReauth = $authState === 'reauthorization_required';
 
         $installUrl = route('shopify.install', array_filter([
             'shop' => $canonicalShop,
             'host' => $host,
-        ]));
+            'reauth' => $isReauth ? 1 : null,
+        ]), false);
 
         Log::info('Redirecting to installation entry point', [
             'shop' => $canonicalShop,
@@ -227,7 +266,8 @@ class EnsureShopifyShopInstalled
             'destination' => $installUrl,
         ]);
 
-        return redirect()->to($installUrl)
+        return redirect()
+            ->to($installUrl)
             ->with('warning', 'Please connect your Shopify store to access SocialNest.');
     }
 
