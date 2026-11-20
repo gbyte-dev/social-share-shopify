@@ -1,12 +1,6 @@
-<<<<<<< HEAD
-client_id = "aa60f115e4cce7b9b6680ee50adf9efd"
-name = "SocialNest"
-handle = "socialnest"
-=======
 client_id = "635bfb45a21668c84eee87c87f9509a2"
 name = "Socialvire"
 handle = "socialvire"
->>>>>>> 4413c0955bfbd6d4c4d5eb18a828d5b682fb0186
 application_url = "https://socialvire.webvire.com"
 embedded = true
  

@@ -54,3 +54,7 @@ Thumbs.db
 index.php
 package-lock.json
 /public/uploads/logos/*
+shopify.app.toml_o
+shopify.app.toml_o2
+shopify.app.toml_o3
+/tests/*
