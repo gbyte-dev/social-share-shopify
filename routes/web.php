@@ -107,6 +107,9 @@ Route::middleware(['shopify.csp', 'shopify.id_token', 'shopify.auth', 'shopify.s
     // Help & Support View
     Route::get('/shopify/support', [SupportController::class, 'index'])
         ->name('shopify.support.index');
+        // Wishlist Merchant Guide
+    Route::get('/shopify/wishlist-guide', [WishlistStorefrontController::class,'guide'])
+        ->name('shopify.wishlist.guide');
 });
 
 // Premium-Only Embedded Views (Requires Active Pro Subscription)
@@ -313,4 +316,20 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/profile', [AppSettingsController::class, 'edit'])
             ->name('profile');
     });
+});
+
+Route::get('/debug-image-support', function () {
+    $result = [
+        'imagick_loaded' => extension_loaded('imagick'),
+        'gd_loaded' => extension_loaded('gd'),
+        'ico_supported' => false,
+    ];
+
+    if (extension_loaded('imagick')) {
+        $result['ico_supported'] = !empty(
+            \Imagick::queryFormats('ICO')
+        );
+    }
+
+    return response()->json($result);
 });

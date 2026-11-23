@@ -17,18 +17,36 @@ var memStorage = {};
  * Resolve shop domain from DOM, Shopify global, or location hostname.
  */
 export function getShopDomain() {
-  var doc = getDoc();
-  var win = getWin();
-  if (!doc) return "";
-  var dock = doc.querySelector("#socialnest-floating-dock-root");
-  var wrapper = doc.querySelector(".socialnest-wishlist-page-wrapper");
-  return (
-    (dock && dock.dataset.shop) ||
-    (wrapper && wrapper.dataset.shop) ||
-    (win && win.Shopify && win.Shopify.shop) ||
-    (typeof location !== "undefined" ? location.hostname : "") ||
-    ""
-  ).trim();
+    var win = getWin();
+    var doc = getDoc();
+
+    var candidates = [
+        win && win.Shopify && win.Shopify.shop,
+        win && win.__SOCIALNEST_SHOP__,
+        win && win.__SOCIALVIRE_SHOP__
+    ];
+
+    if (doc) {
+        var dock = doc.querySelector("#socialnest-floating-dock-root");
+        var wrapper = doc.querySelector(".socialnest-wishlist-page-wrapper");
+
+        candidates.push(
+            dock && dock.dataset.shop,
+            wrapper && wrapper.dataset.shop
+        );
+    }
+
+    for (var i = 0; i < candidates.length; i++) {
+        var shop = String(candidates[i] || "")
+            .trim()
+            .toLowerCase();
+
+        if (/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(shop)) {
+            return shop;
+        }
+    }
+
+    return "";
 }
 
 var PROD_APP_URL = "https://socialvire.webvire.com";

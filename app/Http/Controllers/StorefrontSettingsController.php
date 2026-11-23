@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\File;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -96,7 +97,7 @@ class StorefrontSettingsController extends Controller
                 'max:50',
                 function ($attribute, $value, $fail) {
                     if ($value !== null && $value !== '' && ! self::isValidColor($value)) {
-                        $fail('The '.$attribute.' must be a valid HEX or RGBA color format.');
+                        $fail('The ' . $attribute . ' must be a valid HEX or RGBA color format.');
                     }
                 },
             ],
@@ -110,7 +111,7 @@ class StorefrontSettingsController extends Controller
                 'max:1000',
                 function ($attribute, $value, $fail) {
                     if ($value !== null && $value !== '' && ! self::isValidDestinationUrl($value)) {
-                        $fail('The '.$attribute.' must be a valid HTTP or HTTPS URL.');
+                        $fail('The ' . $attribute . ' must be a valid HTTP or HTTPS URL.');
                     }
                 },
             ],
@@ -123,7 +124,7 @@ class StorefrontSettingsController extends Controller
                 'max:50',
                 function ($attribute, $value, $fail) {
                     if ($value !== null && $value !== '' && ! self::isValidColor($value)) {
-                        $fail('The '.$attribute.' must be a valid HEX or RGBA color format.');
+                        $fail('The ' . $attribute . ' must be a valid HEX or RGBA color format.');
                     }
                 },
             ],
@@ -133,7 +134,7 @@ class StorefrontSettingsController extends Controller
                 'max:50',
                 function ($attribute, $value, $fail) {
                     if ($value !== null && $value !== '' && ! self::isValidColor($value)) {
-                        $fail('The '.$attribute.' must be a valid HEX or RGBA color format.');
+                        $fail('The ' . $attribute . ' must be a valid HEX or RGBA color format.');
                     }
                 },
             ],
@@ -179,27 +180,85 @@ class StorefrontSettingsController extends Controller
             : ($settings->product_share_button_background_color ?? 'rgba(17, 24, 39, 1)');
 
         // Handle Floating CTA icon file upload, replacement, or removal
+        // Handle Floating CTA icon file upload, replacement, or removal.
         $iconPath = $settings->floating_cta_icon_path;
+
+        $publicIconDirectory = public_path('uploads/cta_icons');
+
+        // Ensure public mirror directory exists.
+        if (!File::isDirectory($publicIconDirectory)) {
+            File::makeDirectory($publicIconDirectory, 0755, true);
+        }
+
+        // Remove existing icon.
         if ($request->boolean('remove_floating_cta_icon')) {
-            if ($iconPath && Storage::disk('public')->exists($iconPath)) {
+
+            if ($iconPath) {
+                // Delete original storage file.
                 Storage::disk('public')->delete($iconPath);
+
+                // Delete mirrored public file.
+                File::delete(
+                    $publicIconDirectory . '/' . basename($iconPath)
+                );
             }
+
             $iconPath = null;
+
+            // Upload or replace icon.
         } elseif ($request->hasFile('floating_cta_icon')) {
+
             $file = $request->file('floating_cta_icon');
+
             $ext = strtolower($file->getClientOriginalExtension());
+
+            // Validate SVG content.
             if ($ext === 'svg') {
                 $rawSvg = file_get_contents($file->getRealPath());
-                if (! self::sanitizeSvgContent((string) $rawSvg)) {
+
+                if (!self::sanitizeSvgContent((string) $rawSvg)) {
                     throw ValidationException::withMessages([
-                        'floating_cta_icon' => 'The uploaded SVG icon contains potentially unsafe scripts or elements.',
+                        'floating_cta_icon' =>
+                        'The uploaded SVG icon contains potentially unsafe scripts or elements.',
                     ]);
                 }
             }
-            if ($iconPath && Storage::disk('public')->exists($iconPath)) {
+
+            // Delete previous icon from both locations.
+            if ($iconPath) {
                 Storage::disk('public')->delete($iconPath);
+
+                File::delete(
+                    $publicIconDirectory . '/' . basename($iconPath)
+                );
             }
-            $iconPath = $file->store('cta_icons', 'public');
+
+            // Generate unique filename.
+            $filename = \Illuminate\Support\Str::uuid() . '.' . $ext;
+
+            // Save original file in storage/app/public/cta_icons.
+            $iconPath = $file->storeAs(
+                'cta_icons',
+                $filename,
+                'public'
+            );
+
+            if (!$iconPath) {
+                throw new \RuntimeException('CTA icon upload failed.');
+            }
+
+            // Copy file to public/uploads/cta_icons.
+            $sourcePath = Storage::disk('public')->path($iconPath);
+
+            $destinationPath = $publicIconDirectory . '/' . $filename;
+
+            if (!File::copy($sourcePath, $destinationPath)) {
+                Storage::disk('public')->delete($iconPath);
+
+                throw new \RuntimeException(
+                    'CTA icon public mirror copy failed.'
+                );
+            }
         }
 
         $floatingCtaEnabled = $request->has('floating_cta_enabled')

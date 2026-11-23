@@ -36,11 +36,13 @@
     {%- assign active_proxy_path = raw_proxy -%}
   {%- endif -%}
 
-  <script>
+ <script>
+    window.__SOCIALNEST_SHOP__ = {{ shop.permanent_domain | json }};
+
     window.__SOCIALNEST_APP_URL__ = window.__SOCIALNEST_APP_URL__ || {{ configured_app_url | json }};
     window.__SOCIALVIRE_APP_URL__ = window.__SOCIALNEST_APP_URL__;
     window.__SOCIALVIRE_PROXY_PATH__ = {{ active_proxy_path | json }};
-  </script>
+</script>
   <script type="module" src="{{ 'socialnest-wishlist.js' | asset_url }}"></script>
 
   <style>

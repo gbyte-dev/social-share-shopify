@@ -602,7 +602,7 @@ class LogoDiscoveryService
     /**
      * Safely download binary content from an SSRF-verified image URL.
      */
-    public function downloadRemoteImage(string $url): ?string
+   public function downloadRemoteImage(string $url): ?string
     {
         if (! $this->isSafeUrl($url)) {
             return null;
@@ -611,7 +611,10 @@ class LogoDiscoveryService
         try {
             $response = Http::connectTimeout(self::CONNECT_TIMEOUT)
                 ->timeout(self::REQUEST_TIMEOUT)
-                ->withHeaders(['User-Agent' => 'SocialNest-LogoDownloader/1.0'])
+                ->withHeaders([
+                    'User-Agent' => 'SocialNest-LogoDownloader/1.0',
+                    'Accept' => 'image/png,image/jpeg,image/webp,image/gif,image/x-icon,image/vnd.microsoft.icon,image/svg+xml,*/*;q=0.1',
+                ])
                 ->get($url);
 
             if (! $response->successful()) {
@@ -619,12 +622,44 @@ class LogoDiscoveryService
             }
 
             $body = (string) $response->body();
-            if (strlen($body) === 0 || strlen($body) > self::MAX_RESPONSE_BYTES) {
+
+            if (
+                $body === '' ||
+                strlen($body) > self::MAX_RESPONSE_BYTES
+            ) {
+                return null;
+            }
+
+            $mime = (new \finfo(FILEINFO_MIME_TYPE))->buffer($body);
+
+            $allowedMimes = [
+                'image/png',
+                'image/jpeg',
+                'image/webp',
+                'image/gif',
+                'image/x-icon',
+                'image/vnd.microsoft.icon',
+                'image/svg+xml',
+            ];
+
+            if (! in_array($mime, $allowedMimes, true)) {
+                \Log::warning('Logo download rejected: invalid image response', [
+                    'url_host' => parse_url($url, PHP_URL_HOST),
+                    'mime' => $mime,
+                    'size' => strlen($body),
+                ]);
+
                 return null;
             }
 
             return $body;
-        } catch (\Throwable) {
+
+        } catch (\Throwable $e) {
+            \Log::warning('Remote logo download failed', [
+                'url_host' => parse_url($url, PHP_URL_HOST),
+                'error' => $e->getMessage(),
+            ]);
+
             return null;
         }
     }
