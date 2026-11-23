@@ -420,10 +420,10 @@
            ========================================================================== */
       .top-navbar {
             min-height: var(--header-height);
-            background: rgba(255, 255, 255, 0.92);
-            backdrop-filter: blur(8px);
+            /* background: rgba(255, 255, 255, 0.92); */
+            backdrop-filter: blur(28px);
             -webkit-backdrop-filter: blur(8px);
-            border-bottom: 1px solid var(--card-border);
+           /* border-bottom: 1px solid var(--card-border); */
             padding: 0.875rem 2rem;
             display: flex;
             align-items: center;
@@ -489,7 +489,7 @@
 
         /* Content Canvas */
         .content-canvas {
-            padding: 1.75rem 2rem 2.5rem;
+            padding: 0.75rem 2rem 2.5rem;
             flex: 1;
             max-width: 1400px;
             width: 100%;
@@ -679,7 +679,7 @@
            Mobile & Tablet Responsive Behavior
            ========================================================================== */
         @media (max-width: 640px) {
-            .top-navbar { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+            .top-navbar { flex-direction: column; align-items: flex-start; gap: 0.75rem;  padding: 0.875rem 0rem;    width: calc(100% - 2rem);}
             .top-actions { width: 100%; justify-content: space-between; }
             .content-canvas { padding: 1rem; }
         }
@@ -783,6 +783,7 @@
     <ui-nav-menu hidden>
         <a href="{{ route('shopify.dashboard', $navParams) }}">Dashboard</a>
         <a href="{{ route('shopify.social-links.index', $navParams) }}">My Social Links</a>
+        <a href="{{ route('shopify.wishlist.guide', $navParams) }}">Wishlist</a>
         <a href="{{ route('shopify.settings.index', $navParams) }}">Storefront Settings</a>
         <a href="{{ route('shopify.plans.index', $navParams) }}">Plans & Billing</a>
         <a href="{{ route('shopify.support.index', $navParams) }}">Help & Support</a>
@@ -800,10 +801,10 @@
                 </div>
 
                 <div class="top-actions">
-                    <div class="badge-live">
+                    <!-- <div class="badge-live">
                         <span class="badge-live-dot"></span>
                         <span>Live</span>
-                    </div>
+                    </div> -->
 
                     <div id="headerActionsSlot" class="header-actions-slot">
                         @yield('header_actions')
@@ -1028,21 +1029,31 @@
                     document.title = newTitle.textContent;
                 }
 
-                // 2. Update page header info
-                const currentHeaderInfo = document.querySelector('.page-header-info');
-                const newHeaderInfo = doc.querySelector('.page-header-info');
-                if (currentHeaderInfo && newHeaderInfo) {
-                    currentHeaderInfo.innerHTML = newHeaderInfo.innerHTML;
-                }
+                
+                // 2. Synchronize complete header with destination page
+                const currentHeader = document.querySelector('.top-navbar');
+                const newHeader = doc.querySelector('.top-navbar');
 
-                // 3. Update header actions slot
-                const currentActions = document.getElementById('headerActionsSlot');
-                const newActions = doc.getElementById('headerActionsSlot');
-                if (currentActions && newActions) {
-                    currentActions.innerHTML = newActions.innerHTML;
-                } else if (currentActions) {
-                    currentActions.innerHTML = '';
+                if (currentHeader && newHeader) {
+                    // Both pages have header: update complete header content
+                    currentHeader.replaceWith(newHeader.cloneNode(true));
+
+                } else if (currentHeader && !newHeader) {
+                    // Destination page hides header: remove stale header
+                    currentHeader.remove();
+
+                } else if (!currentHeader && newHeader) {
+                    // Destination page requires header: insert it
+                    const mainContent = document.querySelector('.main-content');
+
+                    if (mainContent) {
+                        mainContent.insertBefore(
+                            newHeader.cloneNode(true),
+                            mainContent.querySelector('.content-canvas')
+                        );
+                    }
                 }
+                
 
                 // 4. Update main content canvas
                 const currentCanvas = document.querySelector('.content-canvas');

@@ -1708,37 +1708,24 @@
     </style>
 
     @if(!empty($isFree))
-        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
-            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                <span style="background: #e0f2fe; color: #0369a1; font-size: 0.75rem; font-weight: 700; padding: 3px 8px; border-radius: 9999px;">
-                    Free Plan
-                </span>
-                <span style="font-size: 0.875rem; color: #374151;">
-                    <strong>{{ $links->count() }} of {{ $creationStatus['limit'] ?? 2 }}</strong> social links configured.
-                    @if(!$creationStatus['can_create'])
-                        <span style="color: #b91c1c; font-weight: 600; margin-left: 4px;">Limit reached. Existing links remain fully editable and manageable.</span>
-                    @endif
-                </span>
-            </div>
-            <a href="{{ route('shopify.plans.index') }}" class="btn btn-primary btn-sm" style="flex-shrink: 0;">
-                Upgrade for Unlimited Links
-            </a>
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <span style="background: #e0f2fe; color: #0369a1; font-size: 0.75rem; font-weight: 700; padding: 3px 8px; border-radius: 9999px;">
+                Free Plan
+            </span>
+            <span style="font-size: 0.875rem; color: #374151;">
+                <strong>{{ $links->count() }} of {{ $creationStatus['limit'] ?? 2 }}</strong> social links configured.
+                @if(!$creationStatus['can_create'])
+                    <span style="color: #b91c1c; font-weight: 600; margin-left: 4px;">Limit reached. Existing links remain fully editable and manageable.</span>
+                @endif
+            </span>
         </div>
-    @else
-        <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 16px; margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
-            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                <span style="background: #dcfce7; color: #15803d; font-size: 0.75rem; font-weight: 700; padding: 3px 8px; border-radius: 9999px;">
-                    SocialNest Pro
-                </span>
-                <span style="font-size: 0.875rem; color: #166534;">
-                    <strong>{{ $links->count() }}</strong> social links active (Unlimited on Pro).
-                </span>
-            </div>
-            <a href="{{ route('shopify.plans.index') }}" style="font-size: 0.8125rem; font-weight: 600; color: #16a34a; text-decoration: none;">
-                Manage Subscription &rarr;
-            </a>
-        </div>
-    @endif
+        <a href="{{ route('shopify.plans.index') }}" class="btn btn-primary btn-sm" style="flex-shrink: 0;">
+            Upgrade for Unlimited Links
+        </a>
+    </div>
+@endif
+
 
     <div class="sn-links-wrap sn-available-platforms">
         @php
@@ -4112,47 +4099,150 @@
             @endforeach
         ];
 
+
+        const appBaseUrl = @json(url('/'));
+
+        const fallbackIconSvg = `
+            <svg width="14" height="14" viewBox="0 0 24 24"
+                fill="none" stroke="#ffffff" stroke-width="2.5">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 8v8M8 12h8"/>
+            </svg>
+        `;
+
+        function resolveCustomAppLogo(path) {
+            if (!path) return null;
+
+            path = String(path).trim();
+
+            if (!path) return null;
+
+            if (/^(data:image|https?:\/\/)/i.test(path)) {
+                return path;
+            }
+
+            const cleanPath = path.replace(/^\/+/, '');
+
+            if (cleanPath.startsWith('public/')) {
+                return new URL(cleanPath, appBaseUrl + '/').href;
+            }
+
+            if (cleanPath.startsWith('uploads/')) {
+                return new URL('public/' + cleanPath, appBaseUrl + '/').href;
+            }
+
+            if (cleanPath.startsWith('logos/')) {
+                return new URL('public/uploads/' + cleanPath, appBaseUrl + '/').href;
+            }
+
+            return new URL(cleanPath, appBaseUrl + '/').href;
+        }
+
+        function getCustomAppLogo(app) {
+            return resolveCustomAppLogo(
+                app?.logo ||
+                app?.logo_url ||
+                app?.logo_small_url ||
+                null
+            );
+        }
+
+
         const modal = document.getElementById('socialLinkModal');
         const pickerModal = document.getElementById('platformPickerModal');
         const customAppModal = document.getElementById('customAppModal');
         const form = document.getElementById('socialLinkForm');
         const selPlatform = document.getElementById('platform');
+        
 
-        const fallbackIconSvg = "this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIvPjxwYXRoIGQ9Ik0xMiA4djhNOCAxMmg4Ii8+PC9zdmc+';";
-
+            
         function renderCustomAppsInGrid() {
-            document.querySelectorAll('.sn-plat-card.dynamic-custom').forEach(el => el.remove());
+            document.querySelectorAll('.sn-plat-card.dynamic-custom')
+                .forEach(el => el.remove());
+
             const grid = document.getElementById('platformVisualGrid');
+
+            if (!grid) {
+                console.error('Platform grid not found');
+                return;
+            }
+
             const customCreateCard = grid.querySelector('[data-platform="other"]');
+
+            if (!customCreateCard) {
+                console.error('Custom create card not found');
+                return;
+            }
 
             const configuredCustoms = @json($configuredCustomNames ?? []);
             const seenNames = new Set();
 
             customAppsRegistry.forEach(app => {
-                const lowerName = app.name.toLowerCase();
-                if (seenNames.has(lowerName)) return;
+                if (!app || !app.name) {
+                    return;
+                }
+
+                const lowerName = String(app.name).trim().toLowerCase();
+
+                if (!lowerName || seenNames.has(lowerName)) {
+                    return;
+                }
+
                 seenNames.add(lowerName);
 
-                const isAlreadyAdded = configuredCustoms.includes(lowerName);
+                const isAlreadyAdded = configuredCustoms
+                    .map(name => String(name).trim().toLowerCase())
+                    .includes(lowerName);
 
                 const card = document.createElement('div');
-                card.className = 'sn-plat-card dynamic-custom' + (isAlreadyAdded ? ' disabled' : '');
+
+                card.className = 'sn-plat-card dynamic-custom' +
+                    (isAlreadyAdded ? ' disabled' : '');
+
                 card.setAttribute('data-platform', 'other');
                 card.setAttribute('data-name', lowerName);
-                
+
                 if (!isAlreadyAdded) {
                     card.onclick = () => selectCustomAppCard(app);
                 }
 
-                card.innerHTML = `
-                    <div class="sn-plat-icon" style="background: #4f46e5;">
-                        <img src="${app.logo}" style="width:16px;height:16px;object-fit:contain;" onerror="${fallbackIconSvg}">
-                    </div>
-                    <span class="sn-plat-name">${app.name}</span>
-                `;
+                const icon = document.createElement('div');
+                icon.className = 'sn-plat-icon';
+                icon.style.background = '#4f46e5';
+
+                const logoUrl = getCustomAppLogo(app);
+
+                if (logoUrl) {
+                    const img = document.createElement('img');
+
+                    img.src = logoUrl;
+                    img.alt = app.name;
+                    img.style.width = '16px';
+                    img.style.height = '16px';
+                    img.style.objectFit = 'contain';
+
+                    img.onerror = function () {
+                        console.error('Custom app logo failed to load:', this.src);
+                        this.onerror = null;
+                        icon.innerHTML = fallbackIconSvg;
+                    };
+
+                    icon.appendChild(img);
+                } else {
+                    icon.innerHTML = fallbackIconSvg;
+                }
+
+                const name = document.createElement('span');
+                name.className = 'sn-plat-name';
+                name.textContent = app.name;
+
+                card.appendChild(icon);
+                card.appendChild(name);
+
                 grid.insertBefore(card, customCreateCard);
             });
         }
+
 
         function openPlatformPicker() {
             renderCustomAppsInGrid();
@@ -4163,17 +4253,35 @@
 
         function closePlatformPicker() { pickerModal.classList.remove('open'); }
         
-        function openCustomAppModal() { 
-            closePlatformPicker(); 
+        function openCustomAppModal() {
+            closePlatformPicker();
+
             document.getElementById('customAppForm').reset();
+
+            // Reset logo state
+            regUploadedFile = null;
+            regSelectedLogoUrl = '';
+
+            document.getElementById('reg_logo_file').value = '';
+            document.getElementById('regLogoPreviewImg').src = '';
+            document.getElementById('regLogoSourceTitle').textContent = '';
+
             document.getElementById('regLogoPreviewBox').style.display = 'none';
             document.getElementById('candidatesContainer').style.display = 'none';
+            document.getElementById('candidatesGrid').innerHTML = '';
+            document.getElementById('discoveryStatus').style.display = 'none';
+
             document.getElementById('err_reg_custom_platform_name').style.display = 'none';
+            document.getElementById('err_reg_logo_file').textContent = '';
+            document.getElementById('err_reg_logo_file').style.display = 'none';
+
             const submitBtn = document.getElementById('customAppSubmitBtn');
+
             submitBtn.disabled = false;
             submitBtn.style.opacity = '1';
             submitBtn.style.cursor = 'pointer';
-            customAppModal.classList.add('open'); 
+
+            customAppModal.classList.add('open');
         }
 
         function closeCustomAppModal() { customAppModal.classList.remove('open'); }
@@ -4261,58 +4369,178 @@
             updatePreview();
         }
 
+        
         function selectCustomAppCard(app) {
-            // Main platform select ko 'other' set karein
             const selectEl = document.getElementById('platform');
+
             if (selectEl) {
                 selectEl.value = 'other';
             }
-            
-            // Hidden fields mein custom app ki sari details properly assign karein
+
+            const logoUrl = getCustomAppLogo(app);
+
             document.getElementById('customAppHiddenFields').innerHTML = `
-                <input type="text" id="custom_platform_name" name="custom_platform_name" value="${app.name}">
-                <input type="text" id="official_website_url" name="official_website_url" value="${app.website || ''}">
-                <input type="hidden" name="selected_logo_url" id="selected_logo_url" value="${app.logo || ''}">
-                <div class="sn-field-error" id="err_logo_file"></div>
+                <input type="text"
+                    id="custom_platform_name"
+                    name="custom_platform_name"
+                    value="${escapeHtml(app.name || '')}">
+
+                <input type="text"
+                    id="official_website_url"
+                    name="official_website_url"
+                    value="${escapeHtml(app.website || app.website_url || '')}">
+
+                <input type="hidden"
+                    name="selected_logo_url"
+                    id="selected_logo_url"
+                    value="${escapeHtml(logoUrl || '')}">
             `;
 
             const visualBox = document.getElementById('selectedPlatformVisual');
+
             visualBox.innerHTML = `
-                <div class="sn-plat-icon" style="background: #4f46e5; width: 28px; height: 28px;">
-                    <img src="${app.logo}" style="width:16px;height:16px;object-fit:contain;" onerror="${fallbackIconSvg}">
+                <div class="sn-plat-icon"
+                    style="background:#4f46e5;width:28px;height:28px;">
                 </div>
+
                 <div>
-                    <span style="font-weight: 600; font-size: 0.8125rem; color: #202223; display: block;">${app.name}</span>
-                    <span style="font-size: 0.65rem; color: #4338ca; background: #e0e7ff; padding: 1px 4px; border-radius: 3px;">Custom App</span>
+                    <span style="font-weight:600;font-size:0.8125rem;color:#202223;display:block;">
+                        ${escapeHtml(app.name || '')}
+                    </span>
+
+                    <span style="font-size:0.65rem;color:#4338ca;background:#e0e7ff;padding:1px 4px;border-radius:3px;">
+                        Custom App
+                    </span>
                 </div>
             `;
 
+            const visualIcon = visualBox.querySelector('.sn-plat-icon');
+
+            if (logoUrl) {
+                const img = document.createElement('img');
+
+                img.src = logoUrl;
+                img.alt = app.name || 'Custom App';
+                img.style.cssText = 'width:16px;height:16px;object-fit:contain;';
+
+                img.onerror = function () {
+                    console.error('Selected app logo failed:', this.src);
+                    this.onerror = null;
+                    visualIcon.innerHTML = fallbackIconSvg;
+                };
+
+                visualIcon.appendChild(img);
+            } else {
+                visualIcon.innerHTML = fallbackIconSvg;
+            }
+
             closePlatformPicker();
-            updatePreview(app.logo, app.name);
+            updatePreview(logoUrl, app.name);
         }
 
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, char => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            })[char]);
+        }
 
         let regUploadedFile = null;
         let regSelectedLogoUrl = '';
-        function handleRegFileUpload(input) {
-            if (input.files && input.files[0]) {
-                regUploadedFile = input.files[0];
+        async function handleRegFileUpload(input) {
+            const errorDiv = document.getElementById('err_reg_logo_file');
+
+            errorDiv.textContent = '';
+            errorDiv.style.display = 'none';
+
+            const file = input.files?.[0];
+
+            if (!file) {
+                return;
+            }
+
+            const allowedTypes = [
+                'image/png',
+                'image/jpeg',
+                'image/webp',
+                'image/gif',
+                'image/svg+xml'
+            ];
+
+            const allowedExtensions = /\.(png|jpe?g|webp|gif|svg)$/i;
+
+            if (
+                !allowedTypes.includes(file.type) ||
+                !allowedExtensions.test(file.name)
+            ) {
+                input.value = '';
+
+                errorDiv.textContent = 'Please select a valid PNG, JPG, WEBP, GIF or SVG image.';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            if (file.size > 2 * 1024 * 1024) {
+                input.value = '';
+
+                errorDiv.textContent = 'Logo size must not exceed 2 MB.';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            const objectUrl = URL.createObjectURL(file);
+
+            try {
+                const valid = await new Promise(resolve => {
+                    const img = new Image();
+
+                    img.onload = () => {
+                        resolve(img.naturalWidth > 0 && img.naturalHeight > 0);
+                    };
+
+                    img.onerror = () => resolve(false);
+                    img.src = objectUrl;
+                });
+
+                if (!valid) {
+                    input.value = '';
+
+                    errorDiv.textContent = 'The selected file is corrupt or is not a valid image.';
+                    errorDiv.style.display = 'block';
+                    return;
+                }
+
+                regUploadedFile = file;
                 regSelectedLogoUrl = '';
-                const reader = new FileReader();
-                reader.onload = e => {
-                    document.getElementById('regLogoPreviewImg').src = e.target.result;
-                    document.getElementById('regLogoSourceTitle').textContent = regUploadedFile.name;
-                    document.getElementById('regLogoPreviewBox').style.display = 'flex';
-                };
-                reader.readAsDataURL(regUploadedFile);
+
+                document.getElementById('regLogoPreviewImg').src = objectUrl;
+
+                document.getElementById('regLogoSourceTitle').textContent = file.name;
+
+                document.getElementById('regLogoPreviewBox').style.display = 'flex';
+
+            } finally {
+                URL.revokeObjectURL(objectUrl);
             }
         }
-
-        function clearRegLogo() {
+       function clearRegLogo() {
             regUploadedFile = null;
             regSelectedLogoUrl = '';
+
             document.getElementById('reg_logo_file').value = '';
+            document.getElementById('regLogoPreviewImg').src = '';
+            document.getElementById('regLogoSourceTitle').textContent = '';
+
             document.getElementById('regLogoPreviewBox').style.display = 'none';
+
+            const errorDiv = document.getElementById('err_reg_logo_file');
+
+            errorDiv.textContent = '';
+            errorDiv.style.display = 'none';
         }
 
         let isSavingCustomApp = false;
@@ -4484,25 +4712,55 @@
             const label = document.getElementById('label').value.trim();
             const iconWrap = document.getElementById('prev_icon');
             const labelTxt = document.getElementById('prev_label');
-            
+
             if (val === 'other') {
-                const hiddenName = document.querySelector('input[name="custom_platform_name"]');
-                const displayName = label || customName || (hiddenName ? hiddenName.value : 'Custom Platform');
+                const hiddenName = document.querySelector(
+                    'input[name="custom_platform_name"]'
+                );
+
+                const logoInput = document.querySelector(
+                    'input[name="selected_logo_url"]'
+                );
+
+                const displayName =
+                    label ||
+                    customName ||
+                    (hiddenName ? hiddenName.value : 'Custom Platform');
+
                 labelTxt.textContent = displayName;
-                
-                const activeLogo = customLogo || (hiddenName ? document.querySelector('input[name="selected_logo_url"]').value : null);
+
+                const activeLogo = resolveCustomAppLogo(
+                    customLogo || (logoInput ? logoInput.value : null)
+                );
+
+                iconWrap.style.background = '#4f46e5';
 
                 if (activeLogo) {
-                    iconWrap.style.background = '#4f46e5';
-                    iconWrap.innerHTML = `<img src="${activeLogo}" style="width:16px;height:16px;object-fit:contain;" onerror="${fallbackIconSvg}">`;
+                    const img = document.createElement('img');
+
+                    img.src = activeLogo;
+                    img.alt = displayName;
+                    img.style.width = '16px';
+                    img.style.height = '16px';
+                    img.style.objectFit = 'contain';
+
+                    img.onerror = function () {
+                        console.error('Preview logo failed:', this.src);
+                        this.onerror = null;
+                        iconWrap.innerHTML = fallbackIconSvg;
+                    };
+
+                    iconWrap.innerHTML = '';
+                    iconWrap.appendChild(img);
                 } else {
-                    iconWrap.style.background = '#4f46e5';
-                    iconWrap.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>';
+                    iconWrap.innerHTML = fallbackIconSvg;
                 }
+
             } else if (builtinPlatforms[val]) {
                 labelTxt.textContent = label || builtinPlatforms[val].name;
                 iconWrap.style.background = builtinPlatforms[val].color;
                 iconWrap.innerHTML = builtinPlatforms[val].icon;
+
             } else {
                 labelTxt.textContent = 'Select a platform';
                 iconWrap.style.background = '#e1e3e5';
@@ -4571,53 +4829,195 @@
             }
         }
 
+       
+        
+       
+        async function isValidLogoImage(url) {
+            if (typeof url !== 'string' || !url.trim()) {
+                return false;
+            }
+
+            try {
+                const parsedUrl = new URL(url);
+
+                if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+                    return false;
+                }
+
+                if (/\.ico$/i.test(parsedUrl.pathname)) {
+                    return false;
+                }
+
+                const img = new Image();
+
+                return await new Promise(resolve => {
+                    img.onload = () => {
+                        resolve(
+                            img.naturalWidth > 0 &&
+                            img.naturalHeight > 0
+                        );
+                    };
+
+                    img.onerror = () => resolve(false);
+                    img.src = parsedUrl.href;
+                });
+            } catch {
+                return false;
+            }
+        }
+
+
+
         let discTimer;
         function debouncedLogoDiscovery() { clearTimeout(discTimer); discTimer = setTimeout(() => { if(document.getElementById('reg_custom_name').value.trim().length >= 2) triggerLogoDiscovery(true); }, 650); }
         
         async function triggerLogoDiscovery(silent = false) {
             const name = document.getElementById('reg_custom_name').value.trim();
             const web = document.getElementById('reg_custom_website').value.trim();
-            if (!name && !web) { if(!silent) AppNotice.warning('Please enter App Name or Website URL.', 'Required Information Missing'); return; }
 
-            document.getElementById('discoveryStatus').style.display = 'inline-flex';
-            document.getElementById('candidatesContainer').style.display = 'none';
+            if (!name && !web) {
+                if (!silent) {
+                    AppNotice.warning(
+                        'Please enter App Name or Website URL.',
+                        'Required Information Missing'
+                    );
+                }
+                return;
+            }
+
+            const status = document.getElementById('discoveryStatus');
+            const container = document.getElementById('candidatesContainer');
+            const grid = document.getElementById('candidatesGrid');
+
+            status.style.display = 'inline-flex';
+            container.style.display = 'none';
+            grid.innerHTML = '';
 
             const queryParams = new URLSearchParams(window.location.search);
-            try {
-                const res = await shopifyAuthenticatedFetch('{{ route("shopify.social-links.discover-logos") }}?' + queryParams.toString(), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
-                    body: JSON.stringify({ name, website_url: web, shop: queryParams.get('shop') })
-                });
-                const data = await res.json();
-                document.getElementById('discoveryStatus').style.display = 'none';
 
-                if (data.success && data.candidates && data.candidates.length > 0) {
-                    document.getElementById('candidatesContainer').style.display = 'block';
-                    const grid = document.getElementById('candidatesGrid');
-                    grid.innerHTML = '';
-                    data.candidates.forEach((cand, idx) => {
-                        const card = document.createElement('div');
-                        card.className = 'candidate-card' + (idx === 0 ? ' active' : '');
-                        card.innerHTML = `<img src="${cand.url}" style="width:16px;height:16px;object-fit:contain;"><div><div style="font-weight:600;color:#202223;">${cand.source_name}</div></div>`;
-                        card.onclick = () => {
-                            regUploadedFile = null;
-                            document.getElementById('reg_logo_file').value = '';
-                            regSelectedLogoUrl = cand.url;
-                            document.querySelectorAll('.candidate-card').forEach(c => c.classList.remove('active'));
-                            card.classList.add('active');
-                            
-                            document.getElementById('regLogoPreviewImg').src = cand.url;
-                            document.getElementById('regLogoSourceTitle').textContent = cand.source_name;
-                            document.getElementById('regLogoPreviewBox').style.display = 'flex';
-                        };
-                        grid.appendChild(card);
-                    });
-                    if (data.preselected) grid.children[0].click();
-                } else if (!silent) AppNotice.info(data.message || 'No logos found automatically.', 'No Logos Discovered');
+            try {
+                const res = await shopifyAuthenticatedFetch(
+                    '{{ route("shopify.social-links.discover-logos") }}?' +
+                    queryParams.toString(),
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            name,
+                            website_url: web,
+                            shop: queryParams.get('shop')
+                        })
+                    }
+                );
+
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status}`);
+                }
+
+                const data = await res.json();
+
+                if (!data.success || !Array.isArray(data.candidates)) {
+                    if (!silent) {
+                        AppNotice.info(
+                            data.message || 'No logos found automatically.',
+                            'No Logos Discovered'
+                        );
+                    }
+                    return;
+                }
+
+                
+                const validCandidates = [];
+
+                for (const cand of data.candidates) {
+                    if (!cand || typeof cand.url !== 'string') {
+                        continue;
+                    }
+
+                    // Remove ICO candidates using URL extension.
+                    if (/\.ico(?:$|[?#])/i.test(cand.url)) {
+                        continue;
+                    }
+
+                    // Validate that the browser can load the image.
+                    if (await isValidLogoImage(cand.url)) {
+                        validCandidates.push(cand);
+                    }
+                }
+
+                if (validCandidates.length === 0) {
+                    if (!silent) {
+                        AppNotice.info(
+                            'No valid image logos found. Please upload a logo manually.',
+                            'No Valid Logos'
+                        );
+                    }
+                    return;
+                }
+
+                container.style.display = 'block';
+
+                validCandidates.forEach(cand => {
+                    const card = document.createElement('div');
+                    card.className = 'candidate-card';
+
+                    const img = document.createElement('img');
+                    img.src = cand.url;
+                    img.alt = 'Platform logo';
+                    img.style.cssText =
+                        'width:16px;height:16px;object-fit:contain;';
+
+                    const title = document.createElement('div');
+                    title.textContent = cand.source_name || 'Discovered Logo';
+
+                    card.appendChild(img);
+                    card.appendChild(title);
+
+                    card.onclick = () => {
+                        regUploadedFile = null;
+
+                        document.getElementById('reg_logo_file').value = '';
+
+                        regSelectedLogoUrl = cand.url;
+
+                        document.querySelectorAll('.candidate-card').forEach(item => {
+                            item.classList.remove('active');
+                        });
+
+                        card.classList.add('active');
+
+                        document.getElementById('regLogoPreviewImg').src = cand.url;
+
+                        document.getElementById('regLogoSourceTitle').textContent =
+                            cand.source_name || 'Discovered Logo';
+
+                        document.getElementById('regLogoPreviewBox').style.display =
+                            'flex';
+                    };
+
+                    grid.appendChild(card);
+                });
+
+                if (data.preselected && grid.children.length > 0) {
+                    grid.children[0].click();
+                }
+
             } catch (err) {
-                document.getElementById('discoveryStatus').style.display = 'none';
-                if (!silent) AppNotice.error('Discovery request failed. Upload a logo manually.', 'Discovery Failed');
+                console.error('Logo discovery failed:', err);
+
+                if (!silent) {
+                    AppNotice.error(
+                        'Discovery request failed. Upload a logo manually.',
+                        'Discovery Failed'
+                    );
+                }
+
+            } finally {
+                status.style.display = 'none';
             }
         }
 

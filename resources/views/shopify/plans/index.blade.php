@@ -2,7 +2,7 @@
 
 @section('title', 'Choose Your Plan - ' . $shop)
 @section('header_title', 'Choose Your Plan')
-@section('header_subtitle', 'Get full access to everything SocialNest offers.')
+@section('header_subtitle', 'Get full access to everything Socialvire offers.')
 @section('hide_top_navbar', true)
 
 @section('content')
@@ -89,7 +89,7 @@
     .sn-plans-hero {
         position: relative;
         width: 100%;
-        padding: 1.75rem 2rem;
+        padding: 0.75rem 1rem;
         margin-bottom: 1.5rem;
         background: linear-gradient(135deg, #ffffff 0%, #f8faff 50%, #eef2ff 100%);
         border: 1px solid var(--sn-border);
@@ -145,22 +145,22 @@
         box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
     }
 
-    .sn-hero-heading {
-        margin: 0 0 0.375rem;
-        color: var(--sn-ink);
-        font-size: clamp(1.75rem, 3.2vw, 2.25rem);
-        line-height: 1.2;
-        font-weight: 800;
-        letter-spacing: -0.03em;
-    }
+    /*.sn-hero-heading {*/
+    /*    margin: 0 0 0.375rem;*/
+    /*    color: var(--sn-ink);*/
+    /*    font-size: clamp(1.75rem, 3.2vw, 2.25rem);*/
+    /*    line-height: 1.2;*/
+    /*    font-weight: 800;*/
+    /*    letter-spacing: -0.03em;*/
+    /*}*/
 
-    .sn-hero-subtitle {
-        margin: 0;
-        color: var(--sn-subtle);
-        font-size: 1rem;
-        line-height: 1.5;
-        max-width: 680px;
-    }
+    /*.sn-hero-subtitle {*/
+    /*    margin: 0;*/
+    /*    color: var(--sn-subtle);*/
+    /*    font-size: 1rem;*/
+    /*    line-height: 1.5;*/
+    /*    max-width: 680px;*/
+    /*}*/
 
     /* Embedded Current Subscription Bar */
     .sn-status-strip {
@@ -250,7 +250,7 @@
         margin-bottom: 2rem;
     }
 
-    /* LEFT COLUMN: Main SocialNest Free Pricing Card */
+    /* LEFT COLUMN: Main Socialvire Free Pricing Card */
     .sn-card-main {
         position: relative;
         background: var(--sn-card-bg);
@@ -297,9 +297,7 @@
 
     .sn-plan-name {
         margin: 0;
-        font-size: 1.875rem;
         font-weight: 800;
-        letter-spacing: -0.035em;
         color: var(--sn-ink);
         line-height: 1.2;
     }
@@ -345,7 +343,7 @@
     }
 
     .sn-amount {
-        font-size: 3.5rem;
+        font-size: 2.5rem;
         font-weight: 850;
         color: var(--sn-ink);
         line-height: 1;
@@ -867,7 +865,7 @@
 <div class="sn-plans-page">
     {{-- Full-width Page Header --}}
     <header class="sn-plans-hero">
-        <div class="sn-hero-top-row">
+        <div class="sn-hero-top-row"  style="display:none">
             <div class="sn-header-eyebrow">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
@@ -875,14 +873,15 @@
                 <span>Subscription &amp; Billing</span>
             </div>
 
-            <div class="sn-header-badge">
-                <span class="sn-badge-dot"></span>
-                <span>Free Forever &middot; All Features Included</span>
-            </div>
+                    <div class="sn-header-badge">
+            <span class="sn-badge-dot"></span>
+            <span>Special Launch Offer &middot; All Features Free</span>
         </div>
 
-        <h1 class="sn-hero-heading">Choose Your Plan</h1>
-        <p class="sn-hero-subtitle">Get full access to everything SocialNest offers.</p>
+        </div>
+
+        <h2 class="sn-hero-heading">Choose Your Plan</h2>
+        <p class="sn-hero-subtitle">Get full access to everything Socialvire offers.</p>
 
         {{-- Current Subscription State Banner --}}
         <div class="sn-status-strip" aria-label="Current Subscription Status">
@@ -919,7 +918,6 @@
 
     {{-- Desktop Two-Column Layout --}}
     <div class="sn-plans-grid">
-        {{-- LEFT COLUMN (~65%): Main SocialNest Free Pricing Card --}}
         <article class="sn-card-main" aria-labelledby="planTitle">
             @if($hasVerifiedSubscription)
                 <div class="sn-card-badge-top" style="background:#0284c7; color:#ffffff;">Current Plan</div>
@@ -930,7 +928,7 @@
             <div class="sn-card-header">
                 <div class="sn-plan-meta">
                     <div class="sn-plan-title-row">
-                        <h2 id="planTitle" class="sn-plan-name">{{ $hasVerifiedSubscription && $currentPlan ? $currentPlan->name : 'Socialvire Free' }} <span class="sn-sr-only">SocialNest Free</span></h2>
+                        <h2 id="planTitle" class="sn-plan-name">{{ $hasVerifiedSubscription && $currentPlan ? $currentPlan->name : 'Socialvire Free' }} <span class="sn-sr-only">Socialvire Free</span></h2>
                         @if($hasVerifiedSubscription)
                             <span class="sn-pill-current" style="display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:999px; background:#e0f2fe; color:#0369a1; font-weight:700; font-size:0.75rem; border:1px solid #bae6fd;">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -1071,7 +1069,7 @@
                                 <polyline points="20 6 9 17 4 12"/>
                             </svg>
                         </span>
-                        <span class="sn-feature-text"><strong>All Available SocialNest Features</strong></span>
+                        <span class="sn-feature-text"><strong>All Available Socialvire Features</strong></span>
                     </li>
                 </ul>
             </div>
@@ -1109,7 +1107,7 @@
         {{-- RIGHT COLUMN (~35%): Separate Information Panel --}}
         <aside class="sn-card-side" aria-label="Feature Breakdown &amp; Plan Explanation">
             <div class="sn-side-header">
-                <h3>Everything included with {{ $hasVerifiedSubscription && $currentPlan ? $currentPlan->name : 'Socialvire Free' }} <span class="sn-sr-only">Everything included with SocialNest Free</span></h3>
+                <h3>Everything included with {{ $hasVerifiedSubscription && $currentPlan ? $currentPlan->name : 'Socialvire Free' }} <span class="sn-sr-only">Everything included with Socialvire Free</span></h3>
                 <p>A full-featured engagement suite for your storefront visitors.</p>
             </div>
 
@@ -1195,45 +1193,48 @@
                 </div>
             </div>
 
-            <div class="sn-side-guarantee-box">
-                <h4>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                    </svg>
-                    Free Forever Plan Guarantee
-                </h4>
-                <p>Socialvire Free gives you unhindered access to our complete engagement toolset with no expiration date, no trial cutoffs, and zero monthly fees.</p>
-            </div>
+                    <div class="sn-side-guarantee-box">
+            <h4>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+                Special Launch Offer — Free Access
+            </h4>
+            <p>To celebrate the official launch of Socialvire, this plan is currently available completely free. Enjoy full access to our engagement toolset at zero cost during our launch period.</p>
+        </div>
 
-            <div class="sn-plan-terms-bar">
+
+                        <div class="sn-plan-terms-bar">
                 <div class="sn-term-item">
-                    <span class="sn-term-label">Duration</span>
-                    <span class="sn-term-val">Permanent</span>
+                    <span class="sn-term-label">Offer</span>
+                    <span class="sn-term-val">Launch Special</span>
                 </div>
                 <div class="sn-term-item">
                     <span class="sn-term-label">Billing</span>
                     <span class="sn-term-val">Free ($0)</span>
                 </div>
                 <div class="sn-term-item">
-                    <span class="sn-term-label">Renewal</span>
-                    <span class="sn-term-val">Free Forever</span>
+                    <span class="sn-term-label">Duration</span>
+                    <span class="sn-term-val">Launch Period</span>
                 </div>
             </div>
+
         </aside>
     </div>
 
     {{-- Additional Information Section: 3 Compact Cards --}}
     <section class="sn-info-cards-grid" aria-label="Additional Information">
-        <div class="sn-info-card">
+                <div class="sn-info-card">
             <div class="sn-info-card-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-4z"/>
                     <path d="m9 12 2 2 4-4"/>
                 </svg>
             </div>
-            <h4>100% Free Forever</h4>
-            <p>No monthly charges, recurring fees or hidden costs. Enjoy all SocialNest capabilities on your store permanently.</p>
+            <h4>Free Launch Offer</h4>
+            <p>No monthly charges or hidden costs during our launch period. Enjoy full Socialvire capabilities on your store completely free.</p>
         </div>
+
 
         <div class="sn-info-card">
             <div class="sn-info-card-icon">

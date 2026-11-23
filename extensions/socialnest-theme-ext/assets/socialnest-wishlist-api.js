@@ -40,16 +40,23 @@ function buildRequestUrl(base, endpoint, method, guestUuid, shop) {
       ? endpoint
       : "/" + endpoint
     : "";
+
   var url = base + clean;
-  if (method === "GET") {
-    url +=
-      (url.indexOf("?") !== -1 ? "&" : "?") +
-      "guest_uuid=" +
-      encodeURIComponent(guestUuid);
-    if (shop) {
-      url += "&shop=" + encodeURIComponent(shop);
-    }
+  var params = [];
+
+  if (method === "GET" && guestUuid) {
+    params.push("guest_uuid=" + encodeURIComponent(guestUuid));
   }
+
+  // Shop must be available in the URL for POST and GET requests.
+  if (shop) {
+    params.push("shop=" + encodeURIComponent(shop));
+  }
+
+  if (params.length) {
+    url += (url.indexOf("?") !== -1 ? "&" : "?") + params.join("&");
+  }
+
   return url;
 }
 
@@ -133,6 +140,11 @@ export function apiRequest(endpoint, options) {
     }
   }
 
+  // Ensure JSON request body has correct Content-Type.
+  if (options.body && typeof options.body === "string") {
+    headers["Content-Type"] = "application/json";
+  }
+
   options.headers = headers;
   options.credentials = "same-origin";
 
@@ -159,7 +171,10 @@ export function apiRequest(endpoint, options) {
             guestUuid,
             shop,
           );
-          console.warn("[SN Wishlist] Proxy failed, direct fallback:", directUrl);
+          console.warn(
+            "[SN Wishlist] Proxy failed, direct fallback:",
+            directUrl,
+          );
           var fallbackOptions = Object.assign({}, options, {
             _isFallback: true,
             credentials: "omit",
@@ -172,7 +187,9 @@ export function apiRequest(endpoint, options) {
               throw fbErr;
             });
         } else {
-          console.warn("[SN Wishlist] Direct fallback skipped: no valid public backend API URL configured.");
+          console.warn(
+            "[SN Wishlist] Direct fallback skipped: no valid public backend API URL configured.",
+          );
         }
       }
 
@@ -361,24 +378,44 @@ export function removeProduct(idOrHandle, onUpdate) {
   });
   if (typeof onUpdate === "function") onUpdate();
 
+  var shop = getShopDomain();
+
+  console.log("[SN Wishlist] Remove request identity:", {
+    product_id: pid,
+    shop: shop,
+    guest_uuid: getGuestUuid(),
+  });
+
   return apiRequest("/remove", {
     method: "POST",
     body: JSON.stringify({
       product_id: pid,
       guest_uuid: getGuestUuid(),
+      shop: shop,
     }),
   })
-    .then(function () {
+    .then(function (res) {
+      if (!res || res.success !== true) {
+        throw new Error((res && res.error) || "Failed to remove wishlist item");
+      }
+
       delete inFlight[pid];
+
       if (typeof onUpdate === "function") onUpdate();
+
       return items;
     })
     .catch(function (err) {
       delete inFlight[pid];
+
       if (removedBackup.length > 0) {
         items = removedBackup.concat(items);
       }
+
       if (typeof onUpdate === "function") onUpdate();
+
+      console.error("[SN Wishlist] Remove failed:", err);
+
       throw err;
     });
 }

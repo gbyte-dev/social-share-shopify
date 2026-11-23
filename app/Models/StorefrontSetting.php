@@ -106,13 +106,24 @@ class StorefrontSetting extends Model
     /**
      * Get the public URL for the uploaded floating CTA icon.
      */
+    /**
+     * Get the public URL for the uploaded floating CTA icon.
+     */
     public function getFloatingCtaIconUrl(): ?string
     {
         if (empty($this->floating_cta_icon_path)) {
             return null;
         }
 
-        return asset('storage/'.$this->floating_cta_icon_path);
+        $filename = basename($this->floating_cta_icon_path);
+
+        $filePath = public_path('uploads/cta_icons/' . $filename);
+
+        if (! \Illuminate\Support\Facades\File::exists($filePath)) {
+            return null;
+        }
+
+        return url('public/uploads/cta_icons/' . rawurlencode($filename));
     }
 
     /**

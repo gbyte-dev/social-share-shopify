@@ -6,6 +6,8 @@ use App\Models\SocialLink;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
+use RuntimeException;
 use InvalidArgumentException;
 
 class LogoProcessingService
@@ -71,40 +73,311 @@ class LogoProcessingService
      *
      * @return array{original_logo_path: string, logo_small_path: string, logo_medium_path: string, logo_large_path: string}
      */
-    public function processBinaryData(string $binaryData, int $storeId, ?string $originalFilename = null): array
-    {
+    
+    
+    public function processBinaryData(
+        string $binaryData,
+        int $storeId,
+        ?string $originalFilename = null
+    ): array {
         $size = strlen($binaryData);
+
         if ($size === 0) {
             throw new InvalidArgumentException('Image content is empty.');
         }
 
         if ($size > self::MAX_FILE_SIZE) {
-            throw new InvalidArgumentException('Image content exceeds the 5MB size limit.');
+            throw new InvalidArgumentException(
+                'Image content exceeds the 5MB size limit.'
+            );
         }
 
         $finfo = finfo_open(FILEINFO_MIME_TYPE);
+
+        if ($finfo === false) {
+            throw new InvalidArgumentException('Unable to detect image format.');
+        }
+
         $detectedMime = finfo_buffer($finfo, $binaryData);
         finfo_close($finfo);
 
-        // Check if content is SVG regardless of finfo classification
         if ($this->isSvgContent($binaryData)) {
             $detectedMime = 'image/svg+xml';
         }
 
-        if (! isset(self::ALLOWED_MIMES[$detectedMime])) {
-            throw new InvalidArgumentException("Unsupported image format ({$detectedMime}). Allowed formats: PNG, JPG, WebP, GIF, ICO, SVG.");
+        // Convert ICO into PNG using Imagick.
+        if (
+            in_array($detectedMime, [
+                'image/x-icon',
+                'image/vnd.microsoft.icon',
+            ], true) ||
+            $this->isIcoContent($binaryData)
+        ) {
+            $binaryData = $this->convertIcoToPng($binaryData);
+            $detectedMime = 'image/png';
+
+            // Validate Imagick output before passing it to GD.
+            $imageInfo = @getimagesizefromstring($binaryData);
+
+            $gdImage = @imagecreatefromstring($binaryData);
+
+            Log::info('ICO PNG conversion diagnostics', [
+                'output_size' => strlen($binaryData),
+                'signature' => bin2hex(substr($binaryData, 0, 8)),
+                'image_info' => $imageInfo ?: false,
+                'gd_decode_success' => $gdImage !== false,
+            ]);
+
+            if ($gdImage !== false) {
+                imagedestroy($gdImage);
+            }
+
+            if ($imageInfo === false || $gdImage === false) {
+                throw new InvalidArgumentException(
+                    'Converted ICO image is not readable by GD.'
+                );
+            }
+
+        }
+
+        $allowedMimes = [
+            'image/png',
+            'image/jpeg',
+            'image/pjpeg',
+            'image/webp',
+            'image/gif',
+            'image/svg+xml',
+            'image/svg',
+        ];
+
+        if (! in_array($detectedMime, $allowedMimes, true)) {
+            throw new InvalidArgumentException(
+                "Unsupported image format ({$detectedMime}). Allowed formats: PNG, JPG, WebP, GIF, SVG, ICO."
+            );
         }
 
         $ext = self::ALLOWED_MIMES[$detectedMime];
+
+        // Hash converted content so stored PNG files have consistent names.
         $hash = sha1($binaryData);
+
         $disk = Storage::disk('public');
         $directory = "logos/{$storeId}";
 
-        if ($detectedMime === 'image/svg+xml') {
-            return $this->processSvg($binaryData, $storeId, $hash, $disk, $directory);
+        if (in_array($detectedMime, ['image/svg+xml', 'image/svg'], true)) {
+            return $this->processSvg(
+                $binaryData,
+                $storeId,
+                $hash,
+                $disk,
+                $directory
+            );
         }
 
-        return $this->processRasterImage($binaryData, $ext, $storeId, $hash, $disk, $directory);
+        return $this->processRasterImage(
+            $binaryData,
+            $ext,
+            $storeId,
+            $hash,
+            $disk,
+            $directory
+        );
+    }
+
+
+
+    /**
+     * Detect ICO binary signature.
+     */
+    protected function isIcoContent(string $content): bool
+    {
+        if (strlen($content) < 6) {
+            return false;
+        }
+
+        $header = unpack('vreserved/vtype/vcount', substr($content, 0, 6));
+
+        return is_array($header)
+            && $header['reserved'] === 0
+            && $header['type'] === 1
+            && $header['count'] > 0;
+    }
+
+    /**
+     * Convert ICO binary into PNG using Imagick.
+     * Selects the largest available valid image.
+     */
+   
+    
+    protected function convertIcoToPng(string $binaryData): string
+    {
+        if (!extension_loaded('imagick')) {
+            throw new InvalidArgumentException('Imagick extension is required.');
+        }
+
+        $ico = null;
+        $frame = null;
+        $tmpFile = null;
+        $icoPath = null;
+
+        try {
+            // Create a temporary file with .ico extension.
+            $tmpFile = tempnam(sys_get_temp_dir(), 'socialnest_ico_');
+
+            if ($tmpFile === false) {
+                throw new InvalidArgumentException(
+                    'Unable to create temporary ICO file.'
+                );
+            }
+
+            $icoPath = $tmpFile . '.ico';
+
+            if (!rename($tmpFile, $icoPath)) {
+                throw new InvalidArgumentException(
+                    'Unable to prepare temporary ICO file.'
+                );
+            }
+
+            // Write uploaded ICO binary.
+            $written = file_put_contents($icoPath, $binaryData);
+
+            if ($written === false || $written !== strlen($binaryData)) {
+                throw new InvalidArgumentException(
+                    'Unable to write complete ICO file.'
+                );
+            }
+
+            Log::info('ICO decoding started', [
+                'php_version' => PHP_VERSION,
+                'imagick_version' => \Imagick::getVersion(),
+                'ico_formats' => \Imagick::queryFormats('ICO'),
+                'input_size' => strlen($binaryData),
+                'input_header' => bin2hex(substr($binaryData, 0, 8)),
+                'temp_file_exists' => is_file($icoPath),
+            ]);
+
+            // Read ICO from its actual .ico file.
+            $ico = new \Imagick();
+            $ico->readImage($icoPath);
+
+            $frameCount = $ico->getNumberImages();
+
+            Log::info('ICO frames detected', [
+                'frame_count' => $frameCount,
+            ]);
+
+            if ($frameCount < 1) {
+                throw new InvalidArgumentException(
+                    'ICO contains no image frames.'
+                );
+            }
+
+            // Select the largest valid frame.
+            $bestArea = 0;
+
+            for ($i = 0; $i < $frameCount; $i++) {
+                $ico->setIteratorIndex($i);
+
+                $width = $ico->getImageWidth();
+                $height = $ico->getImageHeight();
+
+                if (
+                    $width < 1 ||
+                    $height < 1 ||
+                    $width > 4096 ||
+                    $height > 4096
+                ) {
+                    continue;
+                }
+
+                $area = $width * $height;
+
+                if ($area > $bestArea) {
+                    if ($frame instanceof \Imagick) {
+                        $frame->clear();
+                        $frame->destroy();
+                    }
+
+                    $frame = $ico->getImage();
+                    $bestArea = $area;
+                }
+            }
+
+            if (!($frame instanceof \Imagick)) {
+                throw new InvalidArgumentException(
+                    'No valid ICO frame found.'
+                );
+            }
+
+            // Encode selected frame as PNG.
+            $frame->setImageFormat('PNG');
+            $frame->stripImage();
+
+            $pngData = $frame->getImageBlob();
+
+            // Verify PNG signature.
+            if (
+                strlen($pngData) < 8 ||
+                substr($pngData, 0, 8) !== "\x89PNG\r\n\x1a\n"
+            ) {
+                throw new InvalidArgumentException(
+                    'Imagick did not produce valid PNG output.'
+                );
+            }
+
+            // Verify PNG can also be decoded by GD.
+            $gdImage = @imagecreatefromstring($pngData);
+
+            if ($gdImage === false) {
+                throw new InvalidArgumentException(
+                    'Converted PNG cannot be decoded by GD.'
+                );
+            }
+
+            imagedestroy($gdImage);
+
+            Log::info('ICO successfully converted to PNG', [
+                'frame_count' => $frameCount,
+                'selected_width' => $frame->getImageWidth(),
+                'selected_height' => $frame->getImageHeight(),
+                'png_size' => strlen($pngData),
+                'png_signature' => bin2hex(substr($pngData, 0, 8)),
+            ]);
+
+            return $pngData;
+
+        } catch (\Throwable $e) {
+            Log::error('ICO conversion failed', [
+                'error' => $e->getMessage(),
+                'input_size' => strlen($binaryData),
+                'input_header' => bin2hex(substr($binaryData, 0, 8)),
+            ]);
+
+            throw new InvalidArgumentException(
+                'Unable to convert ICO logo into PNG.',
+                0,
+                $e
+            );
+
+        } finally {
+            if ($frame instanceof \Imagick) {
+                $frame->clear();
+                $frame->destroy();
+            }
+
+            if ($ico instanceof \Imagick) {
+                $ico->clear();
+                $ico->destroy();
+            }
+
+            if ($icoPath !== null && is_file($icoPath)) {
+                @unlink($icoPath);
+            }
+
+            if ($tmpFile !== null && is_file($tmpFile)) {
+                @unlink($tmpFile);
+            }
+        }
     }
 
     /**
@@ -222,6 +495,8 @@ class LogoProcessingService
                 $webpData = (string) ob_get_clean();
                 $webpPath = "{$directory}/{$hash}_{$targetSize}x{$targetSize}.webp";
                 $disk->put($webpPath, $webpData);
+
+                $mirrorFiles["{$hash}_{$targetSize}x{$targetSize}.webp"] = $webpData;
             }
 
             imagedestroy($canvas);
@@ -252,17 +527,32 @@ class LogoProcessingService
             return;
         }
 
+        $destDir = public_path("uploads/logos/{$storeId}");
+
         try {
-            $destDir = public_path("uploads/logos/{$storeId}");
             if (! File::exists($destDir)) {
                 File::makeDirectory($destDir, 0755, true);
             }
 
             foreach ($files as $filename => $content) {
-                File::put("{$destDir}/{$filename}", $content);
+                $written = File::put("{$destDir}/{$filename}", $content);
+
+                if ($written === false) {
+                    throw new RuntimeException("Unable to write logo file: {$filename}");
+                }
             }
-        } catch (\Throwable) {
-            // Silently ignore mirror errors if public folder is restricted
+        } catch (\Throwable $e) {
+            Log::error('Logo public mirror failed', [
+                'store_id' => $storeId,
+                'directory' => $destDir,
+                'error' => $e->getMessage(),
+            ]);
+
+            throw new RuntimeException(
+                'Unable to save logo to public uploads directory.',
+                0,
+                $e
+            );
         }
     }
 
@@ -273,12 +563,12 @@ class LogoProcessingService
      */
     public function createDefaultSvgLogo(int $storeId, string $platformName): array
     {
-        $hash = 'default_'.substr(sha1(strtolower(trim($platformName))), 0, 16);
+        $hash = 'default_' . substr(sha1(strtolower(trim($platformName))), 0, 16);
         $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-            .'<circle cx="12" cy="12" r="10" fill="#4f46e5" stroke="#4f46e5"/>'
-            .'<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>'
-            .'<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>'
-            .'</svg>';
+            . '<circle cx="12" cy="12" r="10" fill="#4f46e5" stroke="#4f46e5"/>'
+            . '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>'
+            . '<path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>'
+            . '</svg>';
 
         return $this->processSvg($svg, $storeId, $hash, Storage::disk('public'), "logos/{$storeId}");
     }
@@ -364,7 +654,7 @@ class LogoProcessingService
 
             // Also check public/uploads/
             if (! $isReferenced && ! app()->runningUnitTests()) {
-                $publicFile = public_path($path);
+                $publicFile = public_path('uploads/'.ltrim($path, '/'));
                 if (File::exists($publicFile)) {
                     File::delete($publicFile);
                 }

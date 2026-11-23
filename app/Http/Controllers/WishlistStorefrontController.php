@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Contracts\View\View;
 use InvalidArgumentException;
 
 class WishlistStorefrontController extends Controller
@@ -32,6 +33,11 @@ class WishlistStorefrontController extends Controller
             'Access-Control-Allow-Private-Network' => 'true',
             'Access-Control-Max-Age' => '86400',
         ];
+    }
+
+    public function guide(): View
+    {
+        return view('shopify.wishlist.guide');
     }
 
     /**
@@ -118,11 +124,11 @@ class WishlistStorefrontController extends Controller
         $customerId = $this->getCustomerId($request);
         $guestUuid = $this->getGuestUuid($request);
 
-        Log::info('[WishlistController] index requested', [
-            'shop' => $store->shop,
-            'has_guest_uuid' => ! empty($guestUuid),
-            'is_customer' => $customerId !== null,
-        ]);
+        // Log::info('[WishlistController] index requested', [
+        //     'shop' => $store->shop,
+        //     'has_guest_uuid' => ! empty($guestUuid),
+        //     'is_customer' => $customerId !== null,
+        // ]);
 
         if (! $customerId && ! $guestUuid) {
             Log::warning('[WishlistController] index missing identity');
@@ -141,17 +147,17 @@ class WishlistStorefrontController extends Controller
 
         $items = $this->wishlistService->getItems($store, $customerId, $guestUuid);
 
-        Log::info('[WishlistController] index returning items', [
-            'shop' => $store->shop,
-            'count' => $items->count(),
-        ]);
+        // Log::info('[WishlistController] index returning items', [
+        //     'shop' => $store->shop,
+        //     'count' => $items->count(),
+        // ]);
 
         return response()->json([
             'success' => true,
-            'items' => $items->map(fn ($item) => $item->toStorefrontArray())->values(),
+            'items' => $items->map(fn($item) => $item->toStorefrontArray())->values(),
             'count' => $items->count(),
             'is_customer' => $customerId !== null,
-            'customer_id' => $customerId ? substr($customerId, 0, 4).'****' : null,
+            'customer_id' => $customerId ? substr($customerId, 0, 4) . '****' : null,
         ], 200, $this->corsHeaders());
     }
 
@@ -407,7 +413,7 @@ class WishlistStorefrontController extends Controller
             'success' => true,
             'merged_count' => $result['merged_count'],
             'total_count' => $result['total_count'],
-            'items' => $items->map(fn ($item) => $item->toStorefrontArray())->values(),
+            'items' => $items->map(fn($item) => $item->toStorefrontArray())->values(),
         ], 200, $this->corsHeaders());
     }
 
@@ -451,7 +457,7 @@ class WishlistStorefrontController extends Controller
             'success' => true,
             'migrated_count' => $result['migrated_count'],
             'total_count' => $result['total_count'],
-            'items' => $allItems->map(fn ($item) => $item->toStorefrontArray())->values(),
+            'items' => $allItems->map(fn($item) => $item->toStorefrontArray())->values(),
         ], 200, $this->corsHeaders());
     }
 }

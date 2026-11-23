@@ -36,7 +36,7 @@ class SocialLinkController extends Controller
         $configuredBuiltInPlatforms = $links->where('platform', '!=', 'other')->pluck('platform')->toArray();
 
         // Track configured custom apps for this store to disable them in the modal picker
-        $configuredCustomNames = $links->where('platform', 'other')->pluck('custom_platform_name')->map(fn ($n) => strtolower(trim($n)))->toArray();
+        $configuredCustomNames = $links->where('platform', 'other')->pluck('custom_platform_name')->map(fn($n) => strtolower(trim($n)))->toArray();
 
         $allPlatforms = SocialPlatformService::all();
         $availablePlatforms = array_diff_key($allPlatforms, array_flip($configuredBuiltInPlatforms));
@@ -133,7 +133,7 @@ class SocialLinkController extends Controller
         $allowedPlatforms = SocialPlatformService::builtInKeys();
 
         $validated = $request->validate([
-            'platform' => ['required', 'string', Rule::in($allowedPlatforms), Rule::unique('social_links')->where(fn ($q) => $q->where('shopify_store_id', $store->id))],
+            'platform' => ['required', 'string', Rule::in($allowedPlatforms), Rule::unique('social_links')->where(fn($q) => $q->where('shopify_store_id', $store->id))],
             'url' => ['required', 'string', 'max:1000'],
             'label' => ['nullable', 'string', 'max:100'],
             'is_active' => ['sometimes', 'boolean'],
@@ -179,7 +179,7 @@ class SocialLinkController extends Controller
                 'required',
                 'string',
                 'max:100',
-                Rule::unique('social_links', 'custom_platform_name')->where(fn ($q) => $q->where('shopify_store_id', $store->id)),
+                Rule::unique('social_links', 'custom_platform_name')->where(fn($q) => $q->where('shopify_store_id', $store->id)),
             ],
             'url' => ['required', 'string', 'max:1000'],
             'official_website_url' => ['nullable', 'string', 'max:1000'],
@@ -187,7 +187,12 @@ class SocialLinkController extends Controller
             'alt_text' => ['nullable', 'string', 'max:150'],
             'is_active' => ['sometimes', 'boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:9999'],
-            'logo_file' => ['nullable', 'file', 'max:5120'],
+            'logo_file' => [
+                'nullable',
+                'file',
+                'max:5120',
+                'mimes:png,jpg,jpeg,webp,gif,svg,ico',
+            ],
             'selected_logo_url' => ['nullable', 'string', 'max:1000'],
         ], [
             'custom_platform_name.unique' => 'You already have this custom app configured in your channels. Please edit the existing link instead.',
@@ -245,21 +250,31 @@ class SocialLinkController extends Controller
             ]);
 
             $smallPath = $logoData['logo_small_path'] ?? null;
+
             if ($smallPath) {
-                $cleanPath = ltrim(preg_replace('#^/?public/#', '', $smallPath), '/');
-                if (str_starts_with($cleanPath, 'logos/')) {
-                    $publicLogoUrl = Storage::disk('public')->url($cleanPath);
+                $cleanPath = ltrim(
+                    preg_replace('#^/?public/#', '', $smallPath),
+                    '/'
+                );
+
+                if (
+                    preg_match('#^https?://#i', $cleanPath) ||
+                    str_starts_with($cleanPath, 'data:image')
+                ) {
+                    $logoPath = $cleanPath;
+                } elseif (str_starts_with($cleanPath, 'logos/')) {
+                    $logoPath = 'public/uploads/' . $cleanPath;
+                } elseif (str_starts_with($cleanPath, 'uploads/')) {
+                    $logoPath = 'public/' . $cleanPath;
                 } else {
-                    $publicLogoUrl = (str_starts_with($cleanPath, 'http://') || str_starts_with($cleanPath, 'https://') || str_starts_with($cleanPath, 'data:image'))
-                        ? preg_replace('#^(https?://[^/]+)/public/uploads/#', '$1/uploads/', $cleanPath)
-                        : asset($cleanPath);
+                    $logoPath = $cleanPath;
                 }
 
                 DB::table('global_custom_platforms')->updateOrInsert(
                     ['name' => $validated['custom_platform_name']],
                     [
                         'website_url' => $officialWebsite,
-                        'logo_url' => $publicLogoUrl,
+                        'logo_url' => $logoPath,
                         'updated_at' => now(),
                         'created_at' => now(),
                     ]
@@ -278,7 +293,12 @@ class SocialLinkController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'website_url' => ['nullable', 'string', 'max:1000'],
-            'logo_file' => ['nullable', 'file', 'max:5120'],
+            'logo_file' => [
+                'nullable',
+                'file',
+                'max:5120',
+                'mimes:png,jpg,jpeg,webp,gif,svg,ico',
+            ],
             'selected_logo_url' => ['nullable', 'string', 'max:1000'],
         ]);
 
@@ -288,7 +308,21 @@ class SocialLinkController extends Controller
             ->first();
 
         if ($existing) {
-            $logoUrl = preg_replace('#^(https?://[^/]+)/public/uploads/#', '$1/uploads/', $existing->logo_url);
+            $logoPath = $existing->logo_url;
+
+            if ($logoPath && !preg_match('#^(https?://|data:image)#i', $logoPath)) {
+                $logoPath = ltrim($logoPath, '/');
+
+                if (str_starts_with($logoPath, 'logos/')) {
+                    $logoPath = 'public/uploads/' . $logoPath;
+                } elseif (str_starts_with($logoPath, 'uploads/')) {
+                    $logoPath = 'public/' . $logoPath;
+                }
+
+                $logoUrl = asset($logoPath);
+            } else {
+                $logoUrl = $logoPath;
+            }
 
             return response()->json([
                 'success' => true,
@@ -305,19 +339,32 @@ class SocialLinkController extends Controller
             $logoData = $resolved['logoData'];
             $smallPath = $logoData['logo_small_path'] ?? null;
 
-            $cleanPath = ltrim(preg_replace('#^/?public/#', '', (string) $smallPath), '/');
-            if (str_starts_with($cleanPath, 'logos/')) {
-                $publicLogoUrl = Storage::disk('public')->url($cleanPath);
+            $cleanPath = ltrim(
+                preg_replace('#^/?public/#', '', (string) $smallPath),
+                '/'
+            );
+
+            if (
+                preg_match('#^https?://#i', $cleanPath) ||
+                str_starts_with($cleanPath, 'data:image')
+            ) {
+                $publicLogoPath = $cleanPath;
+            } elseif (str_starts_with($cleanPath, 'logos/')) {
+                $publicLogoPath = 'public/uploads/' . $cleanPath;
+            } elseif (str_starts_with($cleanPath, 'uploads/')) {
+                $publicLogoPath = 'public/' . $cleanPath;
             } else {
-                $publicLogoUrl = (str_starts_with($cleanPath, 'http://') || str_starts_with($cleanPath, 'https://') || str_starts_with($cleanPath, 'data:image'))
-                    ? preg_replace('#^(https?://[^/]+)/public/uploads/#', '$1/uploads/', $cleanPath)
-                    : asset($cleanPath);
+                $publicLogoPath = $cleanPath;
             }
+
+            $publicLogoUrl = preg_match('#^(https?://|data:image)#i', $publicLogoPath)
+                ? $publicLogoPath
+                : asset($publicLogoPath);
 
             DB::table('global_custom_platforms')->insert([
                 'name' => $validated['name'],
                 'website_url' => $validated['website_url'] ?? null,
-                'logo_url' => $publicLogoUrl,
+                'logo_url' => $publicLogoPath,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -333,11 +380,14 @@ class SocialLinkController extends Controller
         } catch (\Throwable $e) {
             \Log::error('Global custom app save failed', [
                 'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage() ?: 'Failed to save custom app.',
+                'message' => 'Failed to save custom app.',
             ], 422);
         }
     }
@@ -486,7 +536,7 @@ class SocialLinkController extends Controller
         $allowedPlatforms = SocialPlatformService::builtInKeys();
 
         $validated = $request->validate([
-            'platform' => ['required', 'string', Rule::in($allowedPlatforms), Rule::unique('social_links')->where(fn ($q) => $q->where('shopify_store_id', $store->id))->ignore($link->id)],
+            'platform' => ['required', 'string', Rule::in($allowedPlatforms), Rule::unique('social_links')->where(fn($q) => $q->where('shopify_store_id', $store->id))->ignore($link->id)],
             'url' => ['required', 'string', 'max:1000'],
             'label' => ['nullable', 'string', 'max:100'],
             'is_active' => ['sometimes', 'boolean'],
@@ -521,7 +571,12 @@ class SocialLinkController extends Controller
             'alt_text' => ['nullable', 'string', 'max:150'],
             'is_active' => ['sometimes', 'boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:9999'],
-            'logo_file' => ['nullable', 'file', 'max:5120'],
+            'logo_file' => [
+                'nullable',
+                'file',
+                'max:5120',
+                'mimes:png,jpg,jpeg,webp,gif,svg,ico',
+            ],
             'selected_logo_url' => ['nullable', 'string', 'max:1000'],
         ]);
 

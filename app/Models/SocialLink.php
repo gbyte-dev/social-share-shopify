@@ -96,31 +96,72 @@ class SocialLink extends Model
         return SocialPlatformService::iconSvg($this->platform);
     }
 
+    // public function resolveLogoUrl(?string $path): ?string
+    // {
+    //     if (empty($path)) {
+    //         return null;
+    //     }
+
+    //     if (str_starts_with($path, 'data:image')) {
+    //         return $path;
+    //     }
+
+    //     if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+    //         return preg_replace('#^(https?://[^/]+)/public/uploads/#', '$1/uploads/', $path);
+    //     }
+
+    //     $cleanPath = ltrim($path, '/');
+    //     if (str_starts_with($cleanPath, 'public/')) {
+    //         $cleanPath = substr($cleanPath, 7);
+    //     }
+
+    //     if (str_starts_with($cleanPath, 'logos/')) {
+    //         return Storage::disk('public')->url($cleanPath);
+    //     }
+
+    //     return asset($cleanPath);
+    // }
+
+
     public function resolveLogoUrl(?string $path): ?string
     {
         if (empty($path)) {
             return null;
         }
 
+        // Base64 image: return as-is.
         if (str_starts_with($path, 'data:image')) {
             return $path;
         }
 
-        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-            return preg_replace('#^(https?://[^/]+)/public/uploads/#', '$1/uploads/', $path);
+        // External URLs: preserve without modifying.
+        if (preg_match('#^https?://#i', $path)) {
+            return $path;
         }
 
         $cleanPath = ltrim($path, '/');
-        if (str_starts_with($cleanPath, 'public/')) {
-            $cleanPath = substr($cleanPath, 7);
+
+        // Legacy storage paths.
+        if (str_starts_with($cleanPath, 'storage/logos/')) {
+            $cleanPath = substr($cleanPath, strlen('storage/'));
         }
 
+        // Normalize relative logo paths to the verified public mirror.
         if (str_starts_with($cleanPath, 'logos/')) {
-            return Storage::disk('public')->url($cleanPath);
+            $cleanPath = 'public/uploads/' . $cleanPath;
+        } elseif (str_starts_with($cleanPath, 'uploads/')) {
+            $cleanPath = 'public/' . $cleanPath;
+        } elseif (
+            str_starts_with($cleanPath, 'public/') &&
+            !str_starts_with($cleanPath, 'public/uploads/')
+        ) {
+            // Do not silently rewrite unrelated public paths.
+            return asset($cleanPath);
         }
 
         return asset($cleanPath);
     }
+
 
     public function getLogoSmallUrlAttribute(): ?string
     {
@@ -154,9 +195,9 @@ class SocialLink extends Model
             $base64Svg = base64_encode($fallbackSvg);
 
             // Replace the broken image source with the Base64 SVG cleanly
-            $fallback = "this.onerror=null; this.src='data:image/svg+xml;base64,".$base64Svg."';";
+            $fallback = "this.onerror=null; this.src='data:image/svg+xml;base64," . $base64Svg . "';";
 
-            return '<img src="'.htmlspecialchars($this->logo_small_url, ENT_QUOTES, 'UTF-8').'" alt="'.$alt.'" style="width: 20px; height: 20px; object-fit: contain; display: block;" onerror="'.$fallback.'" />';
+            return '<img src="' . htmlspecialchars($this->logo_small_url, ENT_QUOTES, 'UTF-8') . '" alt="' . $alt . '" style="width: 20px; height: 20px; object-fit: contain; display: block;" onerror="' . $fallback . '" />';
         }
 
         return $this->icon_svg;
