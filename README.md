@@ -1,58 +1,169 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+<div align="center">
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+# 🔗 SocialVire
 
-## About Laravel
+### Free Social Sharing & Analytics Extension for Magento 2
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+Make your products go viral. Floating share icons, product page share buttons and deep share analytics, all configurable from the Admin Panel.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+[![Magento 2.4.x](https://img.shields.io/badge/Magento-2.4.x-orange.svg)](https://magento.com)
+[![PHP 7.4+](https://img.shields.io/badge/PHP-7.4%2B-blue.svg)](https://php.net)
+[![License](https://img.shields.io/badge/License-OSL--3.0-green.svg)](https://opensource.org/licenses/OSL-3.0)
+[![Price](https://img.shields.io/badge/Price-100%25%20Free-brightgreen.svg)](#)
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+[Features](#-features) · [Installation](#-installation) · [Configuration](#%EF%B8%8F-configuration) · [Analytics](#-viewing-analytics) · [Support](#-support--customization)
 
-## Learning Laravel
+</div>
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+---
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## 📖 About
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+**SocialVire** is a powerful, 100% free and fully customizable Magento 2 extension designed to increase your store's social media visibility.
 
-## Agentic Development
+It adds elegant floating share icons to every page and compact share buttons on product pages, so customers can instantly share products on **WhatsApp, Facebook, X (Twitter), LinkedIn, Pinterest, Telegram**, or copy the link directly.
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+Every share is tracked, so you always know which products and platforms are driving traffic.
 
-```bash
-composer require laravel/boost --dev
+## 🌐 Supported Platforms
 
-php artisan boost:install
+| Platform     | Platform  | Platform    |
+| :----------- | :-------- | :---------- |
+| WhatsApp     | Facebook  | X (Twitter) |
+| LinkedIn     | Pinterest | Telegram    |
+| 🔗 Copy Link |           |             |
+
+---
+
+## ✨ Features
+
+### 🛒 Customer Frontend
+
+- **Floating Social Sidebar:** beautiful, modern share icons that stick to the left or right side of every page.
+- **Product Page Inline Buttons:** compact share icons placed directly below the "Add to Cart" button.
+- **Instant Copy Link:** one-click URL copy with clipboard support.
+- **Mobile Responsive:** looks great on all devices and screen sizes.
+
+### ⚙️ Admin Panel (Full Control)
+
+- **Enable / Disable Module:** turn the extension on or off easily.
+- **Icon Shape:** Circle or Square.
+- **Floating Position:** Left or Right.
+- **Platform Selection:** choose exactly which social networks to display.
+- **Icon Size:** Small (35px), Medium (45px) or Large (55px).
+- **Hover Animations:** Scale, Slide or Glow.
+- **Close Button:** let users close the floating bar.
+
+### 📊 Deep Analytics & Tracking
+
+- **Detailed Share Logs:** tracks every share event (Platform, IP Address, URL, Date/Time).
+- **Admin Analytics Grid:** view, filter and export share data as CSV.
+- **Dashboard Donut Chart:** a visual breakdown of which platforms drive the most traffic, right on your Magento Dashboard.
+
+---
+
+## 📋 Requirements
+
+| Requirement | Version       |
+| :---------- | :------------ |
+| Magento 2   | 2.4.x         |
+| PHP         | 7.4 or higher |
+
+---
+
+## 🚀 Installation
+
+Follow these steps to install the extension on your Magento 2 store.
+
+### 1. Upload files
+
+Extract the `.zip` file and upload the `SocialVire` folder to your Magento root directory's `app/code/` folder.
+
+The final path should be:
+
+```
+app/code/Webvire/SocialVire/
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+### 2. Run Magento commands
 
-## Contributing
+Open your terminal (SSH), go to your Magento root directory and run:
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+php bin/magento module:enable MyVendor_SocialShare
+php bin/magento setup:upgrade
+php bin/magento setup:di:compile
+php bin/magento setup:static-content:deploy -f
+php bin/magento cache:flush
+```
 
-## Code of Conduct
+> **Note:** If your store is in **Developer mode**, you can skip the `setup:di:compile` and `setup:static-content:deploy` steps.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+---
 
-## Security Vulnerabilities
+## 🎛️ Configuration
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+1. Log in to your **Magento Admin Panel**.
+2. Go to **Stores → Configuration → General → SocialVire Settings**.
+3. Set your preferred options:
 
-## License
+| Setting                    | Options                                                            |
+| :------------------------- | :----------------------------------------------------------------- |
+| **Enable Module**          | Yes / No                                                           |
+| **Icon Shape**             | Circle / Square                                                    |
+| **Floating Position**      | Left / Right                                                       |
+| **Select Platforms**       | Multi-select. Hold `Ctrl` (Windows) or `Cmd` (Mac) to pick several |
+| **Show below Add to Cart** | Yes / No                                                           |
+| **Icon Size**              | Small / Medium / Large                                             |
+| **Hover Animation**        | Scale / Slide / Glow                                               |
+| **Show Close Button**      | Yes / No                                                           |
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+4. Click **Save Config**. The cache clears automatically.
+
+---
+
+## 📊 Viewing Analytics
+
+### 1. Detailed logs
+
+- Go to **Admin Sidebar → Content → Social Share Analytics**.
+- The grid shows `Platform`, `Product Name`, `IP Address` and `Date/Time`.
+- Click **Export** to download the data as a CSV file.
+
+### 2. Dashboard chart
+
+- Open the **Admin Dashboard**.
+- Scroll down to the **Social Share Statistics** donut chart.
+- 💡 **Tip:** click **Reload Data** on the dashboard to see the latest statistics.
+
+---
+
+## 📄 Documentation
+
+For detailed user guides, see the `docs/` folder in this repository or visit our website.
+
+---
+
+## 🤝 Support & Customization
+
+Facing an issue, need help with installation, or want custom features? We're happy to help.
+
+|                    |                                                                             |
+| :----------------- | :-------------------------------------------------------------------------- |
+| 📧 **Email**       | [info@webvire.com](mailto:info@webvire.com)                                 |
+| 📞 **Phone**       | [+91 7309277237](tel:+917309277237)                                         |
+| 🌐 **Website**     | [webvire.com](https://webvire.com/)                                         |
+| 🛟 **Help Center** | [Support & Help Center](https://socialviremagento.webvire.com/support.html) |
+
+## 🔒 Legal
+
+- [Privacy Policy](https://socialviremagento.webvire.com/privacy-policy.html)
+- [Terms & Conditions](https://socialviremagento.webvire.com/terms-and-conditions.html)
+
+---
+
+<div align="center">
+
+Developed with ❤️ by **[Webvire Software](https://webvire.com/)**
+
+</div>

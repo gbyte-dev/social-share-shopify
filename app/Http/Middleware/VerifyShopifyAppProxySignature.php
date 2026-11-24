@@ -177,21 +177,9 @@ class VerifyShopifyAppProxySignature
                 );
             }
 
-<<<<<<< HEAD
             // Validate timestamp to prevent replay attacks (allow up to 24 hours drift)
             if (!$timestamp || !is_numeric($timestamp) || abs(time() - (int) $timestamp) > 86400) {
                 Log::warning('[WishlistProxy] Invalid/expired timestamp in App Proxy request', ['timestamp' => $timestamp]);
-=======
-            // Prevent expired or invalid requests.
-            if (
-                ! $timestamp ||
-                ! is_numeric($timestamp) ||
-                abs(time() - (int) $timestamp) > 86400
-            ) {
-                Log::warning('[WishlistProxy] Invalid/expired timestamp', [
-                    'timestamp' => $timestamp,
-                ]);
->>>>>>> e421e67c39a14a16495a7790232a196e16fa23d5
 
                 return $this->errorResponse(
                     'App Proxy request timestamp is expired or invalid',
@@ -201,11 +189,8 @@ class VerifyShopifyAppProxySignature
             }
 
             $secret = config('shopify.api_secret') ?: env('SHOPIFY_API_SECRET');
-<<<<<<< HEAD
             if (!$secret || !is_string($secret)) {
                 Log::error('[WishlistProxy] Shopify App Secret is not configured on server');
-=======
->>>>>>> e421e67c39a14a16495a7790232a196e16fa23d5
 
             if (! $secret || ! is_string($secret)) {
                 Log::error('[WishlistProxy] Shopify App Secret is not configured');
@@ -217,15 +202,8 @@ class VerifyShopifyAppProxySignature
                 );
             }
 
-<<<<<<< HEAD
             if (!$this->validateSignature($request->query(), $signature, $secret)) {
                 Log::warning('[WishlistProxy] HMAC verification failed', ['shop' => $rawShop]);
-=======
-            if (! $this->validateSignature($request->query(), $signature, $secret)) {
-                Log::warning('[WishlistProxy] HMAC verification failed', [
-                    'shop' => $rawShop,
-                ]);
->>>>>>> e421e67c39a14a16495a7790232a196e16fa23d5
 
                 return $this->errorResponse(
                     'Invalid App Proxy signature verification failed',
@@ -240,15 +218,8 @@ class VerifyShopifyAppProxySignature
                 ->where('is_active', true)
                 ->first();
 
-<<<<<<< HEAD
             if (!$store) {
                 Log::warning('[WishlistProxy] Store not found or inactive', ['shop' => $cleanShop]);
-=======
-            if (! $store) {
-                Log::warning('[WishlistProxy] Store not found or inactive', [
-                    'shop' => $cleanShop,
-                ]);
->>>>>>> e421e67c39a14a16495a7790232a196e16fa23d5
 
                 return $this->errorResponse(
                     "Shop '{$cleanShop}' not found or is currently inactive",
@@ -278,20 +249,10 @@ class VerifyShopifyAppProxySignature
             return $next($request);
         }
 
-<<<<<<< HEAD
         // Direct Storefront API route (/api/storefront/wishlist/* or direct /shopify/proxy/config or /apps/*/config):
         // Allow secure guest access with shop validation when Shopify App Proxy is not routing
         if ($request->is('api/storefront/wishlist*') || $request->is('shopify/proxy/config*') || $request->is('apps/*/config*')) {
             if (!$rawShop || !is_string($rawShop)) {
-=======
-        // Direct Storefront API routes.
-        if (
-            $request->is('api/storefront/wishlist*') ||
-            $request->is('shopify/proxy/config*') ||
-            $request->is('apps/*/config*')
-        ) {
-            if (! $rawShop || ! is_string($rawShop)) {
->>>>>>> e421e67c39a14a16495a7790232a196e16fa23d5
                 Log::warning('[WishlistProxy] Missing shop in storefront API request');
 
                 return $this->errorResponse(
@@ -307,15 +268,8 @@ class VerifyShopifyAppProxySignature
                 ->where('is_active', true)
                 ->first();
 
-<<<<<<< HEAD
             if (!$store) {
                 Log::warning('[WishlistProxy] Store not found or inactive for storefront API', ['shop' => $cleanShop]);
-=======
-            if (! $store) {
-                Log::warning('[WishlistProxy] Store not found or inactive for storefront API', [
-                    'shop' => $cleanShop,
-                ]);
->>>>>>> e421e67c39a14a16495a7790232a196e16fa23d5
 
                 return $this->errorResponse(
                     "Shop '{$cleanShop}' not found or is currently inactive",
@@ -324,11 +278,7 @@ class VerifyShopifyAppProxySignature
                 );
             }
 
-<<<<<<< HEAD
             // Log::info('[WishlistProxy] Direct storefront API request authenticated for shop', [
-=======
-            // Log::info('[WishlistProxy] Direct storefront API authenticated', [
->>>>>>> e421e67c39a14a16495a7790232a196e16fa23d5
             //     'shop' => $store->shop,
             //     'path' => $request->path(),
             // ]);
