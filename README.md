@@ -2,145 +2,239 @@
 
 # 🔗 SocialVire
 
-### Free Social Sharing & Analytics Extension for Magento 2
+### All-in-One Social Sharing, Floating Dock, Custom Channels & Wishlist for Shopify
 
-Make your products go viral. Floating share icons, product page share buttons and deep share analytics, all configurable from the Admin Panel.
+Drive viral store traffic and boost conversions. Elegant floating social docks, high-converting product share buttons, custom platform integration, and full customer wishlist functionality — all managed from a native Shopify Admin experience.
 
-[![Magento 2.4.x](https://img.shields.io/badge/Magento-2.4.x-orange.svg)](https://magento.com)
-[![PHP 7.4+](https://img.shields.io/badge/PHP-7.4%2B-blue.svg)](https://php.net)
-[![License](https://img.shields.io/badge/License-OSL--3.0-green.svg)](https://opensource.org/licenses/OSL-3.0)
-[![Price](https://img.shields.io/badge/Price-100%25%20Free-brightgreen.svg)](#)
+[![Shopify App](https://img.shields.io/badge/Shopify-App%20Bridge%203.0-96bf48.svg?logo=shopify)](https://shopify.dev)
+[![Laravel 11](https://img.shields.io/badge/Laravel-11.x-FF2D20.svg?logo=laravel)](https://laravel.com)
+[![PHP 8.3+](https://img.shields.io/badge/PHP-8.3%2B-777BB4.svg?logo=php)](https://php.net)
+[![MySQL](https://img.shields.io/badge/MySQL-8.0%2B-4479A1.svg?logo=mysql)](https://mysql.com)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
-[Features](#-features) · [Installation](#-installation) · [Configuration](#%EF%B8%8F-configuration) · [Analytics](#-viewing-analytics) · [Support](#-support--customization)
+[Features](#-features) · [Architecture](#-architecture--tech-stack) · [Prerequisites](#-prerequisites) · [Installation](#-installation--setup) · [Theme Extension](#-theme-app-extension-setup) · [Analytics](#-analytics--tracking) · [Support](#-support--customization)
 
 </div>
 
 ---
 
-## 📖 About
+## 📖 About SocialVire
 
-**SocialVire** is a powerful, 100% free and fully customizable Magento 2 extension designed to increase your store's social media visibility.
+**SocialVire** is a modern, high-performance Shopify application built with **Laravel 11**, **Shopify App Bridge**, and **Shopify Theme App Extensions**. It empowers Shopify merchants to effortlessly expand their social reach, capture visitor interest, and track engagement across all marketing channels.
 
-It adds elegant floating share icons to every page and compact share buttons on product pages, so customers can instantly share products on **WhatsApp, Facebook, X (Twitter), LinkedIn, Pinterest, Telegram**, or copy the link directly.
+Merchants can place sticky floating social docks, display clean product-level share buttons, register completely customized social and communication apps with automated logo discovery, and provide shoppers with a seamless, cross-device wishlist experience powered by **Shopify App Proxy**.
 
-Every share is tracked, so you always know which products and platforms are driving traffic.
+---
 
-## 🌐 Supported Platforms
+## 🌐 Supported Social Platforms & Custom Channels
 
-| Platform     | Platform  | Platform    |
-| :----------- | :-------- | :---------- |
-| WhatsApp     | Facebook  | X (Twitter) |
-| LinkedIn     | Pinterest | Telegram    |
-| 🔗 Copy Link |           |             |
+SocialVire supports both out-of-the-box global networks and user-defined custom platforms:
+
+| Built-in Channels | Built-in Channels | Built-in Channels |
+| :---------------- | :---------------- | :---------------- |
+| 📱 **WhatsApp**   | 📘 **Facebook**   | 🪡 **Threads**    |
+| 📸 **Instagram**  | 🐦 **X (Twitter)**| 💼 **LinkedIn**   |
+| 📌 **Pinterest**  | ✈️ **Telegram**   | 🎵 **TikTok**     |
+| ▶️ **YouTube**    | 👾 **Discord**    | 👾 **Reddit**     |
+| 👻 **Snapchat**   | 💬 **WeChat**     | 🔗 **Copy Link**  |
+
+> 💡 **Custom Channels & Apps**: Merchants can add **any** platform (e.g. Kick, Rumble, Line, Viber, Twitch) with automatic logo discovery or custom image/SVG upload with optimized auto-resizing (36×36, 44×44, 56×56).
 
 ---
 
 ## ✨ Features
 
-### 🛒 Customer Frontend
+### 🛒 Customer Storefront (Theme App Extension)
+- **Floating Social Dock:** Elegant, sticky social sidebar that adapts to desktop and mobile screens. Fully configurable dock style, icon shapes, custom brand colors, and hover animations.
+- **Product Page Inline Share:** Sleek share icons rendered directly on product detail pages below "Add to Cart" or near product descriptions. Supports one-click native **Web Share API** on mobile devices.
+- **Storefront Wishlist System:** High-performance wishlist block featuring guest storage (UUID/LocalStorage) and automatic migration to authenticated Shopify customer accounts upon login.
+- **Shopify Online Store 2.0 Native:** Zero code injection into theme source files. Clean integration via Theme App Extension app blocks and embed blocks.
 
-- **Floating Social Sidebar:** beautiful, modern share icons that stick to the left or right side of every page.
-- **Product Page Inline Buttons:** compact share icons placed directly below the "Add to Cart" button.
-- **Instant Copy Link:** one-click URL copy with clipboard support.
-- **Mobile Responsive:** looks great on all devices and screen sizes.
+### ⚙️ Merchant Admin Experience (Embedded App Bridge)
+- **Unified Channel Management:** Drag-to-reorder, active/inactive toggles, custom labels, destination URLs, and custom brand colors.
+- **Live Interactive Preview Dock:** Visual real-time preview inside the merchant admin showing exactly how icons, badges, and layout render on the live store.
+- **Smart Logo Discovery Engine:** Automatically discovers high-resolution brand icons from website URLs and domains with support for custom SVG and raster uploads.
+- **Storefront Display Controls:**
+  - **Dock Positions:** Left, Right, Bottom-Floating.
+  - **Shapes & Styles:** Rounded, Circular, Square, Glassmorphism, and Minimalist.
+  - **Hover Animations:** Scale, Slide, Glow, Bounce, and Color Fade.
+  - **Mobile Controls:** Independent mobile sizing, hide/show on mobile, and collapsible drawer support.
 
-### ⚙️ Admin Panel (Full Control)
+### 📊 Deep Share & Click Analytics
+- **Granular Event Tracking:** Records platform clicked, target URL, referrer domain, and timestamp without tracking personally identifiable information (GDPR compliant).
+- **Merchant Dashboard Overview:** Real-time engagement statistics, top-performing channels, product share leaders, and platform distribution breakdowns.
+- **Exportable Reports:** Export raw analytics data to CSV for marketing review and campaign attribution.
 
-- **Enable / Disable Module:** turn the extension on or off easily.
-- **Icon Shape:** Circle or Square.
-- **Floating Position:** Left or Right.
-- **Platform Selection:** choose exactly which social networks to display.
-- **Icon Size:** Small (35px), Medium (45px) or Large (55px).
-- **Hover Animations:** Scale, Slide or Glow.
-- **Close Button:** let users close the floating bar.
-
-### 📊 Deep Analytics & Tracking
-
-- **Detailed Share Logs:** tracks every share event (Platform, IP Address, URL, Date/Time).
-- **Admin Analytics Grid:** view, filter and export share data as CSV.
-- **Dashboard Donut Chart:** a visual breakdown of which platforms drive the most traffic, right on your Magento Dashboard.
-
----
-
-## 📋 Requirements
-
-| Requirement | Version       |
-| :---------- | :------------ |
-| Magento 2   | 2.4.x         |
-| PHP         | 7.4 or higher |
+### 💳 Tiered Subscriptions & Entitlements
+- **Shopify Billing API Integration:** Seamless recurring app subscriptions with automated trial periods and webhooks.
+- **Flexible Plan Tiers:** Free, Pro, and Enterprise configurations controlling channel limits, custom apps, and advanced analytics.
 
 ---
 
-## 🚀 Installation
-
-Follow these steps to install the extension on your Magento 2 store.
-
-### 1. Upload files
-
-Extract the `.zip` file and upload the `SocialVire` folder to your Magento root directory's `app/code/` folder.
-
-The final path should be:
+## 🏗️ Architecture & Tech Stack
 
 ```
-app/code/Webvire/SocialVire/
+┌─────────────────────────────────────────────────────────────┐
+│                       Shopify Admin                         │
+│   (Embedded App Bridge / Blade Views / Polaris UI Tokens)   │
+└──────────────┬──────────────────────────────▲───────────────┘
+               │ OAuth & Session Tokens (JWT) │ Live Updates
+┌──────────────▼──────────────────────────────┴───────────────┐
+│                    Laravel 11 Backend                       │
+│  - Controllers & Middleware (VerifyShopifyIdToken)          │
+│  - Logo Processing (Intervention Image / GD / SVG Sanitizer)│
+│  - App Proxy Controllers (HMAC-SHA256 Verification)        │
+│  - Subscription & Entitlement Services                      │
+└──────────────┬──────────────────────────────▲───────────────┘
+               │ App Proxy / Storefront API   │ Storefront Events
+┌──────────────▼──────────────────────────────┴───────────────┐
+│             Shopify Storefront (OS 2.0 Theme)               │
+│  - Floating Social Dock (Theme App Extension Block)         │
+│  - Inline Product Share (Liquid & Vanilla JS)               │
+│  - Wishlist App Proxy Client & Guest Storage                │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### 2. Run Magento commands
+- **Backend Framework:** [Laravel 11](https://laravel.com) running on **PHP 8.3**
+- **Authentication:** Shopify App Bridge Session Tokens (JWT via `firebase/php-jwt`) + HMAC-SHA256 Proxy Verification
+- **Storefront Extension:** Shopify Theme App Extension (Liquid, Vanilla JavaScript, CSS)
+- **Image Processing:** Intervention Image 4.x / GD / SVG Sanitizer for custom platform icons
+- **Database:** MySQL 8.0+ (Transactions, Indexed Analytics, Model Relations)
+- **Styling:** Shopify Polaris-inspired CSS design tokens & responsive components
 
-Open your terminal (SSH), go to your Magento root directory and run:
+---
+
+## 📋 Prerequisites
+
+Ensure your development environment meets the following specifications:
+
+| Component | Minimum Version | Recommended |
+| :-------- | :-------------- | :---------- |
+| **PHP** | 8.3.0 | 8.3+ with `gd`, `curl`, `mbstring`, `pdo_mysql`, `fileinfo` |
+| **Composer** | 2.5+ | Latest Composer 2.x |
+| **Node.js** | 18.x | 20.x LTS |
+| **NPM** | 9.x | 10.x |
+| **Database** | MySQL 8.0+ / MariaDB 10.5+ | MySQL 8.0+ |
+| **Shopify CLI** | 3.50+ | Latest Shopify CLI |
+
+---
+
+## 🚀 Installation & Setup
+
+### 1. Clone the Repository
 
 ```bash
-php bin/magento module:enable MyVendor_SocialShare
-php bin/magento setup:upgrade
-php bin/magento setup:di:compile
-php bin/magento setup:static-content:deploy -f
-php bin/magento cache:flush
+git clone https://github.com/webvire/social-share-shopify.git
+cd social-share-shopify
 ```
 
-> **Note:** If your store is in **Developer mode**, you can skip the `setup:di:compile` and `setup:static-content:deploy` steps.
+### 2. Install Dependencies
+
+```bash
+# Install PHP dependencies
+composer install
+
+# Install Frontend dependencies
+npm install
+```
+
+### 3. Configure Environment
+
+Copy `.env.example` to `.env` and update your settings:
+
+```bash
+cp .env.example .env
+php artisan key:generate
+```
+
+Configure your Shopify App Credentials in `.env`:
+
+```env
+APP_NAME=SocialVire
+APP_ENV=local
+APP_DEBUG=true
+APP_URL=https://your-tunnel-domain.com
+
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=socialnest
+DB_USERNAME=root
+DB_PASSWORD=
+
+# Shopify App Credentials (from Shopify Partners Dashboard)
+SHOPIFY_API_KEY=your_shopify_api_key
+SHOPIFY_API_SECRET=your_shopify_api_secret
+SHOPIFY_API_SCOPES=read_themes,write_content,write_online_store_pages,write_themes,read_app_proxy,write_app_proxy
+SHOPIFY_APP_URL=${APP_URL}
+SHOPIFY_REDIRECT_URI=${APP_URL}/shopify/callback
+SHOPIFY_APP_HANDLE=socialvire
+SHOPIFY_APP_PROXY_PREFIX=apps
+SHOPIFY_APP_PROXY_SUBPATH=socialnest
+```
+
+### 4. Database Setup & Storage Link
+
+Run the database migrations and create the public storage symlink for uploaded logos:
+
+```bash
+php artisan migrate
+php artisan storage:link
+```
+
+### 5. Build Assets
+
+```bash
+npm run build
+```
+
+### 6. Run the Application
+
+```bash
+# Start Laravel development server
+php artisan serve
+
+# Or run using Laravel Herd / Valet
+# App will be accessible at https://social-share-shopify.test
+```
 
 ---
 
-## 🎛️ Configuration
+## 🧩 Theme App Extension Setup
 
-1. Log in to your **Magento Admin Panel**.
-2. Go to **Stores → Configuration → General → SocialVire Settings**.
-3. Set your preferred options:
+SocialVire includes an official Online Store 2.0 **Theme App Extension** located in `extensions/socialnest-theme-ext`:
 
-| Setting                    | Options                                                            |
-| :------------------------- | :----------------------------------------------------------------- |
-| **Enable Module**          | Yes / No                                                           |
-| **Icon Shape**             | Circle / Square                                                    |
-| **Floating Position**      | Left / Right                                                       |
-| **Select Platforms**       | Multi-select. Hold `Ctrl` (Windows) or `Cmd` (Mac) to pick several |
-| **Show below Add to Cart** | Yes / No                                                           |
-| **Icon Size**              | Small / Medium / Large                                             |
-| **Hover Animation**        | Scale / Slide / Glow                                               |
-| **Show Close Button**      | Yes / No                                                           |
-
-4. Click **Save Config**. The cache clears automatically.
+1. **Deploy Theme Extension with Shopify CLI:**
+   ```bash
+   shopify app deploy
+   ```
+2. **Enable via Shopify Theme Editor:**
+   - Open your **Shopify Admin** → **Online Store** → **Themes** → **Customize**.
+   - Navigate to **App Embeds** on the left menu and toggle **SocialVire Floating Dock** to **Active**.
+   - To show product share buttons, navigate to the **Default Product** template, click **Add Block**, and select **SocialVire Inline Share**.
+   - Click **Save**.
 
 ---
 
-## 📊 Viewing Analytics
+## 📊 Analytics & Tracking
 
-### 1. Detailed logs
-
-- Go to **Admin Sidebar → Content → Social Share Analytics**.
-- The grid shows `Platform`, `Product Name`, `IP Address` and `Date/Time`.
-- Click **Export** to download the data as a CSV file.
-
-### 2. Dashboard chart
-
-- Open the **Admin Dashboard**.
-- Scroll down to the **Social Share Statistics** donut chart.
-- 💡 **Tip:** click **Reload Data** on the dashboard to see the latest statistics.
+- **Tracked Metrics:** Channels clicked, daily/monthly traffic counts, top products shared, and conversion click-throughs.
+- **Admin Access:** Navigate to **SocialVire App → Dashboard** in your Shopify Admin for visual charts and click distributions.
+- **Data Export:** Download detailed share logs via the **Export CSV** action on the Analytics screen.
 
 ---
 
-## 📄 Documentation
+## 🧪 Testing & Code Quality
 
-For detailed user guides, see the `docs/` folder in this repository or visit our website.
+Run tests and code formatting checks:
+
+```bash
+# Run PHPUnit test suite
+php artisan test --compact
+
+# Run Laravel Pint formatting
+vendor/bin/pint --dirty --format agent
+```
 
 ---
 
