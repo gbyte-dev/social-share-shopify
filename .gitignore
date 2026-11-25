@@ -58,3 +58,5 @@ shopify.app.toml_o
 shopify.app.toml_o2
 shopify.app.toml_o3
 /tests/*
+shopify.app.toml
+shopify.app.socialvire.toml

@@ -1,0 +1,37 @@
+# Dummy / Template configuration for GitHub — replace placeholder values before deploying
+
+client_id = "YOUR_SHOPIFY_CLIENT_ID"
+name = "Socialvire"
+handle = "socialvire-template"
+application_url = "https://your-app-domain.example.com"
+embedded = true
+
+[build]
+
+[access_scopes]
+scopes = "read_app_proxy,read_themes,write_app_proxy,write_content,write_online_store_pages,write_themes"
+
+[auth]
+redirect_urls = [
+  "https://your-app-domain.example.com/shopify/callback",
+  "https://your-app-domain.example.com/callback"
+]
+
+[webhooks]
+api_version = "2026-10"
+
+[[webhooks.subscriptions]]
+topics = ["app/uninstalled"]
+uri = "/shopify/webhooks"
+
+[[webhooks.subscriptions]]
+compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+uri = "/shopify/webhooks"
+
+[app_proxy]
+url = "https://your-app-domain.example.com/shopify/proxy"
+subpath = "socialnest"
+prefix = "apps"
+
+[pos]
+embedded = false
