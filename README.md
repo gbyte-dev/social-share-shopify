@@ -12,7 +12,7 @@ Drive viral store traffic and boost conversions. Elegant floating social docks, 
 [![MySQL](https://img.shields.io/badge/MySQL-8.0%2B-4479A1.svg?logo=mysql)](https://mysql.com)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
-[Features](#-features) · [Architecture](#-architecture--tech-stack) · [Prerequisites](#-prerequisites) · [Installation](#-installation--setup) · [Theme Extension](#-theme-app-extension-setup) · [Analytics](#-analytics--tracking) · [Support](#-support--customization)
+[Features](#-features) · [Architecture](#-architecture--tech-stack) · [Prerequisites](#-prerequisites) · [Complete Setup Guide](#-complete-step-by-step-setup-guide) · [Shopify TOML Configuration](#-shopify-app-toml-configuration-guide) · [Theme Extension](#-theme-app-extension-setup) · [Analytics](#-analytics--tracking) · [Support](#-support--customization)
 
 </div>
 
@@ -110,16 +110,19 @@ Ensure your development environment meets the following specifications:
 
 | Component | Minimum Version | Recommended |
 | :-------- | :-------------- | :---------- |
-| **PHP** | 8.3.0 | 8.3+ with `gd`, `curl`, `mbstring`, `pdo_mysql`, `fileinfo` |
+| **PHP** | 8.3.0 | 8.3+ with `gd`, `curl`, `mbstring`, `pdo_mysql`, `fileinfo`, `openssl` |
 | **Composer** | 2.5+ | Latest Composer 2.x |
 | **Node.js** | 18.x | 20.x LTS |
 | **NPM** | 9.x | 10.x |
 | **Database** | MySQL 8.0+ / MariaDB 10.5+ | MySQL 8.0+ |
-| **Shopify CLI** | 3.50+ | Latest Shopify CLI |
+| **Shopify CLI** | 3.50+ | Latest Shopify CLI (`npm install -g @shopify/cli`) |
+| **Tunneling Tool** | Cloudflare Tunnel / Ngrok | HTTPS tunnel supporting public webhook delivery |
 
 ---
 
-## 🚀 Installation & Setup
+## 🚀 Complete Step-by-Step Setup Guide
+
+Follow these steps in sequence to set up the project locally or on your production server.
 
 ### 1. Clone the Repository
 
@@ -128,74 +131,225 @@ git clone https://github.com/webvire/social-share-shopify.git
 cd social-share-shopify
 ```
 
-### 2. Install Dependencies
+### 2. Install PHP and Frontend Dependencies
 
 ```bash
-# Install PHP dependencies
+# Install PHP dependencies via Composer
 composer install
 
-# Install Frontend dependencies
+# Install frontend JavaScript/CSS dependencies
 npm install
 ```
 
-### 3. Configure Environment
+---
 
-Copy `.env.example` to `.env` and update your settings:
+### 3. Environment Setup (`.env`)
+
+Duplicate the template `.env.example` file to create your active `.env`:
 
 ```bash
+# macOS / Linux / Git Bash
 cp .env.example .env
+
+# Windows PowerShell
+Copy-Item .env.example .env
+
+# Windows Command Prompt (CMD)
+copy .env.example .env
+```
+
+Generate the Laravel application encryption key:
+
+```bash
 php artisan key:generate
 ```
 
-Configure your Shopify App Credentials in `.env`:
+Open `.env` and fill in your database, application, and Shopify credentials:
 
 ```env
 APP_NAME=SocialVire
 APP_ENV=local
+APP_KEY=base64:YOUR_GENERATED_APP_KEY
 APP_DEBUG=true
-APP_URL=https://your-tunnel-domain.com
+APP_URL=https://your-public-tunnel-or-domain.com
 
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
-DB_DATABASE=socialnest
-DB_USERNAME=root
-DB_PASSWORD=
+DB_DATABASE=your_database_name
+DB_USERNAME=your_database_username
+DB_PASSWORD=your_database_password
 
+# ========================================================
 # Shopify App Credentials (from Shopify Partners Dashboard)
-SHOPIFY_API_KEY=your_shopify_api_key
-SHOPIFY_API_SECRET=your_shopify_api_secret
+# ========================================================
+# Found under: Partner Dashboard -> Apps -> Your App -> API credentials
+SHOPIFY_API_KEY=your_shopify_client_id_here
+SHOPIFY_API_SECRET=your_shopify_client_secret_here
+
+# Access scopes requested during store installation
 SHOPIFY_API_SCOPES=read_themes,write_content,write_online_store_pages,write_themes,read_app_proxy,write_app_proxy
+
+# App and Redirect URLs
 SHOPIFY_APP_URL=${APP_URL}
 SHOPIFY_REDIRECT_URI=${APP_URL}/shopify/callback
 SHOPIFY_APP_HANDLE=socialvire
+
+# App Proxy Routing Settings (Matches Shopify App Proxy config)
 SHOPIFY_APP_PROXY_PREFIX=apps
 SHOPIFY_APP_PROXY_SUBPATH=socialnest
 ```
 
-### 4. Database Setup & Storage Link
+> ⚠️ **Important Security Practice**: Never commit your real `.env` file containing live API keys, database credentials, or production secrets to Git.
 
-Run the database migrations and create the public storage symlink for uploaded logos:
+---
+
+### 4. Database Migrations & Public Storage Symlink
+
+Run the database schema migrations:
 
 ```bash
 php artisan migrate
+```
+
+Create the symbolic link from `public/storage` to `storage/app/public`. **This is mandatory** so custom platform icons and uploaded logos can be served publicly to storefronts and admin views:
+
+```bash
 php artisan storage:link
 ```
 
-### 5. Build Assets
+---
 
-```bash
-npm run build
+## 🛠️ Shopify App TOML Configuration Guide
+
+Shopify CLI uses TOML files in the project root to manage app credentials, URLs, scopes, webhooks, and App Proxy paths.
+
+This repository includes two template files:
+1. `shopify.app.example.toml` — Standard template with all required Shopify configurations.
+2. `shopify.app.socialvire.example.toml` — Pre-configured template with SocialVire specific dev settings.
+
+### Step 1: Copy the Template TOML File
+
+Create your active `shopify.app.toml` by copying from one of the template files according to your shell / OS environment:
+
+#### 💻 Windows PowerShell (Recommended for Windows):
+```powershell
+# Option A: Standard template
+Copy-Item shopify.app.example.toml shopify.app.toml
+
+# Option B: SocialVire specific template
+Copy-Item shopify.app.socialvire.example.toml shopify.app.toml
 ```
 
-### 6. Run the Application
+#### 🖥️ Windows Command Prompt (CMD):
+```cmd
+# Option A: Standard template
+copy shopify.app.example.toml shopify.app.toml
+
+# Option B: SocialVire specific template
+copy shopify.app.socialvire.example.toml shopify.app.toml
+```
+
+#### 🐧 macOS / Linux / Git Bash:
+```bash
+# Option A: Standard template
+cp shopify.app.example.toml shopify.app.toml
+
+# Option B: SocialVire specific template
+cp shopify.app.socialvire.example.toml shopify.app.toml
+```
+
+### Step 2: Edit `shopify.app.toml`
+
+Open `shopify.app.toml` and substitute the placeholder values with your actual app details:
+
+```toml
+# ==============================================================================
+# Shopify CLI App Configuration File
+# Learn more: https://shopify.dev/docs/apps/tools/cli/configuration
+# ==============================================================================
+
+# Your Client ID (API Key) from Shopify Partner Dashboard -> App -> API Credentials
+client_id = "YOUR_SHOPIFY_CLIENT_ID"
+
+# Public application name displayed to merchants
+name = "Socialvire"
+
+# Unique handle for your app
+handle = "socialvire"
+
+# The HTTPS URL where your app is hosted (e.g. Cloudflare tunnel, ngrok, or production domain)
+application_url = "https://your-public-tunnel-or-domain.com"
+
+# Set to true so the app opens directly inside the Shopify Admin via App Bridge
+embedded = true
+
+[build]
+# Set to true during local development to automatically sync URLs when the tunnel changes
+automatically_update_urls_on_dev = true
+dev_store_url = "your-dev-store.myshopify.com"
+
+[access_scopes]
+# Required permissions for theme blocks, app proxy, and online store content
+scopes = "read_app_proxy,read_themes,write_app_proxy,write_content,write_online_store_pages,write_themes"
+use_legacy_install_flow = false
+
+[auth]
+# Permitted OAuth callback URLs
+redirect_urls = [
+  "https://your-public-tunnel-or-domain.com/shopify/callback",
+  "https://your-public-tunnel-or-domain.com/callback"
+]
+
+[webhooks]
+api_version = "2026-10"
+
+# Lifecycle Webhook (tracks when a merchant uninstalls the app)
+[[webhooks.subscriptions]]
+topics = ["app/uninstalled"]
+uri = "/shopify/webhooks"
+
+# Mandatory Shopify GDPR / Privacy Webhooks
+[[webhooks.subscriptions]]
+compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+uri = "/shopify/webhooks"
+
+# App Proxy configuration for Wishlist and Storefront APIs
+[app_proxy]
+url = "https://your-public-tunnel-or-domain.com/shopify/proxy"
+subpath = "socialnest"
+prefix = "apps"
+
+[pos]
+embedded = false
+```
+
+### Step 3: Push Configuration to Shopify
+
+Once your `shopify.app.toml` is filled in, push the configuration to your Shopify Partners app using the Shopify CLI:
 
 ```bash
-# Start Laravel development server
-php artisan serve
+shopify app config push
+```
 
-# Or run using Laravel Herd / Valet
-# App will be accessible at https://social-share-shopify.test
+> 🔒 **Security Notice**: Make sure `shopify.app.toml` containing your personal or staging credentials is kept safe and excluded from public repositories via `.gitignore`. Always use `.example.toml` templates with dummy values for public commits.
+
+---
+
+### 5. Compile Assets & Run the Application
+
+```bash
+# Build frontend assets using Vite
+npm run build
+
+# Start the Laravel application server
+php artisan serve
+```
+
+If developing locally using **Shopify CLI** and a live dev store:
+
+```bash
+shopify app dev
 ```
 
 ---
@@ -204,15 +358,29 @@ php artisan serve
 
 SocialVire includes an official Online Store 2.0 **Theme App Extension** located in `extensions/socialnest-theme-ext`:
 
-1. **Deploy Theme Extension with Shopify CLI:**
-   ```bash
-   shopify app deploy
-   ```
-2. **Enable via Shopify Theme Editor:**
-   - Open your **Shopify Admin** → **Online Store** → **Themes** → **Customize**.
-   - Navigate to **App Embeds** on the left menu and toggle **SocialVire Floating Dock** to **Active**.
-   - To show product share buttons, navigate to the **Default Product** template, click **Add Block**, and select **SocialVire Inline Share**.
-   - Click **Save**.
+### 1. Deploy Theme Extension
+
+Push the Theme App Extension to your Shopify App:
+
+```bash
+shopify app deploy
+```
+
+### 2. Enable App Blocks in Shopify Theme Editor
+
+1. Open your **Shopify Admin** → **Online Store** → **Themes** → **Customize**.
+2. **Enable Floating Dock:**
+   - On the left toolbar, click on **App Embeds** (icon with blocks).
+   - Locate **SocialVire Floating Dock** and switch the toggle to **Active**.
+   - Customize position (Left/Right/Bottom), icon size, and animations in the settings panel.
+3. **Add Inline Product Share Buttons:**
+   - In the theme editor top dropdown, navigate to **Products** → **Default product**.
+   - In the left sidebar under the **Product information** section, click **Add block**.
+   - Select **SocialVire Inline Share**. Drag it directly below the "Buy buttons" or "Description".
+4. **Add Wishlist Page Block (Optional):**
+   - Create or open a dedicated Page (e.g. `/pages/wishlist`).
+   - Add the **SocialVire Wishlist Page** block.
+5. Click **Save** in the top right corner.
 
 ---
 
